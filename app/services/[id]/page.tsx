@@ -1,0 +1,226 @@
+'use client'
+
+import { useEffect, useState, use, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import ServiceSongList from '@/components/ServiceSongList'
+import { ServiceSong, Song } from '@/lib/types'
+import Link from 'next/link'
+
+interface ServiceDetail {
+  id: string
+  date: string
+  notes: string | null
+  service_type?: { name: string }
+  worship_leader?: { name: string }
+  service_songs: ServiceSong[]
+}
+
+export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const router = useRouter()
+  const [service, setService] = useState<ServiceDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [songSearch, setSongSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<Song[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [addingStatus, setAddingStatus] = useState<'planned' | 'sung' | null>(null)
+
+  const fetchService = useCallback(async () => {
+    const res = await fetch(`/api/services/${id}`)
+    const data = await res.json()
+    setService(data)
+    setLoading(false)
+  }, [id])
+
+  useEffect(() => {
+    fetchService()
+  }, [fetchService])
+
+  // Wyszukiwanie pieśni do dodania
+  useEffect(() => {
+    if (!songSearch.trim()) {
+      setSearchResults([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setSearchLoading(true)
+      const res = await fetch(`/api/songs?search=${encodeURIComponent(songSearch)}`)
+      const data = await res.json()
+      setSearchResults(data.slice(0, 8))
+      setSearchLoading(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [songSearch])
+
+  const addSong = async (songId: string, status: 'planned' | 'sung') => {
+    setAddingStatus(status)
+    await fetch('/api/service-songs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id: id, song_id: songId, status }),
+    })
+    setSongSearch('')
+    setSearchResults([])
+    await fetchService()
+    setAddingStatus(null)
+  }
+
+  const confirmSong = async (serviceSongId: string) => {
+    // Policz ile jest już zaśpiewanych, aby nadać kolejność
+    const sungCount = service?.service_songs.filter((ss) => ss.status === 'sung').length || 0
+    await fetch(`/api/service-songs/${serviceSongId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'sung', song_order: sungCount + 1 }),
+    })
+    await fetchService()
+  }
+
+  const deleteSong = async (serviceSongId: string) => {
+    await fetch(`/api/service-songs/${serviceSongId}`, { method: 'DELETE' })
+    await fetchService()
+  }
+
+  if (loading) return <div className="text-center py-20 text-gray-400">Ładowanie...</div>
+  if (!service) return <div className="text-center py-20 text-gray-400">Nie znaleziono nabożeństwa</div>
+
+  const plannedSongs = service.service_songs.filter((ss) => ss.status === 'planned')
+  const sungSongs = service.service_songs
+    .filter((ss) => ss.status === 'sung')
+    .sort((a, b) => (a.song_order || 0) - (b.song_order || 0))
+
+  // ID już dodanych pieśni (żeby nie dublować)
+  const addedSongIds = new Set(service.service_songs.map((ss) => ss.song_id))
+
+  return (
+    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
+      <Link href="/services" className="text-sm text-blue-900 mb-3 inline-block">← Nabożeństwa</Link>
+
+      {/* Nagłówek */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-5">
+        <h1 className="font-bold text-gray-900 text-lg">
+          {new Date(service.date).toLocaleDateString('pl-PL', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+          })}
+        </h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {service.service_type?.name || '—'}
+          {service.worship_leader?.name && (
+            <span className="ml-2 text-gray-400">· {service.worship_leader.name}</span>
+          )}
+        </p>
+        {service.notes && (
+          <p className="text-sm text-gray-600 mt-2 italic">{service.notes}</p>
+        )}
+      </div>
+
+      {/* Dodawanie pieśni */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-5">
+        <p className="text-sm font-semibold text-gray-700 mb-2">Dodaj pieśń</p>
+        <div className="relative">
+          <input
+            type="search"
+            placeholder="Szukaj po tytule lub numerze..."
+            value={songSearch}
+            onChange={(e) => setSongSearch(e.target.value)}
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900"
+          />
+          {searchLoading && (
+            <span className="absolute right-4 top-3 text-gray-400 text-sm">...</span>
+          )}
+        </div>
+
+        {/* Wyniki wyszukiwania */}
+        {searchResults.length > 0 && (
+          <ul className="mt-2 border border-gray-100 rounded-xl overflow-hidden">
+            {searchResults.map((song) => {
+              const alreadyAdded = addedSongIds.has(song.id)
+              const collectionLabel = song.collection
+                ? `${song.collection.short_name} ${song.number}`
+                : `#${song.number}`
+              return (
+                <li key={song.id} className="border-b border-gray-50 last:border-0">
+                  <div className="flex items-center gap-2 px-3 py-2.5">
+                    <span className="text-xs font-bold text-gray-400 shrink-0">{collectionLabel}</span>
+                    <span className="flex-1 text-sm text-gray-900 line-clamp-1">{song.title}</span>
+                    {alreadyAdded ? (
+                      <span className="text-xs text-gray-400 shrink-0">już dodana</span>
+                    ) : (
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          onClick={() => addSong(song.id, 'planned')}
+                          disabled={!!addingStatus}
+                          className="text-xs bg-gray-100 text-gray-600 rounded-lg px-2 py-1.5 hover:bg-gray-200 min-h-[36px]"
+                          title="Zaplanuj"
+                        >
+                          📋
+                        </button>
+                        <button
+                          onClick={() => addSong(song.id, 'sung')}
+                          disabled={!!addingStatus}
+                          className="text-xs bg-blue-900 text-white rounded-lg px-2 py-1.5 hover:bg-blue-800 min-h-[36px]"
+                          title="Zaśpiewana"
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {/* Szukaj po tagach */}
+        <Link
+          href={`/search?service_id=${id}`}
+          className="mt-3 w-full flex items-center justify-center gap-2 border border-blue-900 text-blue-900 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-50"
+        >
+          🔖 Szukaj po tagach
+        </Link>
+      </div>
+
+      {/* Sekcja A: Zaplanowane */}
+      <div className="mb-5">
+        <h2 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>
+          Zaplanowane ({plannedSongs.length})
+        </h2>
+        <ServiceSongList
+          songs={plannedSongs}
+          status="planned"
+          onConfirm={confirmSong}
+          onDelete={deleteSong}
+        />
+      </div>
+
+      {/* Sekcja B: Zaśpiewane */}
+      <div>
+        <h2 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+          Zaśpiewane ({sungSongs.length})
+        </h2>
+        <ServiceSongList
+          songs={sungSongs}
+          status="sung"
+          onDelete={deleteSong}
+        />
+      </div>
+
+      {/* Usuń nabożeństwo */}
+      <div className="mt-8 pt-4 border-t border-gray-100 text-center">
+        <button
+          onClick={async () => {
+            if (!confirm('Na pewno usunąć to nabożeństwo?')) return
+            await fetch(`/api/services/${id}`, { method: 'DELETE' })
+            router.push('/services')
+          }}
+          className="text-sm text-red-400 hover:text-red-600"
+        >
+          Usuń nabożeństwo
+        </button>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,219 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+
+// Generyczny komponent do zarządzania słownikiem
+function DictionarySection<T extends { id: string; name: string }>({
+  title,
+  endpoint,
+  extraFields,
+}: {
+  title: string
+  endpoint: string
+  extraFields?: {
+    key: string
+    label: string
+    type?: string
+    optionsEndpoint?: string
+  }[]
+}) {
+  const [items, setItems] = useState<T[]>([])
+  const [editId, setEditId] = useState<string | null>(null)
+  const [formData, setFormData] = useState<Record<string, string>>({})
+  const [adding, setAdding] = useState(false)
+  const [options, setOptions] = useState<Record<string, { id: string; name: string }[]>>({})
+
+  const fetchItems = useCallback(async () => {
+    const res = await fetch(`/api/${endpoint}`)
+    const data = await res.json()
+    setItems(data)
+  }, [endpoint])
+
+  useEffect(() => {
+    fetchItems()
+    // Pobierz opcje dla pól select
+    extraFields?.forEach(async (field) => {
+      if (field.optionsEndpoint) {
+        const res = await fetch(`/api/${field.optionsEndpoint}`)
+        const data = await res.json()
+        setOptions((prev) => ({ ...prev, [field.key]: data }))
+      }
+    })
+  }, [fetchItems, extraFields])
+
+  const resetForm = () => {
+    setFormData({})
+    setEditId(null)
+    setAdding(false)
+  }
+
+  const handleSave = async () => {
+    if (!formData.name?.trim()) return
+    if (editId) {
+      await fetch(`/api/${endpoint}/${editId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+    } else {
+      await fetch(`/api/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+    }
+    resetForm()
+    fetchItems()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Na pewno usunąć?')) return
+    await fetch(`/api/${endpoint}/${id}`, { method: 'DELETE' })
+    fetchItems()
+  }
+
+  const startEdit = (item: T & Record<string, string>) => {
+    setEditId(item.id)
+    const data: Record<string, string> = { name: item.name }
+    extraFields?.forEach((f) => { if (item[f.key]) data[f.key] = item[f.key] })
+    setFormData(data)
+    setAdding(false)
+  }
+
+  const isEditing = editId !== null || adding
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-semibold text-gray-800">{title}</h2>
+        {!isEditing && (
+          <button
+            onClick={() => { setAdding(true); setFormData({}) }}
+            className="text-sm bg-blue-900 text-white rounded-lg px-3 py-1.5 hover:bg-blue-800"
+          >
+            ＋ Dodaj
+          </button>
+        )}
+      </div>
+
+      {/* Formularz dodawania/edycji */}
+      {isEditing && (
+        <div className="mb-3 p-3 bg-gray-50 rounded-xl space-y-2">
+          <input
+            type="text"
+            placeholder="Nazwa"
+            value={formData.name || ''}
+            onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900"
+            autoFocus
+          />
+          {extraFields?.map((field) => (
+            field.optionsEndpoint ? (
+              <select
+                key={field.key}
+                value={formData[field.key] || ''}
+                onChange={(e) => setFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
+              >
+                <option value="">— {field.label} —</option>
+                {(options[field.key] || []).map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.name}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                key={field.key}
+                type={field.type || 'text'}
+                placeholder={field.label}
+                value={formData[field.key] || ''}
+                onChange={(e) => setFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900"
+              />
+            )
+          ))}
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              className="flex-1 bg-blue-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-800"
+            >
+              Zapisz
+            </button>
+            <button
+              onClick={resetForm}
+              className="flex-1 bg-gray-100 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-200"
+            >
+              Anuluj
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lista */}
+      {items.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-3">Brak wpisów</p>
+      ) : (
+        <ul className="divide-y divide-gray-50">
+          {items.map((item: T & Record<string, string>) => (
+            <li key={item.id} className="flex items-center justify-between py-2.5 gap-2">
+              <div className="flex-1 min-w-0">
+                <span className="text-sm text-gray-900 font-medium">{item.name}</span>
+                {extraFields?.map((f) => {
+                  if (!item[f.key]) return null
+                  // Jeśli to pole select, pokaż nazwę z opcji
+                  if (f.optionsEndpoint) {
+                    const opt = (options[f.key] || []).find((o) => o.id === item[f.key])
+                    return opt ? (
+                      <span key={f.key} className="text-xs text-gray-400 ml-2">({opt.name})</span>
+                    ) : null
+                  }
+                  return (
+                    <span key={f.key} className="text-xs text-gray-400 ml-2">· {item[f.key]}</span>
+                  )
+                })}
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button
+                  onClick={() => startEdit(item)}
+                  className="text-xs text-gray-400 hover:text-blue-900 px-2 py-1.5 min-h-[36px]"
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="text-xs text-gray-400 hover:text-red-500 px-2 py-1.5 min-h-[36px]"
+                >
+                  🗑️
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
+      <h1 className="text-xl font-bold text-blue-900 mb-6">Ustawienia</h1>
+
+      <DictionarySection title="Typy nabożeństw" endpoint="service-types" />
+      <DictionarySection title="Liderzy muzyki" endpoint="worship-leaders" />
+      <DictionarySection
+        title="Zbiory pieśni"
+        endpoint="collections"
+        extraFields={[{ key: 'short_name', label: 'Skrót (np. SE)' }]}
+      />
+      <DictionarySection title="Kategorie tagów" endpoint="tag-categories" />
+      <DictionarySection
+        title="Tagi"
+        endpoint="tags"
+        extraFields={[
+          { key: 'category_id', label: 'Kategoria', optionsEndpoint: 'tag-categories' },
+          { key: 'description', label: 'Opis (opcjonalnie)' },
+        ]}
+      />
+    </div>
+  )
+}
