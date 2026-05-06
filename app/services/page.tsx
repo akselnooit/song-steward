@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 export const revalidate = 0
@@ -18,8 +19,19 @@ async function getServices() {
   return data || []
 }
 
-export default async function ServicesPage() {
+export default async function ServicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ all?: string }>
+}) {
+  const { all } = await searchParams
   const services = await getServices()
+
+  if (!all) {
+    const today = new Date().toISOString().slice(0, 10)
+    const todayService = services.find((s) => s.date === today)
+    if (todayService) redirect(`/services/${todayService.id}`)
+  }
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">

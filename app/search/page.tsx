@@ -9,15 +9,55 @@ import { Song, Tag, TagCategory } from '@/lib/types'
 function SearchContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const serviceId = searchParams.get('service_id') || ''
+  const serviceIdParam = searchParams.get('service_id') || ''
 
+  const [serviceId, setServiceId] = useState(serviceIdParam)
+  const [serviceName, setServiceName] = useState<string | null>(null)
+  // songId → status już w nabożeństwie (z serwera) lub dodany w tej sesji
+  const [serviceStatusMap, setServiceStatusMap] = useState<Record<string, 'planned' | 'sung'>>({})
   const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
   const [categories, setCategories] = useState<TagCategory[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [excludedTagIds, setExcludedTagIds] = useState<string[]>([])
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(false)
   const [addingId, setAddingId] = useState<string | null>(null)
-  const [addedAs, setAddedAs] = useState<Record<string, 'planned' | 'sung'>>({})
+
+  // Pobierz aktywne nabożeństwo jeśli brak service_id w URL
+  useEffect(() => {
+    if (serviceIdParam) return
+    fetch('/api/services?active=1')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.id) {
+          setServiceId(data.id)
+          const typeName = data.service_type?.name || ''
+          const dateStr = new Date(data.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
+          setServiceName(`${dateStr}${typeName ? ` – ${typeName}` : ''}`)
+        }
+      })
+      .catch(() => {})
+  }, [serviceIdParam])
+
+  // Pobierz pieśni już w nabożeństwie gdy serviceId jest znany
+  useEffect(() => {
+    if (!serviceId) return
+    fetch(`/api/services/${serviceId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const map: Record<string, 'planned' | 'sung'> = {}
+        for (const ss of data?.service_songs || []) {
+          map[ss.song_id] = ss.status
+        }
+        setServiceStatusMap(map)
+        if (!serviceName && data?.date) {
+          const typeName = data.service_type?.name || ''
+          const dateStr = new Date(data.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
+          setServiceName(`${dateStr}${typeName ? ` – ${typeName}` : ''}`)
+        }
+      })
+      .catch(() => {})
+  }, [serviceId])
 
   useEffect(() => {
     Promise.all([
@@ -44,7 +84,15 @@ function SearchContent() {
   }, [fetchSongs])
 
   const toggleTag = (tagId: string) => {
+    setExcludedTagIds((prev) => prev.filter((id) => id !== tagId))
     setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    )
+  }
+
+  const toggleExclude = (tagId: string) => {
+    setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))
+    setExcludedTagIds((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     )
   }
@@ -55,8 +103,14 @@ function SearchContent() {
     )
   )
   const displayTags = allTags.filter(
-    (t) => selectedTagIds.includes(t.id) || availableTagIds.has(t.id)
+    (t) => selectedTagIds.includes(t.id) || excludedTagIds.includes(t.id) || availableTagIds.has(t.id)
   )
+
+  const visibleSongs = songs.filter((song) => {
+    if (excludedTagIds.length === 0) return true
+    const songTagIds = (song as Song & { song_tags?: { tag_id: string }[] }).song_tags?.map((st) => st.tag_id) || []
+    return !excludedTagIds.some((excId) => songTagIds.includes(excId))
+  })
 
   const addToService = async (song: Song, status: 'planned' | 'sung') => {
     if (!serviceId || addingId) return
@@ -66,16 +120,18 @@ function SearchContent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ service_id: serviceId, song_id: song.id, status }),
     })
-    setAddedAs((prev) => ({ ...prev, [song.id]: status }))
+    setServiceStatusMap((prev) => ({ ...prev, [song.id]: status }))
     setAddingId(null)
   }
+
+  const hasFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-blue-900">Szukaj po tagach</h1>
-        {serviceId && (
-          <button onClick={() => router.push(`/services/${serviceId}`)} className="text-sm text-blue-900 underline">
+        {serviceIdParam && (
+          <button onClick={() => router.push(`/services/${serviceIdParam}`)} className="text-sm text-blue-900 underline">
             ← Nabożeństwo
           </button>
         )}
@@ -85,40 +141,79 @@ function SearchContent() {
         <TagFilter
           availableTags={displayTags}
           selectedTagIds={selectedTagIds}
+          excludedTagIds={excludedTagIds}
           onToggleTag={toggleTag}
-          onClear={() => setSelectedTagIds([])}
+          onToggleExclude={toggleExclude}
+          onClear={() => { setSelectedTagIds([]); setExcludedTagIds([]) }}
           categories={categories}
         />
       </div>
 
+      {serviceId && serviceName && (
+        <div className="mb-3 px-3 py-2 bg-blue-50 rounded-xl text-sm text-blue-800">
+          Dodajesz do: <span className="font-semibold">{serviceName}</span>
+        </div>
+      )}
+
       <div className="mb-2 text-sm text-gray-500">
-        {loading ? 'Ładowanie...' : `Znaleziono ${songs.length} pieśni`}
+        {!loading && `Znaleziono ${visibleSongs.length} pieśni`}
       </div>
 
-      {!loading && songs.length === 0 && selectedTagIds.length > 0 && (
-        <p className="text-center text-gray-400 py-8">Brak pieśni spełniających wszystkie filtry</p>
+      {!loading && visibleSongs.length === 0 && hasFilters && (
+        <p className="text-center text-gray-400 py-8">Brak pieśni spełniających filtry</p>
       )}
-      {!loading && songs.length === 0 && selectedTagIds.length === 0 && (
+      {!loading && visibleSongs.length === 0 && !hasFilters && (
         <p className="text-center text-gray-400 py-8">Wybierz tagi, aby zobaczyć pieśni</p>
       )}
 
-      <div className="space-y-2">
-        {songs.map((song) => {
-          const added = addedAs[song.id]
+      {loading && (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-gray-100 bg-white p-3 flex flex-col gap-2 animate-pulse">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-16 h-5 bg-gray-200 rounded-md" />
+                  <div className="w-20 h-3 bg-gray-100 rounded-full" />
+                </div>
+                {serviceId && (
+                  <div className="flex gap-1">
+                    <div className="w-9 h-9 bg-gray-100 rounded-lg" />
+                    <div className="w-9 h-9 bg-gray-200 rounded-lg" />
+                  </div>
+                )}
+              </div>
+              <div className={`h-4 bg-gray-200 rounded-full ${i % 3 === 0 ? 'w-3/4' : i % 3 === 1 ? 'w-full' : 'w-2/3'}`} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={`space-y-2 ${loading ? 'hidden' : ''}`}>
+        {visibleSongs.map((song) => {
+          const existingStatus = serviceStatusMap[song.id]
+          // Zaplanowana: blokuj oba przyciski (dodaj przez widok nabożeństwa)
+          // Zaśpiewana: blokuj 🔖, pozwól ✅ (można zaśpiewać ponownie)
+          const actions = serviceId
+            ? [
+                {
+                  label: '🔖',
+                  onClick: (s: Song) => addToService(s, 'planned'),
+                  variant: 'secondary' as const,
+                  disabled: existingStatus === 'planned',
+                },
+                {
+                  label: '✅',
+                  onClick: (s: Song) => addToService(s, 'sung'),
+                },
+              ]
+            : undefined
+
           return (
             <SongCard
               key={song.id}
               song={song}
-              actions={
-                serviceId
-                  ? added
-                    ? [{ label: added === 'planned' ? '🔖' : '✅', onClick: () => {}, variant: 'secondary' }]
-                    : [
-                        { label: '🔖', onClick: (s) => addToService(s, 'planned'), variant: 'secondary' },
-                        { label: '✅', onClick: (s) => addToService(s, 'sung') },
-                      ]
-                  : undefined
-              }
+              statusBadge={existingStatus}
+              actions={actions}
             />
           )
         })}

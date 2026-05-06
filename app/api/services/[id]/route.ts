@@ -15,7 +15,7 @@ export async function GET(
       service_type:service_types(id, name),
       worship_leader:worship_leaders(id, name),
       service_songs(
-        id, status, song_order, added_at,
+        id, song_id, status, song_order, added_at,
         song:songs(id, number, title, author, collection:collections(short_name))
       )
     `)

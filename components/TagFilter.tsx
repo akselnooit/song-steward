@@ -1,13 +1,14 @@
 'use client'
 
+import { useRef } from 'react'
 import { Tag, TagCategory } from '@/lib/types'
 
 interface Props {
-  // Wszystkie tagi dostępne do wyboru (już przefiltrowane do aktualnych wyników)
   availableTags: Tag[]
-  // Aktywne tagi (wybrane przez użytkownika)
   selectedTagIds: string[]
+  excludedTagIds: string[]
   onToggleTag: (tagId: string) => void
+  onToggleExclude: (tagId: string) => void
   onClear: () => void
   categories: TagCategory[]
 }
@@ -15,26 +16,78 @@ interface Props {
 export default function TagFilter({
   availableTags,
   selectedTagIds,
+  excludedTagIds,
   onToggleTag,
+  onToggleExclude,
   onClear,
   categories,
 }: Props) {
-  // Grupuj tagi wg kategorii
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
+
+  const handlePressStart = (tagId: string) => {
+    didLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      onToggleExclude(tagId)
+    }, 500)
+  }
+
+  const handlePressEnd = (tagId: string, e: React.MouseEvent | React.TouchEvent) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    if (didLongPress.current) {
+      e.preventDefault()
+      return
+    }
+    onToggleTag(tagId)
+  }
+
+  const handlePressCancel = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+  }
+
   const tagsByCategory = categories.reduce<Record<string, Tag[]>>((acc, cat) => {
     const tags = availableTags.filter((t) => t.category_id === cat.id)
     if (tags.length > 0) acc[cat.id] = tags
     return acc
   }, {})
 
-  // Tagi bez kategorii
   const uncategorized = availableTags.filter((t) => !t.category_id)
+  const hasAnyTags = availableTags.length > 0 || selectedTagIds.length > 0 || excludedTagIds.length > 0
 
-  const hasAnyTags = availableTags.length > 0 || selectedTagIds.length > 0
+  const renderTag = (tag: Tag) => {
+    const isSelected = selectedTagIds.includes(tag.id)
+    const isExcluded = excludedTagIds.includes(tag.id)
+
+    let className = 'rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors select-none '
+    if (isExcluded) {
+      className += 'bg-red-100 text-red-600 line-through'
+    } else if (isSelected) {
+      className += 'bg-blue-900 text-white'
+    } else {
+      className += 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+    }
+
+    return (
+      <button
+        key={tag.id}
+        className={className}
+        onMouseDown={() => handlePressStart(tag.id)}
+        onMouseUp={(e) => handlePressEnd(tag.id, e)}
+        onMouseLeave={handlePressCancel}
+        onTouchStart={() => handlePressStart(tag.id)}
+        onTouchEnd={(e) => handlePressEnd(tag.id, e)}
+        onTouchCancel={handlePressCancel}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {isExcluded ? `✕ ${tag.name}` : tag.name}
+      </button>
+    )
+  }
 
   return (
     <div className="space-y-3">
-      {/* Aktywne tagi (zawsze widoczne, żeby można było je usunąć) */}
-      {selectedTagIds.length > 0 && (
+      {(selectedTagIds.length > 0 || excludedTagIds.length > 0) && (
         <div className="flex flex-wrap gap-2 p-3 bg-blue-50 rounded-xl">
           <span className="text-xs text-blue-700 font-semibold self-center mr-1">Filtry:</span>
           {selectedTagIds.map((tagId) => {
@@ -49,6 +102,18 @@ export default function TagFilter({
               </button>
             )
           })}
+          {excludedTagIds.map((tagId) => {
+            const tag = availableTags.find((t) => t.id === tagId) || { id: tagId, name: tagId, category_id: null, description: null, created_at: '' }
+            return (
+              <button
+                key={`excl-${tagId}`}
+                onClick={() => onToggleExclude(tagId)}
+                className="bg-red-100 text-red-600 rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1 line-through"
+              >
+                {tag.name} <span className="opacity-70">✕</span>
+              </button>
+            )
+          })}
           <button
             onClick={onClear}
             className="text-blue-700 text-sm underline self-center ml-auto"
@@ -58,7 +123,6 @@ export default function TagFilter({
         </div>
       )}
 
-      {/* Dostępne tagi pogrupowane wg kategorii */}
       {!hasAnyTags && (
         <p className="text-gray-400 text-sm text-center py-4">Brak tagów do wyświetlenia</p>
       )}
@@ -72,22 +136,7 @@ export default function TagFilter({
               {cat.name}
             </p>
             <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => {
-                const isActive = selectedTagIds.includes(tag.id)
-                return (
-                  <button
-                    key={tag.id}
-                    onClick={() => onToggleTag(tag.id)}
-                    className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors ${
-                      isActive
-                        ? 'bg-blue-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {tag.name}
-                  </button>
-                )
-              })}
+              {tags.map(renderTag)}
             </div>
           </div>
         )
@@ -97,25 +146,12 @@ export default function TagFilter({
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Inne</p>
           <div className="flex flex-wrap gap-2">
-            {uncategorized.map((tag) => {
-              const isActive = selectedTagIds.includes(tag.id)
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => onToggleTag(tag.id)}
-                  className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors ${
-                    isActive
-                      ? 'bg-blue-900 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {tag.name}
-                </button>
-              )
-            })}
+            {uncategorized.map(renderTag)}
           </div>
         </div>
       )}
+
+      <p className="text-xs text-gray-400 text-center pt-1">Przytrzymaj tag, aby go wykluczyć</p>
     </div>
   )
 }

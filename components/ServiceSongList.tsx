@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { ServiceSong } from '@/lib/types'
 
 interface Props {
@@ -14,7 +15,48 @@ interface Props {
 export default function ServiceSongList({ songs, status, onConfirm, onDelete, onReorder }: Props) {
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
-  const dragStatus = useRef<string | null>(null)
+
+  const listRef = useRef<HTMLUListElement>(null)
+  const dragStatusRef = useRef<string | null>(null)
+
+  // Touch drag state — ref so event listener always sees current values
+  const touchRef = useRef({ active: false, draggedId: null as string | null, startX: 0, startY: 0, overId: null as string | null })
+  const songsRef = useRef(songs)
+  songsRef.current = songs
+  const onReorderRef = useRef(onReorder)
+  onReorderRef.current = onReorder
+
+  // Non-passive touchmove on the list so we can preventDefault (blocks page scroll while dragging)
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+
+    const onTouchMove = (e: TouchEvent) => {
+      const tr = touchRef.current
+      if (!tr.draggedId) return
+
+      const touch = e.touches[0]
+      const dy = Math.abs(touch.clientY - tr.startY)
+      const dx = Math.abs(touch.clientX - tr.startX)
+
+      if (!tr.active && (dy > 6 || dx > 6)) {
+        tr.active = true
+        setDraggedId(tr.draggedId)
+      }
+      if (!tr.active) return
+
+      e.preventDefault()
+
+      const target = document.elementFromPoint(touch.clientX, touch.clientY)
+      const li = target?.closest<HTMLElement>('[data-ss-id]')
+      const overId = li?.dataset.ssId ?? null
+      tr.overId = overId !== tr.draggedId ? overId : null
+      setDragOverId(tr.overId)
+    }
+
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onTouchMove)
+  }, [])
 
   if (songs.length === 0) {
     return (
@@ -24,20 +66,45 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
     )
   }
 
+  // ── Touch handlers ────────────────────────────────────────────────
+  const handleTouchStart = (e: React.TouchEvent, id: string) => {
+    const touch = e.touches[0]
+    touchRef.current = { active: false, draggedId: id, startX: touch.clientX, startY: touch.clientY, overId: null }
+  }
+
+  const handleTouchEnd = () => {
+    const tr = touchRef.current
+    if (tr.active && tr.draggedId && tr.overId) {
+      const ids = songsRef.current.map((s) => s.id)
+      const fromIdx = ids.indexOf(tr.draggedId)
+      const toIdx = ids.indexOf(tr.overId)
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const reordered = [...ids]
+        reordered.splice(fromIdx, 1)
+        reordered.splice(toIdx, 0, tr.draggedId)
+        onReorderRef.current(reordered)
+      }
+    }
+    touchRef.current = { active: false, draggedId: null, startX: 0, startY: 0, overId: null }
+    setDraggedId(null)
+    setDragOverId(null)
+  }
+
+  // ── Mouse/desktop drag handlers ───────────────────────────────────
   const handleDragStart = (id: string) => {
     setDraggedId(id)
-    dragStatus.current = status
+    dragStatusRef.current = status
   }
 
   const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault()
-    if (dragStatus.current !== status) return
+    if (dragStatusRef.current !== status) return
     setDragOverId(id)
   }
 
   const handleDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault()
-    if (!draggedId || dragStatus.current !== status || draggedId === targetId) {
+    if (!draggedId || dragStatusRef.current !== status || draggedId === targetId) {
       setDraggedId(null)
       setDragOverId(null)
       return
@@ -56,11 +123,11 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
   const handleDragEnd = () => {
     setDraggedId(null)
     setDragOverId(null)
-    dragStatus.current = null
+    dragStatusRef.current = null
   }
 
   return (
-    <ul className="space-y-2">
+    <ul ref={listRef} className={status === 'sung' ? 'divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden' : 'space-y-2'}>
       {songs.map((ss, index) => {
         const song = ss.song
         if (!song) return null
@@ -70,40 +137,77 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
         const isDragging = draggedId === ss.id
         const isDragOver = dragOverId === ss.id && draggedId !== ss.id
 
+        if (status === 'sung') {
+          return (
+            <li
+              key={ss.id}
+              data-ss-id={ss.id}
+              draggable
+              onDragStart={() => handleDragStart(ss.id)}
+              onDragOver={(e) => handleDragOver(e, ss.id)}
+              onDrop={(e) => handleDrop(e, ss.id)}
+              onDragEnd={handleDragEnd}
+              onTouchStart={(e) => handleTouchStart(e, ss.id)}
+              onTouchEnd={handleTouchEnd}
+              className={`px-3 py-2 flex items-center gap-2 cursor-grab active:cursor-grabbing transition-all ${
+                isDragging ? 'opacity-40' : ''
+              } ${isDragOver ? 'bg-green-100' : 'bg-green-50'}`}
+            >
+              <span className="shrink-0 w-5 h-5 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center select-none">
+                {index + 1}
+              </span>
+              <span className="shrink-0 bg-blue-900 text-white rounded px-1.5 py-0.5 text-xs font-bold">
+                {collectionLabel}
+              </span>
+              <Link
+                href={`/songs/${song.id}`}
+                className="flex-1 text-sm text-gray-700 leading-tight hover:text-blue-900 line-clamp-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {song.title}
+              </Link>
+              <button
+                onClick={() => onDelete(ss.id)}
+                className="text-gray-300 hover:text-red-500 text-xs px-1 min-h-[36px]"
+                title="Usuń"
+              >
+                ✕
+              </button>
+            </li>
+          )
+        }
+
         return (
           <li
             key={ss.id}
+            data-ss-id={ss.id}
             draggable
             onDragStart={() => handleDragStart(ss.id)}
             onDragOver={(e) => handleDragOver(e, ss.id)}
             onDrop={(e) => handleDrop(e, ss.id)}
             onDragEnd={handleDragEnd}
+            onTouchStart={(e) => handleTouchStart(e, ss.id)}
+            onTouchEnd={handleTouchEnd}
             className={`bg-white rounded-xl border shadow-sm p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all ${
               isDragging ? 'opacity-40' : ''
             } ${isDragOver ? 'border-blue-400 scale-[1.01]' : 'border-gray-100'}`}
           >
-            {/* Ikona statusu */}
-            {status === 'sung' ? (
-              <span className="shrink-0 w-7 h-7 rounded-full bg-green-100 text-green-700 text-sm font-bold flex items-center justify-center select-none">
-                {index + 1}
-              </span>
-            ) : (
-              <span className="shrink-0 text-base select-none">🔖</span>
-            )}
+            <span className="shrink-0 text-base select-none">🔖</span>
 
-            {/* Numer ze zbioru */}
             <span className="shrink-0 bg-blue-900 text-white rounded-lg px-2 py-0.5 text-xs font-bold">
               {collectionLabel}
             </span>
 
-            {/* Tytuł */}
-            <span className="flex-1 font-medium text-gray-900 text-sm leading-tight">
+            <Link
+              href={`/songs/${song.id}`}
+              className="flex-1 font-medium text-gray-900 text-sm leading-tight hover:text-blue-900"
+              onClick={(e) => e.stopPropagation()}
+            >
               {song.title}
-            </span>
+            </Link>
 
-            {/* Przyciski */}
             <div className="flex gap-1 shrink-0">
-              {status === 'planned' && onConfirm && (
+              {onConfirm && (
                 <button
                   onClick={() => onConfirm(ss.id)}
                   className="bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium hover:bg-green-50 hover:border-green-300 min-h-[44px]"

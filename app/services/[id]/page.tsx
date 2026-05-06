@@ -102,12 +102,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
     .filter((ss) => ss.status === 'sung')
     .sort((a, b) => (a.song_order || 0) - (b.song_order || 0))
 
-  // ID już dodanych pieśni (żeby nie dublować)
-  const addedSongIds = new Set(service.service_songs.map((ss) => ss.song_id))
+  // Mapa songId → status już w nabożeństwie
+  const addedSongStatus = new Map(service.service_songs.map((ss) => [ss.song_id, ss.status]))
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
-      <Link href="/services" className="text-sm text-blue-900 mb-3 inline-block">← Nabożeństwa</Link>
+      <Link href="/services?all=1" className="text-sm text-blue-900 mb-3 inline-block">← Nabożeństwa</Link>
 
       {/* Nagłówek */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-5">
@@ -147,37 +147,40 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
         {searchResults.length > 0 && (
           <ul className="mt-2 border border-gray-100 rounded-xl overflow-hidden">
             {searchResults.map((song) => {
-              const alreadyAdded = addedSongIds.has(song.id)
+              const existingStatus = addedSongStatus.get(song.id)
               const collectionLabel = song.collection
                 ? `${song.collection.short_name} ${song.number}`
                 : `#${song.number}`
               return (
-                <li key={song.id} className="border-b border-gray-50 last:border-0">
+                <li key={song.id} className={`border-b border-gray-50 last:border-0 ${
+                  existingStatus === 'sung' ? 'bg-green-50' :
+                  existingStatus === 'planned' ? 'bg-blue-50' : ''
+                }`}>
                   <div className="flex items-center gap-2 px-3 py-2.5">
                     <span className="text-xs font-bold text-gray-400 shrink-0">{collectionLabel}</span>
                     <span className="flex-1 text-sm text-gray-900 line-clamp-1">{song.title}</span>
-                    {alreadyAdded ? (
-                      <span className="text-xs text-gray-400 shrink-0">już dodana</span>
-                    ) : (
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          onClick={() => addSong(song.id, 'planned')}
-                          disabled={!!addingStatus}
-                          className="text-xs bg-gray-100 text-gray-600 rounded-lg px-2 py-1.5 hover:bg-gray-200 min-h-[36px]"
-                          title="Zaplanuj"
-                        >
-                          🔖
-                        </button>
-                        <button
-                          onClick={() => addSong(song.id, 'sung')}
-                          disabled={!!addingStatus}
-                          className="text-xs bg-blue-900 text-white rounded-lg px-2 py-1.5 hover:bg-blue-800 min-h-[36px]"
-                          title="Zaśpiewana"
-                        >
-                          ✅
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => addSong(song.id, 'planned')}
+                        disabled={!!addingStatus || existingStatus === 'planned'}
+                        className={`text-xs rounded-lg px-2 py-1.5 min-h-[36px] ${
+                          existingStatus === 'planned'
+                            ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        title="Zaplanuj"
+                      >
+                        🔖
+                      </button>
+                      <button
+                        onClick={() => addSong(song.id, 'sung')}
+                        disabled={!!addingStatus}
+                        className="text-xs bg-blue-900 text-white rounded-lg px-2 py-1.5 hover:bg-blue-800 min-h-[36px]"
+                        title="Zaśpiewana"
+                      >
+                        ✅
+                      </button>
+                    </div>
                   </div>
                 </li>
               )

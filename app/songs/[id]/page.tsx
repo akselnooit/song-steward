@@ -26,6 +26,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
   const [loading, setLoading] = useState(true)
   const [savingTag, setSavingTag] = useState(false)
+  const [lightbox, setLightbox] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -93,15 +94,19 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           <div>
             <h1 className="text-lg font-bold text-gray-900">{song.title}</h1>
             {song.author && (
-              <Link
-                href={`/songs?author_id=${song.author_id}&author_name=${encodeURIComponent(song.author)}`}
-                className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5 hover:text-blue-900 w-fit"
-              >
+              <div className="flex items-center gap-1.5 mt-0.5">
                 {song.author_image && (
-                  <img src={song.author_image} alt={song.author} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                  <button onClick={() => setLightbox(true)} className="shrink-0 focus:outline-none" aria-label="Pokaż zdjęcie autora">
+                    <img src={song.author_image} alt={song.author} className="w-5 h-5 rounded-full object-cover hover:opacity-80 transition-opacity" />
+                  </button>
                 )}
-                {song.author}
-              </Link>
+                <Link
+                  href={`/songs?author_id=${song.author_id}&author_name=${encodeURIComponent(song.author)}`}
+                  className="text-sm text-gray-500 hover:text-blue-900 w-fit"
+                >
+                  {song.author}
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -193,6 +198,20 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           </p>
         )}
       </div>
+
+      {/* Lightbox zdjęcia autora */}
+      {lightbox && song.author_image && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
+          onClick={() => setLightbox(false)}
+        >
+          <img
+            src={song.author_image}
+            alt={song.author || ''}
+            className="max-w-[90vw] max-h-[90vh] rounded-2xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
 
       {/* Historia śpiewania */}
       {song.history.length > 0 && (

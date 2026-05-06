@@ -1,8 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-// GET /api/services — lista nabożeństw
-export async function GET() {
+// GET /api/services — lista nabożeństw; ?date=YYYY-MM-DD zwraca jedno nabożeństwo
+export async function GET(request: NextRequest) {
+  const date = request.nextUrl.searchParams.get('date')
+
+  if (date) {
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, date, service_type:service_types(id, name)')
+      .eq('date', date)
+      .maybeSingle()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(data)
+  }
+
+  // Zwraca dzisiejsze nabożeństwo lub najbliższe przyszłe
+  const active = request.nextUrl.searchParams.get('active')
+  if (active) {
+    const today = new Date().toISOString().slice(0, 10)
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, date, service_type:service_types(id, name)')
+      .gte('date', today)
+      .order('date', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(data)
+  }
+
   const { data, error } = await supabase
     .from('services')
     .select(`

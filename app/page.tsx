@@ -72,6 +72,7 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const { songsCount, nearestService, isUpcoming, topFive, rarelyFive } = await getDashboardData()
 
+  const totalCount = nearestService?.service_songs?.length || 0
   const sungCount = nearestService?.service_songs?.filter(
     (ss: { status: string }) => ss.status === 'sung'
   ).length || 0
@@ -107,7 +108,11 @@ export default async function DashboardPage() {
             <p className="text-xs text-gray-500 mt-0.5">
               {(nearestService.service_type as unknown as { name: string } | null)?.name || '—'}
             </p>
-            <p className="text-xs text-green-600 font-semibold mt-1">{sungCount} pieśni</p>
+            {isUpcoming ? (
+              <p className="text-xs text-blue-600 font-semibold mt-1">{totalCount} pieśni</p>
+            ) : (
+              <p className="text-xs text-green-600 font-semibold mt-1">{sungCount} zaśpiewanych</p>
+            )}
           </Link>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-center">
