@@ -6,7 +6,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
   const collectionId = searchParams.get('collection_id') || ''
-  const tagIds = searchParams.getAll('tag_id') // wiele tagów
+  const authorId = searchParams.get('author_id') || ''
+  const tagIds = searchParams.getAll('tag_id')
 
   let query = supabase
     .from('songs')
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       collection:collections(id, name, short_name),
       song_tags(tag_id)
     `)
-    .order('title')
+    .order('number')
 
   if (search) {
     query = query.or(`title.ilike.%${search}%,author.ilike.%${search}%,number.eq.${parseInt(search) || 0}`)
@@ -23,6 +24,10 @@ export async function GET(request: NextRequest) {
 
   if (collectionId) {
     query = query.eq('collection_id', collectionId)
+  }
+
+  if (authorId) {
+    query = query.eq('author_id', authorId)
   }
 
   const { data, error } = await query

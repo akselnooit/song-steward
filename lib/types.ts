@@ -13,6 +13,8 @@ export interface Song {
   number: number
   title: string
   author: string | null
+  author_image: string | null
+  author_id: string | null
   created_at: string
   // dołączane przez JOIN
   collection?: Collection

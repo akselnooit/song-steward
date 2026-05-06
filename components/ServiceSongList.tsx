@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useRef } from 'react'
 import { ServiceSong } from '@/lib/types'
 
 interface Props {
@@ -7,15 +8,55 @@ interface Props {
   status: 'planned' | 'sung'
   onConfirm?: (serviceSongId: string) => void
   onDelete: (serviceSongId: string) => void
+  onReorder: (orderedIds: string[]) => void
 }
 
-export default function ServiceSongList({ songs, status, onConfirm, onDelete }: Props) {
+export default function ServiceSongList({ songs, status, onConfirm, onDelete, onReorder }: Props) {
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const dragStatus = useRef<string | null>(null)
+
   if (songs.length === 0) {
     return (
       <p className="text-gray-400 text-sm text-center py-6">
         {status === 'planned' ? 'Brak zaplanowanych pieśni' : 'Brak zaśpiewanych pieśni'}
       </p>
     )
+  }
+
+  const handleDragStart = (id: string) => {
+    setDraggedId(id)
+    dragStatus.current = status
+  }
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault()
+    if (dragStatus.current !== status) return
+    setDragOverId(id)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    if (!draggedId || dragStatus.current !== status || draggedId === targetId) {
+      setDraggedId(null)
+      setDragOverId(null)
+      return
+    }
+    const ids = songs.map((s) => s.id)
+    const fromIdx = ids.indexOf(draggedId)
+    const toIdx = ids.indexOf(targetId)
+    const reordered = [...ids]
+    reordered.splice(fromIdx, 1)
+    reordered.splice(toIdx, 0, draggedId)
+    onReorder(reordered)
+    setDraggedId(null)
+    setDragOverId(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedId(null)
+    setDragOverId(null)
+    dragStatus.current = null
   }
 
   return (
@@ -26,17 +67,28 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete }: 
         const collectionLabel = song.collection
           ? `${song.collection.short_name} ${song.number}`
           : `#${song.number}`
+        const isDragging = draggedId === ss.id
+        const isDragOver = dragOverId === ss.id && draggedId !== ss.id
 
         return (
           <li
             key={ss.id}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-3"
+            draggable
+            onDragStart={() => handleDragStart(ss.id)}
+            onDragOver={(e) => handleDragOver(e, ss.id)}
+            onDrop={(e) => handleDrop(e, ss.id)}
+            onDragEnd={handleDragEnd}
+            className={`bg-white rounded-xl border shadow-sm p-3 flex items-center gap-3 cursor-grab active:cursor-grabbing transition-all ${
+              isDragging ? 'opacity-40' : ''
+            } ${isDragOver ? 'border-blue-400 scale-[1.01]' : 'border-gray-100'}`}
           >
-            {/* Numer kolejności (tylko dla sung) */}
-            {status === 'sung' && (
-              <span className="shrink-0 w-7 h-7 rounded-full bg-green-100 text-green-700 text-sm font-bold flex items-center justify-center">
+            {/* Ikona statusu */}
+            {status === 'sung' ? (
+              <span className="shrink-0 w-7 h-7 rounded-full bg-green-100 text-green-700 text-sm font-bold flex items-center justify-center select-none">
                 {index + 1}
               </span>
+            ) : (
+              <span className="shrink-0 text-base select-none">🔖</span>
             )}
 
             {/* Numer ze zbioru */}
@@ -54,10 +106,10 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete }: 
               {status === 'planned' && onConfirm && (
                 <button
                   onClick={() => onConfirm(ss.id)}
-                  className="bg-green-600 text-white rounded-lg px-3 py-2 text-sm font-medium hover:bg-green-700 min-h-[44px]"
+                  className="bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium hover:bg-green-50 hover:border-green-300 min-h-[44px]"
                   title="Zaśpiewana"
                 >
-                  ✓
+                  ✅
                 </button>
               )}
               <button

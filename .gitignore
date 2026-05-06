@@ -43,3 +43,6 @@ next-env.d.ts
 # claude code
 .claude/worktrees/
 .claude/settings.local.json
+
+# data import scripts and source files
+/data/

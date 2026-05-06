@@ -81,6 +81,19 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
     await fetchService()
   }
 
+  const reorderSongs = async (orderedIds: string[]) => {
+    await Promise.all(
+      orderedIds.map((ssId, index) =>
+        fetch(`/api/service-songs/${ssId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ song_order: index + 1 }),
+        })
+      )
+    )
+    await fetchService()
+  }
+
   if (loading) return <div className="text-center py-20 text-gray-400">Ładowanie...</div>
   if (!service) return <div className="text-center py-20 text-gray-400">Nie znaleziono nabożeństwa</div>
 
@@ -153,7 +166,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
                           className="text-xs bg-gray-100 text-gray-600 rounded-lg px-2 py-1.5 hover:bg-gray-200 min-h-[36px]"
                           title="Zaplanuj"
                         >
-                          📋
+                          🔖
                         </button>
                         <button
                           onClick={() => addSong(song.id, 'sung')}
@@ -161,7 +174,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
                           className="text-xs bg-blue-900 text-white rounded-lg px-2 py-1.5 hover:bg-blue-800 min-h-[36px]"
                           title="Zaśpiewana"
                         >
-                          ✓
+                          ✅
                         </button>
                       </div>
                     )}
@@ -184,27 +197,27 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
       {/* Sekcja A: Zaplanowane */}
       <div className="mb-5">
         <h2 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>
-          Zaplanowane ({plannedSongs.length})
+          🔖 Zaplanowane ({plannedSongs.length})
         </h2>
         <ServiceSongList
           songs={plannedSongs}
           status="planned"
           onConfirm={confirmSong}
           onDelete={deleteSong}
+          onReorder={reorderSongs}
         />
       </div>
 
       {/* Sekcja B: Zaśpiewane */}
       <div>
         <h2 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-          Zaśpiewane ({sungSongs.length})
+          ✅ Zaśpiewane ({sungSongs.length})
         </h2>
         <ServiceSongList
           songs={sungSongs}
           status="sung"
           onDelete={deleteSong}
+          onReorder={reorderSongs}
         />
       </div>
 

@@ -9,6 +9,8 @@ interface SongDetail {
   number: number
   title: string
   author: string | null
+  author_image: string | null
+  author_id: string | null
   collection?: { id: string; name: string; short_name: string }
   song_tags: { tag: Tag & { category?: TagCategory } }[]
   history: {
@@ -90,7 +92,17 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           </span>
           <div>
             <h1 className="text-lg font-bold text-gray-900">{song.title}</h1>
-            {song.author && <p className="text-sm text-gray-500">{song.author}</p>}
+            {song.author && (
+              <Link
+                href={`/songs?author_id=${song.author_id}&author_name=${encodeURIComponent(song.author)}`}
+                className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5 hover:text-blue-900 w-fit"
+              >
+                {song.author_image && (
+                  <img src={song.author_image} alt={song.author} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                )}
+                {song.author}
+              </Link>
+            )}
           </div>
         </div>
         <div className="mt-3 text-sm text-gray-500">
@@ -112,7 +124,14 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
         </h2>
 
         {categories.map((cat) => {
-          const tags = allTags.filter((t) => t.category_id === cat.id)
+          const tags = allTags
+            .filter((t) => t.category_id === cat.id)
+            .sort((a, b) => {
+              const aActive = currentTagIds.includes(a.id)
+              const bActive = currentTagIds.includes(b.id)
+              if (aActive !== bActive) return aActive ? -1 : 1
+              return a.name.localeCompare(b.name, 'pl')
+            })
           return (
             <div key={cat.id} className="mb-3">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{cat.name}</p>
@@ -141,21 +160,28 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           <div className="mb-3">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Inne</p>
             <div className="flex flex-wrap gap-2">
-              {uncategorized.map((tag) => {
-                const active = currentTagIds.includes(tag.id)
-                return (
-                  <button
-                    key={tag.id}
-                    onClick={() => toggleTag(tag.id)}
-                    disabled={savingTag}
-                    className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors disabled:opacity-50 ${
-                      active ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {tag.name}
-                  </button>
-                )
-              })}
+              {uncategorized
+                .sort((a, b) => {
+                  const aActive = currentTagIds.includes(a.id)
+                  const bActive = currentTagIds.includes(b.id)
+                  if (aActive !== bActive) return aActive ? -1 : 1
+                  return a.name.localeCompare(b.name, 'pl')
+                })
+                .map((tag) => {
+                  const active = currentTagIds.includes(tag.id)
+                  return (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleTag(tag.id)}
+                      disabled={savingTag}
+                      className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors disabled:opacity-50 ${
+                        active ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {tag.name}
+                    </button>
+                  )
+                })}
             </div>
           </div>
         )}
