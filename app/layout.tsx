@@ -20,6 +20,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: '#1e3a5f',
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -33,7 +34,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className={`${geist.className} bg-gray-50 text-gray-900`}>
-        <main className="min-h-screen pb-20">
+        <main className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))]">
           {children}
         </main>
         <BottomNav />

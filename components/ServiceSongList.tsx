@@ -20,31 +20,40 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
   const dragStatusRef = useRef<string | null>(null)
 
   // Touch drag state — ref so event listener always sees current values
-  const touchRef = useRef({ active: false, draggedId: null as string | null, startX: 0, startY: 0, overId: null as string | null })
+  const touchRef = useRef({
+    active: false,
+    pendingId: null as string | null,   // id czekające na long press
+    draggedId: null as string | null,   // id po aktywacji long press
+    startX: 0,
+    startY: 0,
+    overId: null as string | null,
+    timer: null as ReturnType<typeof setTimeout> | null,
+  })
   const songsRef = useRef(songs)
   songsRef.current = songs
   const onReorderRef = useRef(onReorder)
   onReorderRef.current = onReorder
 
-  // Non-passive touchmove on the list so we can preventDefault (blocks page scroll while dragging)
+  // Non-passive touchmove — zapobiega scrollowi tylko gdy drag aktywny
   useEffect(() => {
     const el = listRef.current
     if (!el) return
 
     const onTouchMove = (e: TouchEvent) => {
       const tr = touchRef.current
-      if (!tr.draggedId) return
-
       const touch = e.touches[0]
       const dy = Math.abs(touch.clientY - tr.startY)
       const dx = Math.abs(touch.clientX - tr.startX)
 
-      if (!tr.active && (dy > 6 || dx > 6)) {
-        tr.active = true
-        setDraggedId(tr.draggedId)
+      // Jeśli long press jeszcze nie minął i użytkownik scrolluje — anuluj drag
+      if (!tr.active && tr.timer && (dy > 8 || dx > 8)) {
+        clearTimeout(tr.timer)
+        tr.timer = null
+        tr.pendingId = null
+        return
       }
-      if (!tr.active) return
 
+      if (!tr.active) return
       e.preventDefault()
 
       const target = document.elementFromPoint(touch.clientX, touch.clientY)
@@ -69,11 +78,25 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
   // ── Touch handlers ────────────────────────────────────────────────
   const handleTouchStart = (e: React.TouchEvent, id: string) => {
     const touch = e.touches[0]
-    touchRef.current = { active: false, draggedId: id, startX: touch.clientX, startY: touch.clientY, overId: null }
+    const tr = touchRef.current
+    tr.active = false
+    tr.pendingId = id
+    tr.draggedId = null
+    tr.startX = touch.clientX
+    tr.startY = touch.clientY
+    tr.overId = null
+    tr.timer = setTimeout(() => {
+      tr.timer = null
+      tr.draggedId = id
+      tr.active = true
+      navigator.vibrate?.(30)
+      setDraggedId(id)
+    }, 400)
   }
 
   const handleTouchEnd = () => {
     const tr = touchRef.current
+    if (tr.timer) { clearTimeout(tr.timer); tr.timer = null }
     if (tr.active && tr.draggedId && tr.overId) {
       const ids = songsRef.current.map((s) => s.id)
       const fromIdx = ids.indexOf(tr.draggedId)
@@ -85,7 +108,10 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
         onReorderRef.current(reordered)
       }
     }
-    touchRef.current = { active: false, draggedId: null, startX: 0, startY: 0, overId: null }
+    tr.active = false
+    tr.pendingId = null
+    tr.draggedId = null
+    tr.overId = null
     setDraggedId(null)
     setDragOverId(null)
   }

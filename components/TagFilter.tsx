@@ -24,26 +24,55 @@ export default function TagFilter({
 }: Props) {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
 
-  const handlePressStart = (tagId: string) => {
+  const SCROLL_THRESHOLD = 8
+
+  const handlePressStart = (tagId: string, e: React.TouchEvent | React.MouseEvent) => {
     didLongPress.current = false
+    if ('touches' in e) {
+      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    } else {
+      touchStart.current = null
+    }
     longPressTimer.current = setTimeout(() => {
       didLongPress.current = true
       onToggleExclude(tagId)
     }, 500)
   }
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart.current || !longPressTimer.current) return
+    const dx = Math.abs(e.touches[0].clientX - touchStart.current.x)
+    const dy = Math.abs(e.touches[0].clientY - touchStart.current.y)
+    if (dx > SCROLL_THRESHOLD || dy > SCROLL_THRESHOLD) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
   const handlePressEnd = (tagId: string, e: React.MouseEvent | React.TouchEvent) => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+    } else if ('changedTouches' in e) {
+      // long press timer was cancelled due to scroll — don't select
+      return
+    }
     if (didLongPress.current) {
       e.preventDefault()
       return
+    }
+    if ('changedTouches' in e && touchStart.current) {
+      const dx = Math.abs(e.changedTouches[0].clientX - touchStart.current.x)
+      const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y)
+      if (dx > SCROLL_THRESHOLD || dy > SCROLL_THRESHOLD) return
     }
     onToggleTag(tagId)
   }
 
   const handlePressCancel = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
   }
 
   const tagsByCategory = categories.reduce<Record<string, Tag[]>>((acc, cat) => {
@@ -72,10 +101,11 @@ export default function TagFilter({
       <button
         key={tag.id}
         className={className}
-        onMouseDown={() => handlePressStart(tag.id)}
+        onMouseDown={(e) => handlePressStart(tag.id, e)}
         onMouseUp={(e) => handlePressEnd(tag.id, e)}
         onMouseLeave={handlePressCancel}
-        onTouchStart={() => handlePressStart(tag.id)}
+        onTouchStart={(e) => handlePressStart(tag.id, e)}
+        onTouchMove={handleTouchMove}
         onTouchEnd={(e) => handlePressEnd(tag.id, e)}
         onTouchCancel={handlePressCancel}
         onContextMenu={(e) => e.preventDefault()}

@@ -20,6 +20,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter()
   const [service, setService] = useState<ServiceDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [notes, setNotes] = useState('')
+  const [notesSaved, setNotesSaved] = useState(false)
   const [songSearch, setSongSearch] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -29,6 +31,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
     const res = await fetch(`/api/services/${id}`)
     const data = await res.json()
     setService(data)
+    setNotes(data.notes || '')
     setLoading(false)
   }, [id])
 
@@ -81,6 +84,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
     await fetchService()
   }
 
+  const saveNotes = async () => {
+    await fetch(`/api/services/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: notes || null }),
+    })
+    setNotesSaved(true)
+    setTimeout(() => setNotesSaved(false), 2000)
+  }
+
   const reorderSongs = async (orderedIds: string[]) => {
     await Promise.all(
       orderedIds.map((ssId, index) =>
@@ -122,9 +135,19 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
             <span className="ml-2 text-gray-400">· {service.worship_leader.name}</span>
           )}
         </p>
-        {service.notes && (
-          <p className="text-sm text-gray-600 mt-2 italic">{service.notes}</p>
-        )}
+        <div className="mt-2 relative">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={saveNotes}
+            placeholder="Notatka..."
+            rows={2}
+            className="w-full text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-900 placeholder-gray-300"
+          />
+          {notesSaved && (
+            <span className="absolute right-2 bottom-2 text-xs text-green-500">Zapisano</span>
+          )}
+        </div>
       </div>
 
       {/* Dodawanie pieśni */}

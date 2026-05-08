@@ -15,6 +15,8 @@ function SearchContent() {
   const [serviceName, setServiceName] = useState<string | null>(null)
   // songId → status już w nabożeństwie (z serwera) lub dodany w tej sesji
   const [serviceStatusMap, setServiceStatusMap] = useState<Record<string, 'planned' | 'sung'>>({})
+  // songId → id rekordu service_songs (potrzebne do usuwania)
+  const [serviceSongIdMap, setServiceSongIdMap] = useState<Record<string, string>>({})
   const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
   const [categories, setCategories] = useState<TagCategory[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
@@ -46,10 +48,13 @@ function SearchContent() {
       .then((r) => r.json())
       .then((data) => {
         const map: Record<string, 'planned' | 'sung'> = {}
+        const idMap: Record<string, string> = {}
         for (const ss of data?.service_songs || []) {
           map[ss.song_id] = ss.status
+          idMap[ss.song_id] = ss.id
         }
         setServiceStatusMap(map)
+        setServiceSongIdMap(idMap)
         if (!serviceName && data?.date) {
           const typeName = data.service_type?.name || ''
           const dateStr = new Date(data.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
@@ -115,12 +120,24 @@ function SearchContent() {
   const addToService = async (song: Song, status: 'planned' | 'sung') => {
     if (!serviceId || addingId) return
     setAddingId(song.id)
-    await fetch('/api/service-songs', {
+    const res = await fetch('/api/service-songs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ service_id: serviceId, song_id: song.id, status }),
     })
+    const data = await res.json()
+    if (data?.id) setServiceSongIdMap((prev) => ({ ...prev, [song.id]: data.id }))
     setServiceStatusMap((prev) => ({ ...prev, [song.id]: status }))
+    setAddingId(null)
+  }
+
+  const removeFromService = async (song: Song) => {
+    const ssId = serviceSongIdMap[song.id]
+    if (!ssId || addingId) return
+    setAddingId(song.id)
+    await fetch(`/api/service-songs/${ssId}`, { method: 'DELETE' })
+    setServiceStatusMap((prev) => { const next = { ...prev }; delete next[song.id]; return next })
+    setServiceSongIdMap((prev) => { const next = { ...prev }; delete next[song.id]; return next })
     setAddingId(null)
   }
 
@@ -195,12 +212,18 @@ function SearchContent() {
           // Zaśpiewana: blokuj 🔖, pozwól ✅ (można zaśpiewać ponownie)
           const actions = serviceId
             ? [
-                {
-                  label: '🔖',
-                  onClick: (s: Song) => addToService(s, 'planned'),
-                  variant: 'secondary' as const,
-                  disabled: existingStatus === 'planned',
-                },
+                existingStatus === 'planned'
+                  ? {
+                      label: '✕',
+                      onClick: (s: Song) => removeFromService(s),
+                      variant: 'secondary' as const,
+                    }
+                  : {
+                      label: '🔖',
+                      onClick: (s: Song) => addToService(s, 'planned'),
+                      variant: 'secondary' as const,
+                      disabled: existingStatus === 'sung',
+                    },
                 {
                   label: '✅',
                   onClick: (s: Song) => addToService(s, 'sung'),
