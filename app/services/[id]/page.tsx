@@ -21,6 +21,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   const [service, setService] = useState<ServiceDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notes, setNotes] = useState('')
+  const [notesEditing, setNotesEditing] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
   const [songSearch, setSongSearch] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
@@ -85,6 +86,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const saveNotes = async () => {
+    setNotesEditing(false)
     await fetch(`/api/services/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -135,17 +137,30 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
             <span className="ml-2 text-gray-400">· {service.worship_leader.name}</span>
           )}
         </p>
-        <div className="mt-2 relative">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={saveNotes}
-            placeholder="Notatka..."
-            rows={2}
-            className="w-full text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-900 placeholder-gray-300"
-          />
-          {notesSaved && (
-            <span className="absolute right-2 bottom-2 text-xs text-green-500">Zapisano</span>
+        <div className="mt-2">
+          {notesEditing ? (
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={saveNotes}
+              onKeyDown={(e) => { if (e.key === 'Escape') saveNotes() }}
+              autoFocus
+              rows={6}
+              className="w-full text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-900"
+            />
+          ) : (
+            <button
+              onClick={() => setNotesEditing(true)}
+              className="w-full text-left flex items-start justify-between gap-2 group"
+            >
+              <span className={`text-sm leading-relaxed ${notes ? 'text-gray-600' : 'text-gray-300'}`}>
+                {notes || 'Dodaj notatkę…'}
+              </span>
+              <span className="shrink-0 text-gray-300 group-hover:text-gray-400 text-xs mt-0.5 transition-colors">✎</span>
+            </button>
+          )}
+          {notesSaved && !notesEditing && (
+            <span className="text-xs text-green-500 mt-1 block">Zapisano</span>
           )}
         </div>
       </div>
