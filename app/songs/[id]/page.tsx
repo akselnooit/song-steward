@@ -11,6 +11,8 @@ interface SongDetail {
   author: string | null
   author_image: string | null
   author_id: string | null
+  original_key: string | null
+  minor: boolean | null
   collection?: { id: string; name: string; short_name: string }
   song_tags: { source: TagSource; tag: Tag & { category?: TagCategory } }[]
   history: {
@@ -174,6 +176,13 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
         </div>
+        {song.original_key && (
+          <div className="mt-2">
+            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 rounded-lg px-2.5 py-1 text-sm font-medium">
+              🎵 {song.original_key}{song.minor ? 'm' : ''} {song.minor ? 'mol' : 'dur'}
+            </span>
+          </div>
+        )}
         <div className="mt-3 text-sm text-gray-500">
           Śpiewana łącznie: <strong>{song.history.length}</strong> razy
           {song.history.length > 0 && (

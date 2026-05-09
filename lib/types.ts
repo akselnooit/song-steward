@@ -15,6 +15,8 @@ export interface Song {
   author: string | null
   author_image: string | null
   author_id: string | null
+  original_key: string | null
+  minor: boolean | null
   created_at: string
   // dołączane przez JOIN
   collection?: Collection
