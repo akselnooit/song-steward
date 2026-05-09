@@ -84,7 +84,7 @@ export default async function DashboardPage() {
       {/* Szybka akcja */}
       <Link
         href="/services/new"
-        className="block w-full bg-blue-900 text-white text-center py-3.5 rounded-xl font-semibold text-lg mb-6 hover:bg-blue-800 active:bg-blue-700"
+        className="block w-full bg-blue-900 text-white text-center py-3.5 rounded-xl font-semibold text-lg mb-6 hover:bg-blue-800 active:bg-blue-700 active:scale-[0.98] transition-all"
       >
         ＋ Nowe nabożeństwo
       </Link>
@@ -96,7 +96,7 @@ export default async function DashboardPage() {
           <p className="text-sm text-gray-500 mt-1">pieśni w bazie</p>
         </div>
         {nearestService ? (
-          <Link href={`/services/${nearestService.id}`} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200">
+          <Link href={`/services/${nearestService.id}`} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200 hover:shadow-md active:scale-[0.98] transition-all">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-1">
               {isUpcoming ? 'Najbliższe nabożeństwo' : 'Ostatnie nabożeństwo'}
             </p>

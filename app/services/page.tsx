@@ -39,7 +39,7 @@ export default async function ServicesPage({
         <h1 className="text-xl font-bold text-blue-900">Nabożeństwa</h1>
         <Link
           href="/services/new"
-          className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-semibold hover:bg-blue-800"
+          className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-semibold hover:bg-blue-800 active:scale-95 transition-all"
         >
           ＋ Nowe
         </Link>
@@ -66,7 +66,7 @@ export default async function ServicesPage({
               <Link
                 key={service.id}
                 href={`/services/${service.id}`}
-                className="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200"
+                className="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200 hover:shadow-md active:scale-[0.98] transition-all"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

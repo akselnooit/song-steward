@@ -89,7 +89,7 @@ function DictionarySection<T extends { id: string; name: string }>({
         {!isEditing && (
           <button
             onClick={() => { setAdding(true); setFormData({}) }}
-            className="text-sm bg-blue-900 text-white rounded-lg px-3 py-1.5 hover:bg-blue-800"
+            className="text-sm bg-blue-900 text-white rounded-lg px-3 py-1.5 hover:bg-blue-800 active:scale-95 transition-all"
           >
             ＋ Dodaj
           </button>
@@ -134,13 +134,13 @@ function DictionarySection<T extends { id: string; name: string }>({
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              className="flex-1 bg-blue-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-800"
+              className="flex-1 bg-blue-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-800 active:scale-95 transition-all"
             >
               Zapisz
             </button>
             <button
               onClick={resetForm}
-              className="flex-1 bg-gray-100 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-200"
+              className="flex-1 bg-gray-100 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-200 active:scale-95 transition-all"
             >
               Anuluj
             </button>
@@ -174,13 +174,13 @@ function DictionarySection<T extends { id: string; name: string }>({
               <div className="flex gap-1 shrink-0">
                 <button
                   onClick={() => startEdit(item)}
-                  className="text-xs text-gray-400 hover:text-blue-900 px-2 py-1.5 min-h-[36px]"
+                  className="text-xs text-gray-400 hover:text-blue-900 px-2 py-1.5 min-h-[36px] hover:scale-110 transition-all"
                 >
                   ✏️
                 </button>
                 <button
                   onClick={() => handleDelete(item.id)}
-                  className="text-xs text-gray-400 hover:text-red-500 px-2 py-1.5 min-h-[36px]"
+                  className="text-xs text-gray-400 hover:text-red-500 hover:scale-110 px-2 py-1.5 min-h-[36px] transition-all"
                 >
                   🗑️
                 </button>
