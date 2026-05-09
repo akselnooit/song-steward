@@ -2,13 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Home, Music, Search, Calendar, Settings } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
-const navItems = [
-  { href: '/', label: 'Dashboard', icon: '🏠' },
-  { href: '/songs', label: 'Pieśni', icon: '🎵' },
-  { href: '/search', label: 'Szukaj', icon: '🔖' },
-  { href: '/services', label: 'Nabożeństwa', icon: '📅' },
-  { href: '/settings', label: 'Ustawienia', icon: '⚙️' },
+const navItems: { href: string; label: string; Icon: LucideIcon }[] = [
+  { href: '/', label: 'Dashboard', Icon: Home },
+  { href: '/songs', label: 'Pieśni', Icon: Music },
+  { href: '/search', label: 'Szukaj', Icon: Search },
+  { href: '/services', label: 'Nabożeństwa', Icon: Calendar },
+  { href: '/settings', label: 'Ustawienia', Icon: Settings },
 ]
 
 export default function BottomNav() {
@@ -17,25 +19,24 @@ export default function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-stretch justify-around">
-        {navItems.map((item) => {
-          // Aktywny gdy ścieżka zaczyna się od href (lub jest dokładnie '/')
+        {navItems.map(({ href, label, Icon }) => {
           const isActive =
-            item.href === '/'
+            href === '/'
               ? pathname === '/'
-              : pathname.startsWith(item.href)
+              : pathname.startsWith(href)
 
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={href}
+              href={href}
               className={`flex flex-col items-center justify-center py-2 px-3 flex-1 min-h-[56px] text-xs transition-colors ${
                 isActive
                   ? 'text-blue-900 font-semibold'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <span className="text-xl mb-0.5">{item.icon}</span>
-              <span>{item.label}</span>
+              <Icon size={22} className="mb-0.5" />
+              <span>{label}</span>
             </Link>
           )
         })}
