@@ -37,9 +37,12 @@ export interface Tag {
   category?: TagCategory
 }
 
+export type TagSource = 'confirmed' | 'user' | 'ai'
+
 export interface SongTag {
   song_id: string
   tag_id: string
+  source: TagSource
 }
 
 export interface ServiceType {

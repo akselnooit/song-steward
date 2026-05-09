@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, use } from 'react'
-import { Tag, TagCategory } from '@/lib/types'
+import { Tag, TagCategory, TagSource } from '@/lib/types'
 import Link from 'next/link'
 
 interface SongDetail {
@@ -12,7 +12,7 @@ interface SongDetail {
   author_image: string | null
   author_id: string | null
   collection?: { id: string; name: string; short_name: string }
-  song_tags: { tag: Tag & { category?: TagCategory } }[]
+  song_tags: { source: TagSource; tag: Tag & { category?: TagCategory } }[]
   history: {
     id: string
     added_at: string
@@ -88,6 +88,15 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   )
   const uncategorized = allTags.filter((t) => !t.category_id)
 
+  const tagSourceClass = (source: TagSource | undefined) => {
+    if (source === 'user') return 'bg-amber-100 text-amber-700 border border-amber-300'
+    if (source === 'ai')   return 'bg-purple-100 text-purple-700 border border-purple-200'
+    return 'bg-blue-900 text-white'
+  }
+
+  // Mapa tagId → source dla aktywnych tagów
+  const tagSourceMap = new Map(song.song_tags.map((st) => [st.tag.id, st.source]))
+
   const collectionLabel = song.collection
     ? `${song.collection.short_name} ${song.number}`
     : `#${song.number}`
@@ -117,13 +126,14 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           <div className="px-3 py-2.5 flex flex-wrap gap-2 bg-white">
             {sortedTags.map((tag) => {
               const active = currentTagIds.includes(tag.id)
+              const source = tagSourceMap.get(tag.id)
               return (
                 <button
                   key={tag.id}
                   onClick={() => toggleTag(tag.id)}
                   disabled={savingTag}
                   className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors disabled:opacity-50 ${
-                    active ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    active ? tagSourceClass(source) : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   {tag.name}
@@ -191,12 +201,12 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
         {/* Aktywne tagi */}
         {currentTagIds.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
-            {song.song_tags.map(({ tag }) => (
+            {song.song_tags.map(({ tag, source }) => (
               <button
                 key={tag.id}
                 onClick={() => toggleTag(tag.id)}
                 disabled={savingTag}
-                className="rounded-full px-3 py-2 text-sm font-medium min-h-[44px] bg-blue-900 text-white transition-colors disabled:opacity-50"
+                className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors disabled:opacity-50 ${tagSourceClass(source)}`}
               >
                 {tag.name}
               </button>

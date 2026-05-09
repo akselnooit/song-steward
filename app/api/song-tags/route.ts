@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('song_tags')
-    .insert({ song_id, tag_id })
+    .insert({ song_id, tag_id, source: 'user' })
     .select()
     .single()
 

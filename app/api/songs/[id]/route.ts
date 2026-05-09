@@ -15,6 +15,7 @@ export async function GET(
         *,
         collection:collections(id, name, short_name),
         song_tags(
+          source,
           tag:tags(id, name, category_id, category:tag_categories(id, name))
         )
       `)
