@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@theme {
+  --animate-fade-in: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 body {
   background: #f9fafb;
   color: #111827;

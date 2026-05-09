@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { Tag, TagCategory, TagSource } from '@/lib/types'
 import Link from 'next/link'
+import { Loader2 } from 'lucide-react'
 
 interface SongDetail {
   id: string
@@ -124,26 +125,28 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        {isOpen && (
-          <div className="px-3 py-2.5 flex flex-wrap gap-2 bg-white">
-            {sortedTags.map((tag) => {
-              const active = currentTagIds.includes(tag.id)
-              const source = tagSourceMap.get(tag.id)
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => toggleTag(tag.id)}
-                  disabled={savingTag}
-                  className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors disabled:opacity-50 ${
-                    active ? tagSourceClass(source) : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {tag.name}
-                </button>
-              )
-            })}
+        <div className={`grid transition-all duration-200 ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+          <div className="overflow-hidden">
+            <div className="px-3 py-2.5 flex flex-wrap gap-2 bg-white">
+              {sortedTags.map((tag) => {
+                const active = currentTagIds.includes(tag.id)
+                const source = tagSourceMap.get(tag.id)
+                return (
+                  <button
+                    key={tag.id}
+                    onClick={() => toggleTag(tag.id)}
+                    disabled={savingTag}
+                    className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 disabled:opacity-50 ${
+                      active ? tagSourceClass(source) : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {tag.name}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     )
   }
@@ -204,7 +207,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
       {/* Tagi */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-          Tagi {savingTag && <span className="font-normal normal-case">zapisywanie...</span>}
+          Tagi {savingTag && <Loader2 size={12} className="inline animate-spin ml-1 align-middle" />}
         </h2>
 
         {/* Aktywne tagi */}
@@ -215,7 +218,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                 key={tag.id}
                 onClick={() => toggleTag(tag.id)}
                 disabled={savingTag}
-                className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors disabled:opacity-50 ${tagSourceClass(source)}`}
+                className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 disabled:opacity-50 ${tagSourceClass(source)}`}
               >
                 {tag.name}
               </button>

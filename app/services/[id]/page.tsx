@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import ServiceSongList from '@/components/ServiceSongList'
 import { ServiceSong, Song } from '@/lib/types'
 import Link from 'next/link'
+import { Loader2 } from 'lucide-react'
 
 interface ServiceDetail {
   id: string
@@ -156,7 +157,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
               <span className={`text-sm leading-relaxed ${notes ? 'text-gray-600' : 'text-gray-300'}`}>
                 {notes || 'Dodaj notatkę…'}
               </span>
-              <span className="shrink-0 text-gray-300 group-hover:text-gray-400 text-xs mt-0.5 transition-colors">✎</span>
+              <span className="shrink-0 text-gray-300 group-hover:text-gray-400 group-hover:rotate-[-15deg] text-xs mt-0.5 transition-all">✎</span>
             </button>
           )}
           {notesSaved && !notesEditing && (
@@ -177,13 +178,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900"
           />
           {searchLoading && (
-            <span className="absolute right-4 top-3 text-gray-400 text-sm">...</span>
+            <Loader2 size={16} className="absolute right-4 top-3.5 text-gray-400 animate-spin" />
           )}
         </div>
 
         {/* Wyniki wyszukiwania */}
         {searchResults.length > 0 && (
-          <ul className="mt-2 border border-gray-100 rounded-xl overflow-hidden">
+          <ul className="mt-2 border border-gray-100 rounded-xl overflow-hidden animate-fade-in">
             {searchResults.map((song) => {
               const existingStatus = addedSongStatus.get(song.id)
               const collectionLabel = song.collection
@@ -201,10 +202,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
                       <button
                         onClick={() => addSong(song.id, 'planned')}
                         disabled={!!addingStatus || existingStatus === 'planned'}
-                        className={`text-xs rounded-lg px-2 py-1.5 min-h-[36px] ${
+                        className={`text-xs rounded-lg px-2 py-1.5 min-h-[36px] transition-all ${
                           existingStatus === 'planned'
                             ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:scale-95'
                         }`}
                         title="Zaplanuj"
                       >
@@ -213,7 +214,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
                       <button
                         onClick={() => addSong(song.id, 'sung')}
                         disabled={!!addingStatus}
-                        className="text-xs bg-blue-900 text-white rounded-lg px-2 py-1.5 hover:bg-blue-800 min-h-[36px]"
+                        className="text-xs bg-blue-900 text-white rounded-lg px-2 py-1.5 hover:bg-blue-800 min-h-[36px] active:scale-95 transition-all"
                         title="Zaśpiewana"
                       >
                         ✅
@@ -229,7 +230,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
         {/* Szukaj po tagach */}
         <Link
           href={`/search?service_id=${id}`}
-          className="mt-3 w-full flex items-center justify-center gap-2 border border-blue-900 text-blue-900 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-50"
+          className="mt-3 w-full flex items-center justify-center gap-2 border border-blue-900 text-blue-900 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-50 active:scale-[0.98] transition-all"
         >
           🔖 Szukaj po tagach
         </Link>
@@ -270,7 +271,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
             await fetch(`/api/services/${id}`, { method: 'DELETE' })
             router.push('/services')
           }}
-          className="text-sm text-red-400 hover:text-red-600"
+          className="text-sm text-red-400 hover:text-red-600 hover:scale-105 transition-all"
         >
           Usuń nabożeństwo
         </button>

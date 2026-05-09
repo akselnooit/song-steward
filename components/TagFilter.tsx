@@ -88,7 +88,7 @@ export default function TagFilter({
     const isSelected = selectedTagIds.includes(tag.id)
     const isExcluded = excludedTagIds.includes(tag.id)
 
-    let className = 'rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-colors select-none '
+    let className = 'rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 select-none '
     if (isExcluded) {
       className += 'bg-red-100 text-red-600 line-through'
     } else if (isSelected) {
@@ -126,7 +126,7 @@ export default function TagFilter({
               <button
                 key={tagId}
                 onClick={() => onToggleTag(tagId)}
-                className="bg-blue-900 text-white rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1"
+                className="bg-blue-900 text-white rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1 transition-all active:scale-95"
               >
                 {tag.name} <span className="opacity-70">✕</span>
               </button>
@@ -138,7 +138,7 @@ export default function TagFilter({
               <button
                 key={`excl-${tagId}`}
                 onClick={() => onToggleExclude(tagId)}
-                className="bg-red-100 text-red-600 rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1 line-through"
+                className="bg-red-100 text-red-600 rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1 line-through transition-all active:scale-95"
               >
                 {tag.name} <span className="opacity-70">✕</span>
               </button>

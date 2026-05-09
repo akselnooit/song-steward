@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ServiceType, WorshipLeader } from '@/lib/types'
 import Link from 'next/link'
+import { Loader2 } from 'lucide-react'
 
 export default function NewServicePage() {
   const router = useRouter()
@@ -128,9 +129,13 @@ export default function NewServicePage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-900 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-blue-800 active:bg-blue-700 disabled:opacity-60"
+          className="w-full bg-blue-900 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-blue-800 active:bg-blue-700 active:scale-[0.98] disabled:opacity-60 transition-all"
         >
-          {loading ? 'Tworzenie...' : 'Utwórz nabożeństwo'}
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 size={16} className="animate-spin" /> Tworzenie...
+            </span>
+          ) : 'Utwórz nabożeństwo'}
         </button>
       </form>
     </div>

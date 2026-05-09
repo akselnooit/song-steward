@@ -194,7 +194,7 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
               </Link>
               <button
                 onClick={() => onDelete(ss.id)}
-                className="text-gray-300 hover:text-red-500 text-xs px-1 min-h-[36px]"
+                className="text-gray-300 hover:text-red-500 hover:scale-110 text-xs px-1 min-h-[36px] transition-all"
                 title="Usuń"
               >
                 ✕
@@ -236,7 +236,7 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
               {onConfirm && (
                 <button
                   onClick={() => onConfirm(ss.id)}
-                  className="bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium hover:bg-green-50 hover:border-green-300 min-h-[44px]"
+                  className="bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium hover:bg-green-50 hover:border-green-300 min-h-[44px] transition-all active:scale-95"
                   title="Zaśpiewana"
                 >
                   ✅
@@ -244,7 +244,7 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
               )}
               <button
                 onClick={() => onDelete(ss.id)}
-                className="bg-gray-100 text-gray-500 rounded-lg px-3 py-2 text-sm hover:bg-red-50 hover:text-red-600 min-h-[44px]"
+                className="bg-gray-100 text-gray-500 rounded-lg px-3 py-2 text-sm hover:bg-red-50 hover:text-red-600 hover:scale-110 min-h-[44px] transition-all active:scale-95"
                 title="Usuń"
               >
                 ✕

@@ -69,12 +69,12 @@ export default function SongCard({ song, actions, statusBadge }: Props) {
                   key={i}
                   onClick={() => !action.disabled && action.onClick(song)}
                   disabled={action.disabled}
-                  className={`rounded-lg px-2.5 py-1.5 text-sm font-medium min-h-[36px] transition-colors ${
+                  className={`rounded-lg px-2.5 py-1.5 text-sm font-medium min-h-[36px] transition-all ${
                     action.disabled
                       ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
                       : action.variant === 'secondary'
-                      ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      : 'bg-blue-900 text-white hover:bg-blue-800 active:bg-blue-700'
+                      ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:scale-95'
+                      : 'bg-blue-900 text-white hover:bg-blue-800 active:bg-blue-700 active:scale-95'
                   }`}
                 >
                   {action.label}
