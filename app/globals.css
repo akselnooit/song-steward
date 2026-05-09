@@ -5,6 +5,16 @@ body {
   color: #111827;
 }
 
+/* Eliminuje 300ms tap delay na iOS */
+a, button, [role="button"], input, select, textarea, label {
+  touch-action: manipulation;
+}
+
+/* Usuwa niebieski highlight przy tapnięciu na iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
 input, select, textarea {
   font-size: 16px;
