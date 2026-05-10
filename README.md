@@ -1,6 +1,6 @@
 # Song Steward
 
-A mobile-first PWA for worship song leaders at an evangelical church in Wrocław. Manage the song repertoire, plan and record songs at services, and search by tags in real time — including live during a service on your phone.
+A mobile-first PWA for worship song leaders at an evangelical church in Poland. Manage the song repertoire, plan and record songs at services, and search by tags in real time — including live during a service on your phone.
 
 The name comes from the biblical concept of *stewardship* — the worship leader is a steward of the congregation's song repertoire.
 
