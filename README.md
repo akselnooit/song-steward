@@ -1,36 +1,22 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Song Steward
 
-## Getting Started
+A mobile-first PWA for worship song leaders at an evangelical church in Wrocław. Manage the song repertoire, plan and record songs at services, and search by tags in real time — including live during a service on your phone.
 
-First, run the development server:
+The name comes from the biblical concept of *stewardship* — the worship leader is a steward of the congregation's song repertoire.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Song database** — 984 songs across 5 collections (Drogi Pańskie, Kwiat Migdałowy, and more), with tonality, tags, and sing history per song
+- **Tag search** — filter songs by multiple tags (AND logic), long-press to exclude a tag; designed for quick lookup mid-service
+- **Service planning** — plan songs for an upcoming service, then mark them as sung live; drag-and-drop reorder
+- **Dashboard** — most/least recently sung songs, quick access to the next service
+- **PWA** — installable on iPhone via Safari; works with iOS safe area, no tap delay
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · Supabase (PostgreSQL) · Vercel
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **[Full specification](song-steward-app-spec.md)** — architecture, database schema, features, deployment process
+- **[Agent context](AGENTS.md)** — constant IDs, conventions, and patterns for AI coding assistants
