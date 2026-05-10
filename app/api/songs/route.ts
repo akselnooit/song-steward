@@ -43,6 +43,15 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // Sortuj wg kolekcji: DP → KM → NDP → NKM → SOS → reszta, potem numer
+  const COLLECTION_ORDER: Record<string, number> = { DP: 0, KM: 1, NDP: 2, NKM: 3, SOS: 4 }
+  songs.sort((a, b) => {
+    const aOrder = COLLECTION_ORDER[a.collection?.short_name ?? ''] ?? 99
+    const bOrder = COLLECTION_ORDER[b.collection?.short_name ?? ''] ?? 99
+    if (aOrder !== bOrder) return aOrder - bOrder
+    return (a.number ?? 0) - (b.number ?? 0)
+  })
+
   return NextResponse.json(songs)
 }
 
