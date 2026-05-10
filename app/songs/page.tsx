@@ -6,6 +6,9 @@ import SongCard from '@/components/SongCard'
 import { Song, Collection } from '@/lib/types'
 import Link from 'next/link'
 
+// Stałe ID — nie zmieniają się; pozwala zacząć fetchowanie pieśni równolegle z kolekcjami
+const DP_COLLECTION_ID = 'd26b6088-f544-4359-bc4c-e14ddc7f2dcb'
+
 function SongsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -16,21 +19,17 @@ function SongsContent() {
   const [songs, setSongs] = useState<Song[]>([])
   const [collections, setCollections] = useState<Collection[]>([])
   const [search, setSearch] = useState('')
-  const [collectionId, setCollectionId] = useState('')
+  // Inicjalizujemy od razu z DP — fetchSongs może ruszyć bez czekania na kolekcje
+  const [collectionId, setCollectionId] = useState(authorId ? '' : DP_COLLECTION_ID)
   const [loading, setLoading] = useState(true)
 
-  // Pobierz zbiory i ustaw domyślnie "Drogi Pańskie" (tylko gdy brak filtra autora)
+  // Pobierz zbiory do dropdownu (równolegle z pierwszym fetchSongs)
   useEffect(() => {
     fetch('/api/collections')
       .then((r) => r.json())
       .then((data: Collection[]) => {
         setCollections(data)
-        if (!authorId) {
-          const dp = data.find((c: Collection) => c.short_name === 'DP')
-          if (dp) setCollectionId(dp.id)
-        } else {
-          setCollectionId('')
-        }
+        if (authorId) setCollectionId('')
       })
   }, [authorId])
 
