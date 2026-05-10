@@ -46,3 +46,6 @@ next-env.d.ts
 
 # data import scripts and source files
 /data/
+
+# database backups
+/backups/
