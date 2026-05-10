@@ -19,7 +19,7 @@ interface SongDetail {
   history: {
     id: string
     added_at: string
-    service: { id: string; date: string; service_type?: { name: string } }
+    service: { id: string; date: string; service_type?: { name: string }; worship_leader?: { name: string } }
   }[]
 }
 
@@ -186,15 +186,32 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             </span>
           </div>
         )}
-        <div className="mt-3 text-sm text-gray-500">
-          Śpiewana łącznie: <strong>{song.history.length}</strong> razy
-          {song.history.length > 0 && (
-            <span className="ml-3">
-              Ostatnio: <strong>
-                {new Date(song.history[0].service.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </strong>
-            </span>
-          )}
+        <div className="mt-3 text-sm text-gray-500 space-y-1">
+          <div>
+            Śpiewana łącznie: <strong>{song.history.length}</strong> razy
+            {song.history.length > 0 && (
+              <span className="ml-3">
+                Ostatnio: <strong>
+                  {new Date(song.history[0].service.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </strong>
+              </span>
+            )}
+          </div>
+          {(() => {
+            const counts: Record<string, number> = {}
+            song.history.forEach((e) => {
+              const name = e.service.worship_leader?.name
+              if (name) counts[name] = (counts[name] || 0) + 1
+            })
+            const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+            if (!top) return null
+            return (
+              <div>
+                Najczęściej podaje: <strong>{top[0]}</strong>
+                <span className="text-gray-400 ml-1">({top[1]}×)</span>
+              </div>
+            )
+          })()}
         </div>
       </div>
 
@@ -274,6 +291,9 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                   </span>
                   {entry.service.service_type && (
                     <span className="text-gray-500 ml-2">— {entry.service.service_type.name}</span>
+                  )}
+                  {entry.service.worship_leader && (
+                    <span className="text-gray-400 ml-2">· {entry.service.worship_leader.name}</span>
                   )}
                 </Link>
               </li>

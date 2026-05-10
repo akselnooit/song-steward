@@ -25,7 +25,7 @@ export async function GET(
       .from('service_songs')
       .select(`
         id, status, added_at,
-        service:services(id, date, service_type:service_types(name))
+        service:services(id, date, service_type:service_types(name), worship_leader:worship_leaders(name))
       `)
       .eq('song_id', id)
       .eq('status', 'sung')
