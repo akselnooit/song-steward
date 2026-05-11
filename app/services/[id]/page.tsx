@@ -123,6 +123,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
       .catch(() => fetchService())
   }
 
+  // TODO: konflikty edycji — jeśli Aksel i Edwin jednocześnie edytują notatkę,
+  // drugi zapis nadpisze pierwszy. Rozwiązanie: optimistic locking lub real-time sync (np. Supabase Realtime).
   const saveNotes = async () => {
     setNotesEditing(false)
     await fetch(`/api/services/${id}`, {
@@ -193,16 +195,20 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
               onChange={(e) => setNotes(e.target.value)}
               onBlur={saveNotes}
               onKeyDown={(e) => { if (e.key === 'Escape') saveNotes() }}
+              onFocus={(e) => {
+                const len = e.target.value.length
+                e.target.setSelectionRange(len, len)
+              }}
               autoFocus
               rows={6}
-              className="w-full text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-900"
+              className="w-full text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-900"
             />
           ) : (
             <button
               onClick={() => setNotesEditing(true)}
               className="w-full text-left flex items-start justify-between gap-2 group"
             >
-              <span className={`text-sm leading-relaxed ${notes ? 'text-gray-600' : 'text-gray-300'}`}>
+              <span className={`text-xs leading-relaxed ${notes ? 'text-gray-600' : 'text-gray-300'}`}>
                 {notes || 'Dodaj notatkę…'}
               </span>
               <span className="shrink-0 text-gray-300 group-hover:text-gray-400 group-hover:rotate-[-15deg] text-xs mt-0.5 transition-all">✎</span>
