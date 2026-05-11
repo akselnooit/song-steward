@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import NeverSungSection from '@/components/NeverSungSection'
 
 export const revalidate = 0
 
@@ -30,8 +31,6 @@ async function getDashboardData() {
     upcomingRes,
     pastRes,
     topSungRes,
-    allSungIdsRes,
-    startTagRes,
   ] = await Promise.all([
     supabase.from('songs').select('*', { count: 'exact', head: true }),
     supabase.from('songs').select('collection:collections(short_name)'),
@@ -54,8 +53,6 @@ async function getDashboardData() {
       .select('song_id, song:songs(id, title, number, collection:collections(short_name))')
       .eq('status', 'sung')
       .gte('added_at', twelveMonthsAgo.toISOString()),
-    supabase.from('service_songs').select('song_id').eq('status', 'sung'),
-    supabase.from('tags').select('id').eq('name', 'Rozpoczęcie').maybeSingle(),
   ])
 
   // Zlicz pieśni per kolekcja
@@ -72,39 +69,17 @@ async function getDashboardData() {
   const topCounts = buildCounts((topSungRes.data || []) as unknown as { song_id: string; song: SongRef | SongRef[] }[])
   const topFive = Object.values(topCounts).sort((a, b) => b.count - a.count).slice(0, 5)
 
-  // Nigdy nie śpiewane z tagiem "Rozpoczęcie"
-  const sungIds = new Set((allSungIdsRes.data || []).map((s) => s.song_id))
-  const tagId = startTagRes.data?.id
-  let neverSungStarters: SongRef[] = []
-  if (tagId) {
-    const { data: songTagData } = await supabase
-      .from('song_tags')
-      .select('song_id, song:songs(id, title, number, collection:collections(short_name))')
-      .eq('tag_id', tagId)
-    neverSungStarters = ((songTagData || []) as unknown as { song_id: string; song: SongRef | SongRef[] }[])
-      .filter((st) => !sungIds.has(st.song_id))
-      .map((st) => (Array.isArray(st.song) ? st.song[0] : st.song))
-      .filter(Boolean)
-      .sort((a, b) => {
-        const ao = COLLECTION_ORDER[a!.collection?.short_name ?? ''] ?? 99
-        const bo = COLLECTION_ORDER[b!.collection?.short_name ?? ''] ?? 99
-        if (ao !== bo) return ao - bo
-        return (a!.number ?? 0) - (b!.number ?? 0)
-      })
-      .slice(0, 5) as SongRef[]
-  }
-
   // Status nabożeństwa
   const nearestService = upcomingRes.data ?? pastRes.data
   const serviceStatus: 'today' | 'future' | 'past' =
     upcomingRes.data?.date === today ? 'today' :
     upcomingRes.data ? 'future' : 'past'
 
-  return { songsCount: songsCount.count || 0, collectionCounts, nearestService, serviceStatus, topFive, neverSungStarters }
+  return { songsCount: songsCount.count || 0, collectionCounts, nearestService, serviceStatus, topFive }
 }
 
 export default async function DashboardPage() {
-  const { songsCount, collectionCounts, nearestService, serviceStatus, topFive, neverSungStarters } = await getDashboardData()
+  const { songsCount, collectionCounts, nearestService, serviceStatus, topFive } = await getDashboardData()
 
   const totalCount = nearestService?.service_songs?.length || 0
   const sungCount = nearestService?.service_songs?.filter(
@@ -186,28 +161,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Nigdy nie śpiewane z tagiem Rozpoczęcie */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <h2 className="font-semibold text-gray-700 mb-3">
-          🌱 Jeszcze nie śpiewane
-          <span className="text-xs font-normal text-gray-400 ml-1">(tag: Rozpoczęcie)</span>
-        </h2>
-        {neverSungStarters.length === 0 ? (
-          <p className="text-sm text-gray-400">Wszystkie zaśpiewane 🎉</p>
-        ) : (
-          <ol className="space-y-2">
-            {neverSungStarters.map((song, i) => (
-              <li key={song.id} className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
-                <Link href={`/songs/${song.id}`} className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1">
-                  <span className="font-semibold text-gray-500 mr-1">{song.number}</span>
-                  {song.title}
-                </Link>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
+      <NeverSungSection />
 
       {/* TODO: lepsze statystyki śpiewanych pieśni — naciśnięcie na kafelek otwiera osobną stronę ze statystykami */}
     </div>
