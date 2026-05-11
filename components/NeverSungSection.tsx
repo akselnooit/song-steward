@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
+import { SlidersHorizontal } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getCached, setCached } from '@/lib/cache'
+import TagFilter from '@/components/TagFilter'
 import type { Tag, TagCategory } from '@/lib/types'
 
 type SongWithTags = {
@@ -21,7 +23,9 @@ export default function NeverSungSection() {
   const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
   const [categories, setCategories] = useState<TagCategory[]>([])
   const [sungIds, setSungIds] = useState<Set<string>>(new Set())
-  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [excludedTagIds, setExcludedTagIds] = useState<string[]>([])
+  const [modalOpen, setModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -42,85 +46,118 @@ export default function NeverSungSection() {
       setSungIds(new Set((sungData.data || []).map((s) => s.song_id)))
 
       const defaultTag = tagsData.find((t: Tag) => t.name === DEFAULT_TAG_NAME)
-      setSelectedTagId(defaultTag?.id ?? tagsData[0]?.id ?? null)
+      if (defaultTag) setSelectedTagIds([defaultTag.id])
       setLoading(false)
     }
     init()
   }, [])
 
   const unsungSongs = useMemo(() => {
-    if (!selectedTagId) return []
     return allSongs
       .filter((song) => {
         const tagIds = song.song_tags?.map((st) => st.tag_id) || []
-        return tagIds.includes(selectedTagId) && !sungIds.has(song.id)
+        if (selectedTagIds.length > 0 && !selectedTagIds.every((id) => tagIds.includes(id))) return false
+        if (excludedTagIds.some((id) => tagIds.includes(id))) return false
+        return !sungIds.has(song.id)
       })
       .slice(0, 5)
-  }, [allSongs, sungIds, selectedTagId])
+  }, [allSongs, sungIds, selectedTagIds, excludedTagIds])
 
-  const tagsByCategory = useMemo(() => {
-    return categories.reduce<Record<string, (Tag & { category?: TagCategory })[]>>((acc, cat) => {
-      const tags = allTags.filter((t) => t.category_id === cat.id)
-      if (tags.length > 0) acc[cat.id] = tags
-      return acc
-    }, {})
-  }, [allTags, categories])
+  // Skrócony opis aktywnych filtrów
+  const filterLabel = useMemo(() => {
+    const sel = selectedTagIds.map((id) => allTags.find((t) => t.id === id)?.name).filter(Boolean)
+    const excl = excludedTagIds.map((id) => allTags.find((t) => t.id === id)?.name).filter(Boolean)
+    const parts = [
+      ...sel.map((n) => n),
+      ...excl.map((n) => `bez: ${n}`),
+    ]
+    return parts.length > 0 ? parts.join(' · ') : 'Wszystkie'
+  }, [selectedTagIds, excludedTagIds, allTags])
 
   if (loading) {
-    return <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 h-32 animate-pulse" />
+    return <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 h-24 animate-pulse" />
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-      <h2 className="font-semibold text-gray-700 mb-3">🌱 Jeszcze nie śpiewane</h2>
+    <>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        {/* Nagłówek z przyciskiem filtra */}
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-semibold text-gray-700">🌱 Jeszcze nie śpiewane</h2>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="text-gray-400 hover:text-blue-900 transition-colors p-1 -mr-1 active:scale-95"
+            title="Zmień filtry"
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+        </div>
 
-      {/* Selektor tagu — taki sam styl jak na /search */}
-      <div className="space-y-2 mb-4">
-        {categories.map((cat) => {
-          const tags = tagsByCategory[cat.id]
-          if (!tags || tags.length === 0) return null
-          return (
-            <div key={cat.id}>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{cat.name}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() => setSelectedTagId(tag.id)}
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all active:scale-95 ${
-                      tag.id === selectedTagId
-                        ? 'bg-blue-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )
-        })}
+        {/* Aktywne filtry jako tekst */}
+        <p className="text-xs text-gray-400 mb-3">{filterLabel}</p>
+
+        {/* Lista pieśni */}
+        {unsungSongs.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-1">Wszystkie zaśpiewane 🎉</p>
+        ) : (
+          <ol className="space-y-2">
+            {unsungSongs.map((song, i) => (
+              <li key={song.id} className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
+                <Link
+                  href={`/songs/${song.id}`}
+                  className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1"
+                >
+                  <span className="font-semibold text-gray-500 mr-1">{song.number}</span>
+                  {song.title}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
-      {/* Lista pieśni */}
-      {unsungSongs.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-2">Wszystkie zaśpiewane 🎉</p>
-      ) : (
-        <ol className="space-y-2">
-          {unsungSongs.map((song, i) => (
-            <li key={song.id} className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
-              <Link
-                href={`/songs/${song.id}`}
-                className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1"
+      {/* Modal z filtrami */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-end"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="w-full bg-white rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Filtruj tagi</h3>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-medium active:scale-95 transition-all"
               >
-                <span className="font-semibold text-gray-500 mr-1">{song.number}</span>
-                {song.title}
-              </Link>
-            </li>
-          ))}
-        </ol>
+                Gotowe
+              </button>
+            </div>
+            <TagFilter
+              availableTags={allTags}
+              selectedTagIds={selectedTagIds}
+              excludedTagIds={excludedTagIds}
+              onToggleTag={(id) => {
+                setExcludedTagIds((prev) => prev.filter((x) => x !== id))
+                setSelectedTagIds((prev) =>
+                  prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                )
+              }}
+              onToggleExclude={(id) => {
+                setSelectedTagIds((prev) => prev.filter((x) => x !== id))
+                setExcludedTagIds((prev) =>
+                  prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                )
+              }}
+              onClear={() => { setSelectedTagIds([]); setExcludedTagIds([]) }}
+              categories={categories}
+            />
+          </div>
+        </div>
       )}
-    </div>
+    </>
   )
 }
