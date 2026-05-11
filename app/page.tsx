@@ -176,6 +176,7 @@ export default async function DashboardPage() {
               <li key={item.song.id} className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
                 <Link href={`/songs/${item.song.id}`} className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1">
+                  <span className="font-semibold text-gray-500 mr-1">{item.song.number}</span>
                   {item.song.title}
                 </Link>
                 <span className="text-xs text-gray-400 shrink-0">{item.count}×</span>
@@ -199,11 +200,9 @@ export default async function DashboardPage() {
               <li key={song.id} className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
                 <Link href={`/songs/${song.id}`} className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1">
+                  <span className="font-semibold text-gray-500 mr-1">{song.number}</span>
                   {song.title}
                 </Link>
-                <span className="text-xs text-gray-400 shrink-0">
-                  {song.collection?.short_name} {song.number}
-                </span>
               </li>
             ))}
           </ol>
