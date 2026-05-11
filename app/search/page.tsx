@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import useSWR from 'swr'
 import TagFilter from '@/components/TagFilter'
 import SongCard from '@/components/SongCard'
 import { Song, Tag, TagCategory } from '@/lib/types'
+import { fetcher } from '@/lib/fetcher'
+import { cacheGet, cacheSet } from '@/lib/cache'
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -17,12 +20,8 @@ function SearchContent() {
   const [serviceStatusMap, setServiceStatusMap] = useState<Record<string, 'planned' | 'sung'>>({})
   // songId → id rekordu service_songs (potrzebne do usuwania)
   const [serviceSongIdMap, setServiceSongIdMap] = useState<Record<string, string>>({})
-  const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
-  const [categories, setCategories] = useState<TagCategory[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [excludedTagIds, setExcludedTagIds] = useState<string[]>([])
-  const [songs, setSongs] = useState<Song[]>([])
-  const [loading, setLoading] = useState(false)
   const [addingId, setAddingId] = useState<string | null>(null)
 
   // Pobierz aktywne nabożeństwo jeśli brak service_id w URL
@@ -64,29 +63,26 @@ function SearchContent() {
       .catch(() => {})
   }, [serviceId])
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/tags').then((r) => r.json()),
-      fetch('/api/tag-categories').then((r) => r.json()),
-    ]).then(([tagsData, catsData]) => {
-      setAllTags(tagsData)
-      setCategories(catsData)
-    })
-  }, [])
+  // Tagi i kategorie: SWR + localStorage (TTL 10 min)
+  const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, {
+    fallbackData: cacheGet('/api/tags') ?? undefined,
+    onSuccess: (data) => cacheSet('/api/tags', data),
+    revalidateOnFocus: false,
+  })
+  const { data: categories = [] } = useSWR<TagCategory[]>('/api/tag-categories', fetcher, {
+    fallbackData: cacheGet('/api/tag-categories') ?? undefined,
+    onSuccess: (data) => cacheSet('/api/tag-categories', data),
+    revalidateOnFocus: false,
+  })
 
-  const fetchSongs = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    selectedTagIds.forEach((id) => params.append('tag_id', id))
-    const res = await fetch(`/api/songs?${params}`)
-    const data = await res.json()
-    setSongs(data)
-    setLoading(false)
-  }, [selectedTagIds])
-
-  useEffect(() => {
-    fetchSongs()
-  }, [fetchSongs])
+  // Pieśni: SWR (pamięć) z keepPreviousData — lista nie znika przy zmianie tagów
+  const songParams = new URLSearchParams()
+  selectedTagIds.forEach((id) => songParams.append('tag_id', id))
+  const { data: songs = [], isLoading: loading } = useSWR<Song[]>(
+    `/api/songs?${songParams}`,
+    fetcher,
+    { keepPreviousData: true, revalidateOnFocus: false }
+  )
 
   const toggleTag = (tagId: string) => {
     setExcludedTagIds((prev) => prev.filter((id) => id !== tagId))

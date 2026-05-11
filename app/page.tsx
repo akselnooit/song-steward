@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-export const revalidate = 0
+export const revalidate = 30
 
 async function getDashboardData() {
   const threeMonthsAgo = new Date()

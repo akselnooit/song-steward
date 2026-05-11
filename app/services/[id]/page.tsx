@@ -71,19 +71,47 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const confirmSong = async (serviceSongId: string) => {
-    // Policz ile jest już zaśpiewanych, aby nadać kolejność
     const sungCount = service?.service_songs.filter((ss) => ss.status === 'sung').length || 0
-    await fetch(`/api/service-songs/${serviceSongId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'sung', song_order: sungCount + 1 }),
-    })
-    await fetchService()
+
+    // Optimistic update — natychmiastowa zmiana w UI bez czekania na API
+    setService((prev) =>
+      prev ? {
+        ...prev,
+        service_songs: prev.service_songs.map((ss) =>
+          ss.id === serviceSongId
+            ? { ...ss, status: 'sung' as const, song_order: sungCount + 1 }
+            : ss
+        ),
+      } : prev
+    )
+
+    try {
+      await fetch(`/api/service-songs/${serviceSongId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'sung', song_order: sungCount + 1 }),
+      })
+      fetchService() // cichy refresh w tle
+    } catch {
+      fetchService() // cofnij na błąd
+    }
   }
 
   const deleteSong = async (serviceSongId: string) => {
-    await fetch(`/api/service-songs/${serviceSongId}`, { method: 'DELETE' })
-    await fetchService()
+    // Optimistic update — usuń natychmiast z listy
+    setService((prev) =>
+      prev ? {
+        ...prev,
+        service_songs: prev.service_songs.filter((ss) => ss.id !== serviceSongId),
+      } : prev
+    )
+
+    try {
+      await fetch(`/api/service-songs/${serviceSongId}`, { method: 'DELETE' })
+      fetchService() // cichy refresh w tle
+    } catch {
+      fetchService() // cofnij na błąd
+    }
   }
 
   const saveNotes = async () => {

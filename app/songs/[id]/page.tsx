@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { use, useState } from 'react'
+import useSWR from 'swr'
 import { Tag, TagCategory, TagSource } from '@/lib/types'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
+import { fetcher } from '@/lib/fetcher'
 
 interface SongDetail {
   id: string
@@ -23,26 +25,19 @@ interface SongDetail {
 
 export default function SongDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const [song, setSong] = useState<SongDetail | null>(null)
-  const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
-  const [loading, setLoading] = useState(true)
   const [savingTag, setSavingTag] = useState(false)
   const [lightbox, setLightbox] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/songs/${id}`).then((r) => r.json()),
-      fetch('/api/tags').then((r) => r.json()),
-    ]).then(([songData, tagsData]) => {
-      setSong(songData)
-      setAllTags(tagsData)
-      setLoading(false)
-    })
-  }, [id])
+  // Dane pieśni i tagów przez SWR — przy powrocie na stronę widoczne natychmiast
+  const { data: song, mutate: mutateSong } = useSWR<SongDetail>(`/api/songs/${id}`, fetcher, {
+    revalidateOnFocus: false,
+  })
+  const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, {
+    revalidateOnFocus: false,
+  })
 
-  if (loading) return <div className="text-center py-20 text-gray-400">Ładowanie...</div>
-  if (!song) return <div className="text-center py-20 text-gray-400">Nie znaleziono pieśni</div>
+  if (!song) return <div className="text-center py-20 text-gray-400">Ładowanie...</div>
 
   const currentTagIds = song.song_tags.map((st) => st.tag.id)
 
@@ -64,9 +59,8 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
       })
     }
 
-    // Odśwież dane pieśni
-    const updated = await fetch(`/api/songs/${id}`).then((r) => r.json())
-    setSong(updated)
+    // Odśwież dane pieśni przez SWR mutate
+    await mutateSong()
     setSavingTag(false)
   }
 
