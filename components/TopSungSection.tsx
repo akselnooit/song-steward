@@ -145,7 +145,7 @@ export default function TopSungSection() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end" onClick={() => setModalOpen(false)}>
-          <div className="w-full bg-white rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full bg-white rounded-t-2xl pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Filtruj</h3>
               <button onClick={() => setModalOpen(false)} className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-medium active:scale-95 transition-all">
