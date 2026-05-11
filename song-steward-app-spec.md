@@ -8,7 +8,7 @@
 
 Nazwa nawiązuje do biblijnej koncepcji *stewardship* — odpowiedzialnego zarządzania tym, co zostało powierzone. Lider muzyczny jest stewardem repertuaru pieśni zboru.
 
-**Użytkownicy:** Aksel (główny), Edwin — obaj korzystają z tej samej bazy podczas nabożeństw. Brak systemu logowania (celowo — prosta współpraca przez zaufanie).
+**Użytkownicy:** Aksel, Edwin, Ruben i kilka dodatkowych osób z Polski. Wszyscy korzystają z tej samej bazy podczas nabożeństw. Brak systemu logowania (celowo — prosta współpraca przez zaufanie).
 
 ---
 

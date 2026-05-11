@@ -49,3 +49,6 @@ next-env.d.ts
 
 # database backups
 /backups/
+
+# supabase cli temp files
+/supabase/.temp/
