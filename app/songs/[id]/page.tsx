@@ -81,18 +81,6 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
     setSavingTag(false)
   }
 
-  // Akcje administratora (zatwierdź / przywróć)
-  const adminAction = async (tagId: string, action: 'confirm_add' | 'confirm_remove' | 'restore') => {
-    setSavingTag(true)
-    await fetch('/api/song-tags', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ song_id: id, tag_id: tagId, action }),
-    })
-    await mutateSong()
-    setSavingTag(false)
-  }
-
   const toggleCategory = (catId: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev)
@@ -249,19 +237,9 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Dodane — do zatwierdzenia</p>
             <div className="flex flex-wrap gap-2">
               {pendingAdditionTags.map(({ tag }) => (
-                <div key={tag.id} className="flex items-center gap-1">
-                  <span className="rounded-full px-3 py-1.5 text-sm font-medium bg-amber-100 text-amber-700 border border-amber-300">
-                    {tag.name}
-                  </span>
-                  <button
-                    onClick={() => adminAction(tag.id, 'confirm_add')}
-                    disabled={savingTag}
-                    title="Zatwierdź dodanie"
-                    className="hidden lg:flex w-7 h-7 items-center justify-center rounded-full bg-green-100 text-green-700 hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
-                  >
-                    ✓
-                  </button>
-                </div>
+                <span key={tag.id} className="rounded-full px-3 py-1.5 text-sm font-medium bg-amber-100 text-amber-700 border border-amber-300">
+                  {tag.name}
+                </span>
               ))}
             </div>
           </div>
@@ -273,27 +251,9 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Do usunięcia — do zatwierdzenia</p>
             <div className="flex flex-wrap gap-2">
               {pendingRemovalTags.map(({ tag }) => (
-                <div key={tag.id} className="flex items-center gap-1.5">
-                  <span className="rounded-full px-3 py-1.5 text-sm font-medium bg-red-100 text-red-400 border border-red-200 line-through">
-                    {tag.name}
-                  </span>
-                  <button
-                    onClick={() => adminAction(tag.id, 'confirm_remove')}
-                    disabled={savingTag}
-                    title="Zatwierdź usunięcie"
-                    className="hidden lg:flex w-7 h-7 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
-                  >
-                    ✓
-                  </button>
-                  <button
-                    onClick={() => adminAction(tag.id, 'restore')}
-                    disabled={savingTag}
-                    title="Przywróć tag"
-                    className="hidden lg:flex w-7 h-7 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 active:scale-95 transition-all disabled:opacity-50 text-sm"
-                  >
-                    ↩
-                  </button>
-                </div>
+                <span key={tag.id} className="rounded-full px-3 py-1.5 text-sm font-medium bg-red-100 text-red-400 border border-red-200 line-through">
+                  {tag.name}
+                </span>
               ))}
             </div>
           </div>
