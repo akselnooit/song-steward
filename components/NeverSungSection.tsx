@@ -13,7 +13,7 @@ type SongWithTags = {
   title: string
   number: number
   collection?: { short_name: string }
-  song_tags?: { tag_id: string }[]
+  song_tags?: { tag_id: string; pending_removal?: boolean }[]
 }
 type SungEntry = {
   song_id: string
@@ -118,7 +118,10 @@ export default function NeverSungSection() {
   const unsungSongs = useMemo(() => {
     return allSongs
       .filter((song) => {
-        const tagIds = song.song_tags?.map((st) => st.tag_id) || []
+        // Uwzględnij tylko aktywne tagi (bez pending_removal)
+        const tagIds = (song.song_tags || [])
+          .filter((st) => !st.pending_removal)
+          .map((st) => st.tag_id)
         if (selectedTagIds.length > 0 && !selectedTagIds.every((id) => tagIds.includes(id))) return false
         if (excludedTagIds.some((id) => tagIds.includes(id))) return false
         return !filteredSungIds.has(song.id)

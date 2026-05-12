@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     .select(`
       *,
       collection:collections(id, name, short_name),
-      song_tags(tag_id)
+      song_tags(tag_id, pending_removal)
     `)
     .order('number')
 
@@ -38,8 +38,11 @@ export async function GET(request: NextRequest) {
   let songs = data || []
   if (tagIds.length > 0) {
     songs = songs.filter((song) => {
-      const songTagIds = song.song_tags.map((st: { tag_id: string }) => st.tag_id)
-      return tagIds.every((tagId) => songTagIds.includes(tagId))
+      // Uwzględnij tylko aktywne tagi (bez pending_removal)
+      const activeTagIds = song.song_tags
+        .filter((st: { tag_id: string; pending_removal: boolean }) => !st.pending_removal)
+        .map((st: { tag_id: string }) => st.tag_id)
+      return tagIds.every((tagId) => activeTagIds.includes(tagId))
     })
   }
 

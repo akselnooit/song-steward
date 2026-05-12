@@ -17,7 +17,7 @@ interface SongDetail {
   original_key: string | null
   minor: boolean | null
   collection?: { id: string; name: string; short_name: string }
-  song_tags: { source: TagSource; tag: Tag & { category?: TagCategory } }[]
+  song_tags: { source: TagSource; pending_removal: boolean; tag: Tag & { category?: TagCategory } }[]
   history: {
     id: string
     added_at: string
@@ -31,7 +31,6 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   const [lightbox, setLightbox] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
-  // Dane pieśni i tagów przez SWR — przy powrocie na stronę widoczne natychmiast
   const { data: song, mutate: mutateSong } = useSWR<SongDetail>(`/api/songs/${id}`, fetcher, {
     revalidateOnFocus: false,
   })
@@ -41,19 +40,36 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
   if (!song) return <div className="text-center py-20 text-gray-400">Ładowanie...</div>
 
-  const currentTagIds = song.song_tags.map((st) => st.tag.id)
+  // Aktywne tagi (nie oczekują na usunięcie)
+  const activeSongTags = song.song_tags.filter((st) => !st.pending_removal)
+  const activeTagIds = activeSongTags.map((st) => st.tag.id)
+  // Tagi oczekujące na zatwierdzenie usunięcia
+  const pendingRemovalTags = song.song_tags.filter((st) => st.pending_removal)
+  const pendingRemovalTagIds = pendingRemovalTags.map((st) => st.tag.id)
+  // Tagi dodane przez użytkownika — oczekują na zatwierdzenie dodania
+  const pendingAdditionTags = activeSongTags.filter((st) => st.source === 'user')
 
+  // Kliknięcie tagu — toggle z obsługą stanów pending
   const toggleTag = async (tagId: string) => {
     setSavingTag(true)
-    const hasTag = currentTagIds.includes(tagId)
+    const existing = song.song_tags.find((st) => st.tag.id === tagId)
 
-    if (hasTag) {
+    if (existing?.pending_removal) {
+      // Tag czeka na usunięcie — kliknięcie przywraca
+      await fetch('/api/song-tags', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song_id: id, tag_id: tagId, action: 'restore' }),
+      })
+    } else if (existing) {
+      // Aktywny tag — oznacz do usunięcia
       await fetch('/api/song-tags', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ song_id: id, tag_id: tagId }),
       })
     } else {
+      // Brak tagu — dodaj jako user
       await fetch('/api/song-tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,7 +77,18 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
       })
     }
 
-    // Odśwież dane pieśni przez SWR mutate
+    await mutateSong()
+    setSavingTag(false)
+  }
+
+  // Akcje administratora (zatwierdź / przywróć)
+  const adminAction = async (tagId: string, action: 'confirm_add' | 'confirm_remove' | 'restore') => {
+    setSavingTag(true)
+    await fetch('/api/song-tags', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ song_id: id, tag_id: tagId, action }),
+    })
     await mutateSong()
     setSavingTag(false)
   }
@@ -75,7 +102,6 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
     })
   }
 
-  // Grupuj tagi wg kategorii
   const categories = Array.from(
     new Map(
       allTags
@@ -91,18 +117,16 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
     return 'bg-blue-900 text-white'
   }
 
-  // Mapa tagId → source dla aktywnych tagów
   const tagSourceMap = new Map(song.song_tags.map((st) => [st.tag.id, st.source]))
 
   const collectionLabel = song.collection
     ? `${song.collection.short_name} ${song.number}`
     : `#${song.number}`
 
-  // Pomocnik do renderowania zwijanych kategorii tagów
   const renderTagCategory = (catId: string, catName: string, tags: (Tag & { category?: TagCategory })[]) => {
     const isOpen = expandedCategories.has(catId)
-    const activeTags = tags.filter((t) => currentTagIds.includes(t.id))
-    const inactiveTags = tags.filter((t) => !currentTagIds.includes(t.id)).sort((a, b) => a.name.localeCompare(b.name, 'pl'))
+    const activeTags = tags.filter((t) => activeTagIds.includes(t.id))
+    const inactiveTags = tags.filter((t) => !activeTagIds.includes(t.id)).sort((a, b) => a.name.localeCompare(b.name, 'pl'))
     const sortedTags = [...activeTags, ...inactiveTags]
 
     return (
@@ -123,7 +147,8 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           <div className="overflow-hidden">
             <div className="px-3 py-2.5 flex flex-wrap gap-2 bg-white">
               {sortedTags.map((tag) => {
-                const active = currentTagIds.includes(tag.id)
+                const active = activeTagIds.includes(tag.id)
+                const pendingRemoval = pendingRemovalTagIds.includes(tag.id)
                 const source = tagSourceMap.get(tag.id)
                 return (
                   <button
@@ -131,7 +156,11 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                     onClick={() => toggleTag(tag.id)}
                     disabled={savingTag}
                     className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 disabled:opacity-50 ${
-                      active ? tagSourceClass(source) : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      active
+                        ? tagSourceClass(source)
+                        : pendingRemoval
+                          ? 'bg-gray-100 text-gray-400 line-through'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
                     {tag.name}
@@ -198,10 +227,10 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           Tagi {savingTag && <Loader2 size={12} className="inline animate-spin ml-1 align-middle" />}
         </h2>
 
-        {/* Aktywne tagi */}
-        {currentTagIds.length > 0 && (
+        {/* Aktywne tagi — kliknięcie zgłasza do usunięcia */}
+        {activeTagIds.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
-            {song.song_tags.map(({ tag, source }) => (
+            {activeSongTags.map(({ tag, source }) => (
               <button
                 key={tag.id}
                 onClick={() => toggleTag(tag.id)}
@@ -211,6 +240,62 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                 {tag.name}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Oczekuje na zatwierdzenie dodania */}
+        {pendingAdditionTags.length > 0 && (
+          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Dodane — do zatwierdzenia</p>
+            <div className="flex flex-wrap gap-2">
+              {pendingAdditionTags.map(({ tag }) => (
+                <div key={tag.id} className="flex items-center gap-1">
+                  <span className="rounded-full px-3 py-1.5 text-sm font-medium bg-amber-100 text-amber-700 border border-amber-300">
+                    {tag.name}
+                  </span>
+                  <button
+                    onClick={() => adminAction(tag.id, 'confirm_add')}
+                    disabled={savingTag}
+                    title="Zatwierdź dodanie"
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-green-100 text-green-700 hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
+                  >
+                    ✓
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Oczekuje na zatwierdzenie usunięcia */}
+        {pendingRemovalTags.length > 0 && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Do usunięcia — do zatwierdzenia</p>
+            <div className="flex flex-wrap gap-2">
+              {pendingRemovalTags.map(({ tag }) => (
+                <div key={tag.id} className="flex items-center gap-1.5">
+                  <span className="rounded-full px-3 py-1.5 text-sm font-medium bg-red-100 text-red-400 border border-red-200 line-through">
+                    {tag.name}
+                  </span>
+                  <button
+                    onClick={() => adminAction(tag.id, 'confirm_remove')}
+                    disabled={savingTag}
+                    title="Zatwierdź usunięcie"
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    onClick={() => adminAction(tag.id, 'restore')}
+                    disabled={savingTag}
+                    title="Przywróć tag"
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 active:scale-95 transition-all disabled:opacity-50 text-sm"
+                  >
+                    ↩
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

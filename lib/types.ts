@@ -45,6 +45,7 @@ export interface SongTag {
   song_id: string
   tag_id: string
   source: TagSource
+  pending_removal: boolean
 }
 
 export interface ServiceType {
