@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState, useMemo, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import useSWR from 'swr'
 import TagFilter from '@/components/TagFilter'
 import SongCard from '@/components/SongCard'
 import { Song, Tag, TagCategory } from '@/lib/types'
-import { getCached, setCached } from '@/lib/cache'
-
-type SongWithTags = Song & { song_tags?: { tag_id: string }[] }
+import { fetcher } from '@/lib/fetcher'
+import { cacheGet, cacheSet } from '@/lib/cache'
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -20,33 +20,9 @@ function SearchContent() {
   const [serviceStatusMap, setServiceStatusMap] = useState<Record<string, 'planned' | 'sung'>>({})
   // songId → id rekordu service_songs (potrzebne do usuwania)
   const [serviceSongIdMap, setServiceSongIdMap] = useState<Record<string, string>>({})
-  const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
-  const [categories, setCategories] = useState<TagCategory[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [excludedTagIds, setExcludedTagIds] = useState<string[]>([])
-  // Wszystkie pieśni — pobrane raz, filtrowane lokalnie
-  const [allSongs, setAllSongs] = useState<SongWithTags[]>([])
-  const [loading, setLoading] = useState(true)
   const [addingId, setAddingId] = useState<string | null>(null)
-
-  // Jednorazowe pobranie pieśni + tagów — z cache lub API
-  useEffect(() => {
-    const init = async () => {
-      const [songsData, tagsData, catsData] = await Promise.all([
-        getCached<SongWithTags[]>('songs_all') ??
-          fetch('/api/songs').then((r) => r.json()).then((d) => { setCached('songs_all', d); return d }),
-        getCached<Tag[]>('tags_all') ??
-          fetch('/api/tags').then((r) => r.json()).then((d) => { setCached('tags_all', d); return d }),
-        getCached<TagCategory[]>('tag_categories_all') ??
-          fetch('/api/tag-categories').then((r) => r.json()).then((d) => { setCached('tag_categories_all', d); return d }),
-      ])
-      setAllSongs(songsData)
-      setAllTags(tagsData)
-      setCategories(catsData)
-      setLoading(false)
-    }
-    init()
-  }, [])
 
   // Pobierz aktywne nabożeństwo jeśli brak service_id w URL
   useEffect(() => {
@@ -87,6 +63,27 @@ function SearchContent() {
       .catch(() => {})
   }, [serviceId])
 
+  // Tagi i kategorie: SWR + localStorage (TTL 10 min)
+  const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, {
+    fallbackData: cacheGet('/api/tags') ?? undefined,
+    onSuccess: (data) => cacheSet('/api/tags', data),
+    revalidateOnFocus: false,
+  })
+  const { data: categories = [] } = useSWR<TagCategory[]>('/api/tag-categories', fetcher, {
+    fallbackData: cacheGet('/api/tag-categories') ?? undefined,
+    onSuccess: (data) => cacheSet('/api/tag-categories', data),
+    revalidateOnFocus: false,
+  })
+
+  // Pieśni: SWR (pamięć) z keepPreviousData — lista nie znika przy zmianie tagów
+  const songParams = new URLSearchParams()
+  selectedTagIds.forEach((id) => songParams.append('tag_id', id))
+  const { data: songs = [], isLoading: loading } = useSWR<Song[]>(
+    `/api/songs?${songParams}`,
+    fetcher,
+    { keepPreviousData: true, revalidateOnFocus: false }
+  )
+
   const toggleTag = (tagId: string) => {
     setExcludedTagIds((prev) => prev.filter((id) => id !== tagId))
     setSelectedTagIds((prev) =>
@@ -101,20 +98,20 @@ function SearchContent() {
     )
   }
 
-  // Filtrowanie lokalne — bez żadnego requesta do API
-  const visibleSongs = useMemo(() => {
-    return allSongs.filter((song) => {
-      const songTagIds = song.song_tags?.map((st) => st.tag_id) || []
-      if (selectedTagIds.length > 0 && !selectedTagIds.every((id) => songTagIds.includes(id))) return false
-      if (excludedTagIds.some((id) => songTagIds.includes(id))) return false
-      return true
-    })
-  }, [allSongs, selectedTagIds, excludedTagIds])
-
-  const availableTagIds = new Set(visibleSongs.flatMap((song) => song.song_tags?.map((st) => st.tag_id) || []))
+  const availableTagIds = new Set(
+    songs.flatMap((song) =>
+      (song as Song & { song_tags?: { tag_id: string }[] }).song_tags?.map((st) => st.tag_id) || []
+    )
+  )
   const displayTags = allTags.filter(
     (t) => selectedTagIds.includes(t.id) || excludedTagIds.includes(t.id) || availableTagIds.has(t.id)
   )
+
+  const visibleSongs = songs.filter((song) => {
+    if (excludedTagIds.length === 0) return true
+    const songTagIds = (song as Song & { song_tags?: { tag_id: string }[] }).song_tags?.map((st) => st.tag_id) || []
+    return !excludedTagIds.some((excId) => songTagIds.includes(excId))
+  })
 
   const addToService = async (song: Song, status: 'planned' | 'sung') => {
     if (!serviceId || addingId) return

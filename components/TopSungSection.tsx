@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { SlidersHorizontal } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { getCached, setCached } from '@/lib/cache'
+import { cacheGet, cacheSet } from '@/lib/cache'
 
 type SongRef = { id: string; title: string; number: number; collection?: { short_name: string } }
 type Entry = {
@@ -65,10 +65,10 @@ export default function TopSungSection() {
           .select('song_id, song:songs(id, title, number, collection:collections(short_name)), service:services(service_type_id, worship_leader_id)')
           .eq('status', 'sung')
           .gte('added_at', twelveMonthsAgo.toISOString()),
-        getCached<Leader[]>('worship_leaders') ??
-          fetch('/api/worship-leaders').then((r) => r.json()).then((d) => { setCached('worship_leaders', d); return d }),
-        getCached<ServiceType[]>('service_types') ??
-          fetch('/api/service-types').then((r) => r.json()).then((d) => { setCached('service_types', d); return d }),
+        cacheGet<Leader[]>('worship_leaders') ??
+          fetch('/api/worship-leaders').then((r) => r.json()).then((d) => { cacheSet('worship_leaders', d); return d }),
+        cacheGet<ServiceType[]>('service_types') ??
+          fetch('/api/service-types').then((r) => r.json()).then((d) => { cacheSet('service_types', d); return d }),
       ])
       setEntries((ssResult.data || []) as unknown as Entry[])
       setLeaders(leadersData)

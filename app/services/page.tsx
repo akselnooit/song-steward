@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-export const revalidate = 0
+export const revalidate = 30
 
 async function getServices() {
   const { data, error } = await supabase

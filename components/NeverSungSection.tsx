@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { SlidersHorizontal } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { getCached, setCached } from '@/lib/cache'
+import { cacheGet, cacheSet } from '@/lib/cache'
 import TagFilter from '@/components/TagFilter'
 import type { Tag, TagCategory } from '@/lib/types'
 
@@ -71,20 +71,20 @@ export default function NeverSungSection() {
   useEffect(() => {
     const init = async () => {
       const [songsData, tagsData, catsData, sungResult, leadersData, typesData] = await Promise.all([
-        getCached<SongWithTags[]>('songs_all') ??
-          fetch('/api/songs').then((r) => r.json()).then((d) => { setCached('songs_all', d); return d }),
-        getCached<Tag[]>('tags_all') ??
-          fetch('/api/tags').then((r) => r.json()).then((d) => { setCached('tags_all', d); return d }),
-        getCached<TagCategory[]>('tag_categories_all') ??
-          fetch('/api/tag-categories').then((r) => r.json()).then((d) => { setCached('tag_categories_all', d); return d }),
+        cacheGet<SongWithTags[]>('songs_all') ??
+          fetch('/api/songs').then((r) => r.json()).then((d) => { cacheSet('songs_all', d); return d }),
+        cacheGet<Tag[]>('tags_all') ??
+          fetch('/api/tags').then((r) => r.json()).then((d) => { cacheSet('tags_all', d); return d }),
+        cacheGet<TagCategory[]>('tag_categories_all') ??
+          fetch('/api/tag-categories').then((r) => r.json()).then((d) => { cacheSet('tag_categories_all', d); return d }),
         supabase
           .from('service_songs')
           .select('song_id, service:services(service_type_id, worship_leader_id)')
           .eq('status', 'sung'),
-        getCached<Leader[]>('worship_leaders') ??
-          fetch('/api/worship-leaders').then((r) => r.json()).then((d) => { setCached('worship_leaders', d); return d }),
-        getCached<ServiceType[]>('service_types') ??
-          fetch('/api/service-types').then((r) => r.json()).then((d) => { setCached('service_types', d); return d }),
+        cacheGet<Leader[]>('worship_leaders') ??
+          fetch('/api/worship-leaders').then((r) => r.json()).then((d) => { cacheSet('worship_leaders', d); return d }),
+        cacheGet<ServiceType[]>('service_types') ??
+          fetch('/api/service-types').then((r) => r.json()).then((d) => { cacheSet('service_types', d); return d }),
       ])
 
       setAllSongs(songsData)

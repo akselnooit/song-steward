@@ -31,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={`${geist.className} bg-gray-50 text-gray-900`}>
         <main className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))]">

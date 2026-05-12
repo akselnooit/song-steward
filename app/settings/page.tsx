@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import useSWR from 'swr'
+import { fetcher } from '@/lib/fetcher'
 
 // Generyczny komponent do zarządzania słownikiem
 function DictionarySection<T extends { id: string; name: string }>({
@@ -17,21 +19,18 @@ function DictionarySection<T extends { id: string; name: string }>({
     optionsEndpoint?: string
   }[]
 }) {
-  const [items, setItems] = useState<T[]>([])
   const [editId, setEditId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [adding, setAdding] = useState(false)
   const [options, setOptions] = useState<Record<string, { id: string; name: string }[]>>({})
 
-  const fetchItems = useCallback(async () => {
-    const res = await fetch(`/api/${endpoint}`)
-    const data = await res.json()
-    setItems(data)
-  }, [endpoint])
+  // Dane sekcji przez SWR — przy powrocie na stronę widoczne natychmiast z cache
+  const { data: items = [], mutate: mutateItems } = useSWR<T[]>(`/api/${endpoint}`, fetcher, {
+    revalidateOnFocus: false,
+  })
 
   useEffect(() => {
-    fetchItems()
-    // Pobierz opcje dla pól select
+    // Pobierz opcje dla pól select (rzadko się zmieniają, bez SWR)
     extraFields?.forEach(async (field) => {
       if (field.optionsEndpoint) {
         const res = await fetch(`/api/${field.optionsEndpoint}`)
@@ -39,7 +38,7 @@ function DictionarySection<T extends { id: string; name: string }>({
         setOptions((prev) => ({ ...prev, [field.key]: data }))
       }
     })
-  }, [fetchItems, extraFields])
+  }, [extraFields])
 
   const resetForm = () => {
     setFormData({})
@@ -63,13 +62,13 @@ function DictionarySection<T extends { id: string; name: string }>({
       })
     }
     resetForm()
-    fetchItems()
+    mutateItems()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Na pewno usunąć?')) return
     await fetch(`/api/${endpoint}/${id}`, { method: 'DELETE' })
-    fetchItems()
+    mutateItems()
   }
 
   const startEdit = (item: T & Record<string, string>) => {
