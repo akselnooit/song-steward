@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import NeverSungSection from '@/components/NeverSungSection'
 import TopSungSection from '@/components/TopSungSection'
-import PendingTagsSection from '@/components/PendingTagsSection'
 
 export const revalidate = 30
 
@@ -136,7 +135,6 @@ export default async function DashboardPage() {
 
       <NeverSungSection />
 
-      <PendingTagsSection />
 
       {/* TODO: lepsze statystyki śpiewanych pieśni — naciśnięcie na kafelek otwiera osobną stronę ze statystykami */}
     </div>

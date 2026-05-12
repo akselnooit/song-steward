@@ -257,7 +257,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                     onClick={() => adminAction(tag.id, 'confirm_add')}
                     disabled={savingTag}
                     title="Zatwierdź dodanie"
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-green-100 text-green-700 hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
+                    className="hidden lg:flex w-7 h-7 items-center justify-center rounded-full bg-green-100 text-green-700 hover:bg-green-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
                   >
                     ✓
                   </button>
@@ -281,7 +281,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                     onClick={() => adminAction(tag.id, 'confirm_remove')}
                     disabled={savingTag}
                     title="Zatwierdź usunięcie"
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
+                    className="hidden lg:flex w-7 h-7 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50 text-sm font-bold"
                   >
                     ✓
                   </button>
@@ -289,7 +289,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                     onClick={() => adminAction(tag.id, 'restore')}
                     disabled={savingTag}
                     title="Przywróć tag"
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 active:scale-95 transition-all disabled:opacity-50 text-sm"
+                    className="hidden lg:flex w-7 h-7 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 active:scale-95 transition-all disabled:opacity-50 text-sm"
                   >
                     ↩
                   </button>
