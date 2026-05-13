@@ -14,4 +14,6 @@
 
 ## Inne
 
-*(brak zaplanowanych funkcji)*
+- **Nauka na pamięć** — Tryb quizu do uczenia się numerów i tytułów pieśni na pamięć (np. "Jaki numer to *Zbawienie z Pana*?" lub "Jak się nazywa DP 47?")
+- **Lepsze statystyki** — Osobna strona ze szczegółowymi statystykami śpiewanych pieśni (kliknięcie w kafelek na dashboardzie otwiera stronę)
+- **Konflikty edycji notatek** — Obsługa sytuacji gdy Aksel i Edwin jednocześnie edytują notatkę przy nabożeństwie
