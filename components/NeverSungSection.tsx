@@ -6,6 +6,7 @@ import { useSongOverlay } from '@/contexts/SongOverlayContext'
 import { supabase } from '@/lib/supabase'
 import { cacheGet, cacheSet } from '@/lib/cache'
 import TagFilter from '@/components/TagFilter'
+import FilterModal from '@/components/FilterModal'
 import type { Tag, TagCategory } from '@/lib/types'
 
 type SongWithTags = {
@@ -42,7 +43,7 @@ function FilterPills<T extends { id: string }>({
           <button
             key={item.id}
             onClick={() => onToggle(item.id)}
-            className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 ${
+            className={`rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 ${
               selectedIds.includes(item.id) ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -142,11 +143,25 @@ export default function NeverSungSection() {
   }, [modalOpen])
 
   const filterLabel = useMemo(() => {
-    const tagParts = selectedTagIds.map((id) => allTags.find((t) => t.id === id)?.name).filter(Boolean)
-    const exclParts = excludedTagIds.map((id) => `bez: ${allTags.find((t) => t.id === id)?.name}`).filter((s) => !s.endsWith('undefined'))
-    const leaderParts = selectedLeaderIds.map((id) => leaders.find((l) => l.id === id)?.name.split(' ')[0]).filter(Boolean)
-    const typeParts = selectedTypeIds.map((id) => serviceTypes.find((t) => t.id === id)?.name).filter(Boolean)
-    return [...tagParts, ...exclParts, ...leaderParts, ...typeParts].join(' · ') || 'Wszystkie tagi'
+    const leaderNames = selectedLeaderIds
+      .map((id) => leaders.find((l) => l.id === id)?.name.split(' ')[0])
+      .filter(Boolean) as string[]
+    const typeNames = selectedTypeIds
+      .map((id) => serviceTypes.find((t) => t.id === id)?.name)
+      .filter(Boolean) as string[]
+    const tagNames = selectedTagIds
+      .map((id) => allTags.find((t) => t.id === id)?.name)
+      .filter(Boolean) as string[]
+
+    if (!leaderNames.length && !typeNames.length && !tagNames.length) return ''
+
+    let result = 'Niepodawane'
+    if (leaderNames.length) result += ` przez ${leaderNames.join(', ')}`
+    if (typeNames.length) result += ` na ${typeNames.join(', ')}`
+    if (tagNames.length === 1) result += ` · z tagiem ${tagNames[0]}`
+    else if (tagNames.length > 1) result += ` · z tagami: ${tagNames.join(', ')}`
+
+    return result
   }, [selectedTagIds, excludedTagIds, selectedLeaderIds, selectedTypeIds, allTags, leaders, serviceTypes])
 
   if (loading) {
@@ -166,7 +181,7 @@ export default function NeverSungSection() {
             <SlidersHorizontal size={16} />
           </button>
         </div>
-        <p className="text-xs text-gray-400 mb-3">{filterLabel}</p>
+        {filterLabel && <p className="text-xs text-gray-400 mb-3">{filterLabel}</p>}
 
         {unsungSongs.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-1">Wszystkie zaśpiewane 🎉</p>
@@ -188,49 +203,38 @@ export default function NeverSungSection() {
         )}
       </div>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-[55] bg-black/50 flex items-end" onClick={() => setModalOpen(false)}>
-          <div className="w-full bg-white rounded-t-2xl pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[80vh] overflow-y-auto overscroll-contain" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Filtruj</h3>
-              <button onClick={() => setModalOpen(false)} className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-medium active:scale-95 transition-all">
-                Gotowe
-              </button>
-            </div>
+      <FilterModal open={modalOpen} onClose={() => setModalOpen(false)}>
+        <FilterPills title="Liderzy" items={leaders} selectedIds={selectedLeaderIds} onToggle={toggleLeader} label={(l) => l.name} />
+        <FilterPills title="Typy nabożeństw" items={serviceTypes} selectedIds={selectedTypeIds} onToggle={toggleType} label={(t) => t.name} />
 
-            <FilterPills title="Liderzy" items={leaders} selectedIds={selectedLeaderIds} onToggle={toggleLeader} label={(l) => l.name} />
-            <FilterPills title="Typy nabożeństw" items={serviceTypes} selectedIds={selectedTypeIds} onToggle={toggleType} label={(t) => t.name} />
-
-            <div className="border-t border-gray-100 pt-4 mt-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tagi</p>
-              <TagFilter
-                availableTags={allTags}
-                selectedTagIds={selectedTagIds}
-                excludedTagIds={excludedTagIds}
-                onToggleTag={(id) => {
-                  setExcludedTagIds((prev) => prev.filter((x) => x !== id))
-                  setSelectedTagIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
-                }}
-                onToggleExclude={(id) => {
-                  setSelectedTagIds((prev) => prev.filter((x) => x !== id))
-                  setExcludedTagIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
-                }}
-                onClear={() => { setSelectedTagIds([]); setExcludedTagIds([]) }}
-                categories={categories}
-              />
-            </div>
-
-            {hasFilters && (
-              <button
-                onClick={() => { setSelectedTagIds([]); setExcludedTagIds([]); setSelectedLeaderIds([]); setSelectedTypeIds([]) }}
-                className="text-blue-900 text-sm underline mt-3"
-              >
-                Wyczyść wszystkie filtry
-              </button>
-            )}
-          </div>
+        <div className="border-t border-gray-100 pt-4 mt-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tagi</p>
+          <TagFilter
+            availableTags={allTags}
+            selectedTagIds={selectedTagIds}
+            excludedTagIds={excludedTagIds}
+            onToggleTag={(id) => {
+              setExcludedTagIds((prev) => prev.filter((x) => x !== id))
+              setSelectedTagIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+            }}
+            onToggleExclude={(id) => {
+              setSelectedTagIds((prev) => prev.filter((x) => x !== id))
+              setExcludedTagIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+            }}
+            onClear={() => { setSelectedTagIds([]); setExcludedTagIds([]) }}
+            categories={categories}
+          />
         </div>
-      )}
+
+        {hasFilters && (
+          <button
+            onClick={() => { setSelectedTagIds([]); setExcludedTagIds([]); setSelectedLeaderIds([]); setSelectedTypeIds([]) }}
+            className="text-blue-900 text-sm underline mt-3"
+          >
+            Wyczyść wszystkie filtry
+          </button>
+        )}
+      </FilterModal>
     </>
   )
 }

@@ -5,6 +5,7 @@ import { SlidersHorizontal } from 'lucide-react'
 import { useSongOverlay } from '@/contexts/SongOverlayContext'
 import { supabase } from '@/lib/supabase'
 import { cacheGet, cacheSet } from '@/lib/cache'
+import FilterModal from '@/components/FilterModal'
 
 type SongRef = { id: string; title: string; number: number; collection?: { short_name: string } }
 type Entry = {
@@ -33,7 +34,7 @@ function FilterPills<T extends { id: string }>({
           <button
             key={item.id}
             onClick={() => onToggle(item.id)}
-            className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 ${
+            className={`rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 ${
               selectedIds.includes(item.id) ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -108,11 +109,20 @@ export default function TopSungSection() {
   }, [modalOpen])
 
   const filterLabel = useMemo(() => {
-    const parts = [
-      ...selectedLeaderIds.map((id) => leaders.find((l) => l.id === id)?.name.split(' ')[0]),
-      ...selectedTypeIds.map((id) => serviceTypes.find((t) => t.id === id)?.name),
-    ].filter(Boolean)
-    return parts.join(' · ')
+    const leaderNames = selectedLeaderIds
+      .map((id) => leaders.find((l) => l.id === id)?.name.split(' ')[0])
+      .filter(Boolean) as string[]
+    const typeNames = selectedTypeIds
+      .map((id) => serviceTypes.find((t) => t.id === id)?.name)
+      .filter(Boolean) as string[]
+
+    if (!leaderNames.length && !typeNames.length) return ''
+
+    let result = 'Najczęściej podawane'
+    if (leaderNames.length) result += ` przez ${leaderNames.join(', ')}`
+    if (typeNames.length) result += ` na ${typeNames.join(', ')}`
+
+    return result
   }, [selectedLeaderIds, selectedTypeIds, leaders, serviceTypes])
 
   if (loading) return <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 h-32 animate-pulse mb-4" />
@@ -152,25 +162,15 @@ export default function TopSungSection() {
         )}
       </div>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-[55] bg-black/50 flex items-end" onClick={() => setModalOpen(false)}>
-          <div className="w-full bg-white rounded-t-2xl pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[80vh] overflow-y-auto overscroll-contain" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Filtruj</h3>
-              <button onClick={() => setModalOpen(false)} className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-medium active:scale-95 transition-all">
-                Gotowe
-              </button>
-            </div>
-            <FilterPills title="Liderzy" items={leaders} selectedIds={selectedLeaderIds} onToggle={toggleLeader} label={(l) => l.name} />
-            <FilterPills title="Typy nabożeństw" items={serviceTypes} selectedIds={selectedTypeIds} onToggle={toggleType} label={(t) => t.name} />
-            {hasFilters && (
-              <button onClick={() => { setSelectedLeaderIds([]); setSelectedTypeIds([]) }} className="text-blue-900 text-sm underline mt-1">
-                Wyczyść filtry
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      <FilterModal open={modalOpen} onClose={() => setModalOpen(false)}>
+        <FilterPills title="Liderzy" items={leaders} selectedIds={selectedLeaderIds} onToggle={toggleLeader} label={(l) => l.name} />
+        <FilterPills title="Typy nabożeństw" items={serviceTypes} selectedIds={selectedTypeIds} onToggle={toggleType} label={(t) => t.name} />
+        {hasFilters && (
+          <button onClick={() => { setSelectedLeaderIds([]); setSelectedTypeIds([]) }} className="text-blue-900 text-sm underline mt-1">
+            Wyczyść filtry
+          </button>
+        )}
+      </FilterModal>
     </>
   )
 }
