@@ -70,7 +70,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
     revalidateOnFocus: false,
   })
 
-  const { refreshing } = usePullToRefresh(mutateSong)
+  const { refreshing } = usePullToRefresh(() => { mutateSong() })
   const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, {
     revalidateOnFocus: false,
   })
