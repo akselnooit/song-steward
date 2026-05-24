@@ -34,13 +34,17 @@ function SongOverlayContent({
   onClose,
   onToast,
   onLightbox,
+  onGoNext,
+  onGoPrev,
 }: {
   songId: string
   onClose: () => void
   onToast: (msg: string | null) => void
   onLightbox: (src: string, alt: string) => void
+  onGoNext: () => void
+  onGoPrev: () => void
 }) {
-  const { state, goNext, goPrev } = useSongOverlay()
+  const { state } = useSongOverlay()
   const { serviceCtx, queue, index, initialStatus } = state
 
   const [savingTag, setSavingTag] = useState(false)
@@ -234,14 +238,14 @@ function SongOverlayContent({
           <div className="flex items-center gap-1">
             <span className="text-xs text-gray-400 mr-1">{index + 1}/{queue.length}</span>
             <button
-              onClick={goPrev}
+              onClick={onGoPrev}
               className="p-1.5 rounded-lg text-blue-900 hover:bg-blue-50 active:scale-95 transition-all"
               title="Poprzednia"
             >
               <ChevronLeft size={18} />
             </button>
             <button
-              onClick={goNext}
+              onClick={onGoNext}
               className="p-1.5 rounded-lg text-blue-900 hover:bg-blue-50 active:scale-95 transition-all"
               title="Następna"
             >
@@ -462,12 +466,32 @@ export default function SongOverlay() {
   const { isOpen, songId } = state
 
   const panelRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  // Tracks swipe/arrow direction so the content slides the right way
+  const navDirRef = useRef<'next' | 'prev'>('next')
 
   // Toast and lightbox are rendered outside the panel to avoid
   // CSS transform containing-block issues with position:fixed
   const [toast, setToast] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null)
+
+  // Navigation wrappers — record direction before updating state
+  const handleGoNext = () => { navDirRef.current = 'next'; goNext() }
+  const handleGoPrev = () => { navDirRef.current = 'prev'; goPrev() }
+
+  // Slide the content area in from the appropriate side on each song change.
+  // el.offsetHeight forces a reflow so the browser registers the animation reset.
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el || !songId) return
+    el.style.animation = 'none'
+    void el.offsetHeight // reflow
+    el.style.animation =
+      navDirRef.current === 'next'
+        ? 'overlaySlideInRight 220ms ease-out'
+        : 'overlaySlideInLeft 220ms ease-out'
+  }, [songId])
 
   // Reset scroll and lightbox when song changes
   useEffect(() => {
@@ -512,10 +536,10 @@ export default function SongOverlay() {
       return
     }
 
-    // Horizontal swipe to navigate
+    // Horizontal swipe to navigate — never closes the panel
     if (absDx > 60 && absDx > absDy && state.queue.length > 1) {
-      if (dx < 0) goNext()
-      else goPrev()
+      if (dx < 0) handleGoNext()
+      else handleGoPrev()
     }
   }
 
@@ -523,6 +547,17 @@ export default function SongOverlay() {
 
   return (
     <>
+      <style>{`
+        @keyframes overlaySlideInRight {
+          from { transform: translateX(48px); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+        @keyframes overlaySlideInLeft {
+          from { transform: translateX(-48px); opacity: 0; }
+          to   { transform: translateX(0);     opacity: 1; }
+        }
+      `}</style>
+
       {/* Backdrop */}
       <div
         className={`fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300 ${
@@ -531,23 +566,30 @@ export default function SongOverlay() {
         onClick={closeSong}
       />
 
-      {/* Slide panel — has CSS transform, so fixed children must live outside */}
+      {/* Slide panel — touch-action:pan-y prevents browser horizontal swipe
+          navigation from competing with our JS swipe handler */}
       <div
         ref={panelRef}
         className={`fixed inset-y-0 right-0 z-[61] w-full max-w-lg bg-gray-50 shadow-2xl overflow-y-auto transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
+        style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {songId && (
-          <SongOverlayContent
-            songId={songId}
-            onClose={closeSong}
-            onToast={setToast}
-            onLightbox={(src, alt) => setLightbox({ src, alt })}
-          />
-        )}
+        {/* Content wrapper — animated on each song change */}
+        <div ref={contentRef}>
+          {songId && (
+            <SongOverlayContent
+              songId={songId}
+              onClose={closeSong}
+              onToast={setToast}
+              onLightbox={(src, alt) => setLightbox({ src, alt })}
+              onGoNext={handleGoNext}
+              onGoPrev={handleGoPrev}
+            />
+          )}
+        </div>
       </div>
 
       {/* Toast — outside panel, not affected by panel transform */}
