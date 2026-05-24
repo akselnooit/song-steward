@@ -20,8 +20,9 @@ function SearchContent() {
   const [serviceStatusMap, setServiceStatusMap] = useState<Record<string, 'planned' | 'sung'>>({})
   // songId → id rekordu service_songs (potrzebne do usuwania)
   const [serviceSongIdMap, setServiceSongIdMap] = useState<Record<string, string>>({})
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
-  const [excludedTagIds, setExcludedTagIds] = useState<string[]>([])
+  // Tagi w URL — przeżywają nawigację tam i z powrotem
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() => searchParams.getAll('tag'))
+  const [excludedTagIds, setExcludedTagIds] = useState<string[]>(() => searchParams.getAll('excl'))
   const [addingId, setAddingId] = useState<string | null>(null)
 
   // Pobierz aktywne nabożeństwo jeśli brak service_id w URL
@@ -84,18 +85,33 @@ function SearchContent() {
     { keepPreviousData: true, revalidateOnFocus: false }
   )
 
+  const updateUrl = (selected: string[], excluded: string[]) => {
+    const params = new URLSearchParams()
+    if (serviceIdParam) params.set('service_id', serviceIdParam)
+    selected.forEach((id) => params.append('tag', id))
+    excluded.forEach((id) => params.append('excl', id))
+    const qs = params.toString()
+    router.replace(`/search${qs ? `?${qs}` : ''}`, { scroll: false } as Parameters<typeof router.replace>[1])
+  }
+
   const toggleTag = (tagId: string) => {
-    setExcludedTagIds((prev) => prev.filter((id) => id !== tagId))
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    )
+    const newExcluded = excludedTagIds.filter((id) => id !== tagId)
+    const newSelected = selectedTagIds.includes(tagId)
+      ? selectedTagIds.filter((id) => id !== tagId)
+      : [...selectedTagIds, tagId]
+    setExcludedTagIds(newExcluded)
+    setSelectedTagIds(newSelected)
+    updateUrl(newSelected, newExcluded)
   }
 
   const toggleExclude = (tagId: string) => {
-    setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))
-    setExcludedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    )
+    const newSelected = selectedTagIds.filter((id) => id !== tagId)
+    const newExcluded = excludedTagIds.includes(tagId)
+      ? excludedTagIds.filter((id) => id !== tagId)
+      : [...excludedTagIds, tagId]
+    setSelectedTagIds(newSelected)
+    setExcludedTagIds(newExcluded)
+    updateUrl(newSelected, newExcluded)
   }
 
   const availableTagIds = new Set(
@@ -157,7 +173,7 @@ function SearchContent() {
           excludedTagIds={excludedTagIds}
           onToggleTag={toggleTag}
           onToggleExclude={toggleExclude}
-          onClear={() => { setSelectedTagIds([]); setExcludedTagIds([]) }}
+          onClear={() => { setSelectedTagIds([]); setExcludedTagIds([]); updateUrl([], []) }}
           categories={categories}
         />
       </div>
