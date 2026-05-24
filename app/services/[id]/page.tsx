@@ -343,7 +343,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
           onClick={async () => {
             if (!confirm('Na pewno usunąć to nabożeństwo?')) return
             await fetch(`/api/services/${id}`, { method: 'DELETE' })
-            router.push('/services')
+            router.refresh()
+            router.replace('/services')
           }}
           className="text-sm text-red-400 hover:text-red-600 hover:scale-105 transition-all"
         >
