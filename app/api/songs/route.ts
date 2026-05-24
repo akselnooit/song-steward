@@ -30,6 +30,11 @@ export async function GET(request: NextRequest) {
     query = query.eq('author_id', authorId)
   }
 
+  const authors = searchParams.getAll('author')
+  if (authors.length > 0) {
+    query = query.in('author', authors)
+  }
+
   const { data, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

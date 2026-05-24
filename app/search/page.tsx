@@ -23,6 +23,7 @@ function SearchContent() {
   // Tagi w URL — przeżywają nawigację tam i z powrotem
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() => searchParams.getAll('tag'))
   const [excludedTagIds, setExcludedTagIds] = useState<string[]>(() => searchParams.getAll('excl'))
+  const [selectedAuthors, setSelectedAuthors] = useState<string[]>(() => searchParams.getAll('author'))
   const [addingId, setAddingId] = useState<string | null>(null)
 
   // Pobierz aktywne nabożeństwo jeśli brak service_id w URL
@@ -64,6 +65,14 @@ function SearchContent() {
       .catch(() => {})
   }, [serviceId])
 
+  // Autorzy: SWR + localStorage (TTL 5 min)
+  const { data: allAuthors = [] } = useSWR<string[]>('/api/authors', fetcher, {
+    fallbackData: cacheGet('/api/authors') ?? undefined,
+    onSuccess: (data) => cacheSet('/api/authors', data),
+    revalidateOnFocus: false,
+    dedupingInterval: 5 * 60 * 1000,
+  })
+
   // Tagi i kategorie: SWR + localStorage (TTL 10 min)
   const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, {
     fallbackData: cacheGet('/api/tags') ?? undefined,
@@ -76,20 +85,22 @@ function SearchContent() {
     revalidateOnFocus: false,
   })
 
-  // Pieśni: SWR (pamięć) z keepPreviousData — lista nie znika przy zmianie tagów
+  // Pieśni: SWR (pamięć) z keepPreviousData — lista nie znika przy zmianie tagów/autorów
   const songParams = new URLSearchParams()
   selectedTagIds.forEach((id) => songParams.append('tag_id', id))
+  selectedAuthors.forEach((a) => songParams.append('author', a))
   const { data: songs = [], isLoading: loading } = useSWR<Song[]>(
     `/api/songs?${songParams}`,
     fetcher,
     { keepPreviousData: true, revalidateOnFocus: false }
   )
 
-  const updateUrl = (selected: string[], excluded: string[]) => {
+  const updateUrl = (selected: string[], excluded: string[], authors: string[]) => {
     const params = new URLSearchParams()
     if (serviceIdParam) params.set('service_id', serviceIdParam)
     selected.forEach((id) => params.append('tag', id))
     excluded.forEach((id) => params.append('excl', id))
+    authors.forEach((a) => params.append('author', a))
     const qs = params.toString()
     router.replace(`/search${qs ? `?${qs}` : ''}`, { scroll: false } as Parameters<typeof router.replace>[1])
   }
@@ -101,7 +112,7 @@ function SearchContent() {
       : [...selectedTagIds, tagId]
     setExcludedTagIds(newExcluded)
     setSelectedTagIds(newSelected)
-    updateUrl(newSelected, newExcluded)
+    updateUrl(newSelected, newExcluded, selectedAuthors)
   }
 
   const toggleExclude = (tagId: string) => {
@@ -111,7 +122,15 @@ function SearchContent() {
       : [...excludedTagIds, tagId]
     setSelectedTagIds(newSelected)
     setExcludedTagIds(newExcluded)
-    updateUrl(newSelected, newExcluded)
+    updateUrl(newSelected, newExcluded, selectedAuthors)
+  }
+
+  const toggleAuthor = (author: string) => {
+    const newAuthors = selectedAuthors.includes(author)
+      ? selectedAuthors.filter((a) => a !== author)
+      : [...selectedAuthors, author]
+    setSelectedAuthors(newAuthors)
+    updateUrl(selectedTagIds, excludedTagIds, newAuthors)
   }
 
   const availableTagIds = new Set(
@@ -153,10 +172,10 @@ function SearchContent() {
     setAddingId(null)
   }
 
-  const hasFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0
+  const hasFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0 || selectedAuthors.length > 0
 
-  const hasActiveFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0
-  const clearFilters = () => { setSelectedTagIds([]); setExcludedTagIds([]); updateUrl([], []) }
+  const hasActiveFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0 || selectedAuthors.length > 0
+  const clearFilters = () => { setSelectedTagIds([]); setExcludedTagIds([]); setSelectedAuthors([]); updateUrl([], [], []) }
 
   return (
     <div className="px-4 pt-0 pb-4 max-w-lg mx-auto">
@@ -198,6 +217,12 @@ function SearchContent() {
                 </button>
               )
             })}
+            {selectedAuthors.map((author) => (
+              <button key={`author-${author}`} onClick={() => toggleAuthor(author)}
+                className="bg-amber-600 text-white rounded-full px-2.5 py-1 text-xs font-medium flex items-center gap-1 active:scale-95 transition-all">
+                {author} <span className="opacity-70">✕</span>
+              </button>
+            ))}
             <button onClick={clearFilters} className="text-xs text-blue-700 underline ml-auto shrink-0">
               Wyczyść
             </button>
@@ -216,6 +241,9 @@ function SearchContent() {
           onClear={clearFilters}
           categories={categories}
           hideActiveFilters={hasActiveFilters}
+          authors={allAuthors}
+          selectedAuthors={selectedAuthors}
+          onToggleAuthor={toggleAuthor}
         />
       </div>
 

@@ -2,6 +2,7 @@
 
 import { useRef } from 'react'
 import { Tag, TagCategory } from '@/lib/types'
+import AuthorFilter from './AuthorFilter'
 
 interface Props {
   availableTags: Tag[]
@@ -12,6 +13,9 @@ interface Props {
   onClear: () => void
   categories: TagCategory[]
   hideActiveFilters?: boolean
+  authors?: string[]
+  selectedAuthors?: string[]
+  onToggleAuthor?: (author: string) => void
 }
 
 export default function TagFilter({
@@ -23,6 +27,9 @@ export default function TagFilter({
   onClear,
   categories,
   hideActiveFilters = false,
+  authors,
+  selectedAuthors = [],
+  onToggleAuthor,
 }: Props) {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
@@ -184,6 +191,16 @@ export default function TagFilter({
       )}
 
       <p className="text-xs text-gray-400 text-center pt-1">Przytrzymaj tag, aby go wykluczyć</p>
+
+      {authors && onToggleAuthor && (
+        <div className="border-t border-gray-100 pt-3 mt-1">
+          <AuthorFilter
+            authors={authors}
+            selectedAuthors={selectedAuthors}
+            onToggleAuthor={onToggleAuthor}
+          />
+        </div>
+      )}
     </div>
   )
 }
