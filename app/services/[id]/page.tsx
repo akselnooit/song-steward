@@ -7,6 +7,7 @@ import { ServiceSong, Song } from '@/lib/types'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 import { usePullToRefresh } from '@/lib/usePullToRefresh'
+import { useWakeLock } from '@/hooks/useWakeLock'
 
 interface ServiceDetail {
   id: string
@@ -43,6 +44,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   }, [fetchService])
 
   const { refreshing } = usePullToRefresh(fetchService)
+  useWakeLock()
 
   // Wyszukiwanie pieśni do dodania
   useEffect(() => {

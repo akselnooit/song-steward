@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useWakeLock } from '@/hooks/useWakeLock'
 import useSWR from 'swr'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react'
@@ -464,6 +465,7 @@ function SongOverlayContent({
 export default function SongOverlay() {
   const { state, closeSong, goNext, goPrev } = useSongOverlay()
   const { isOpen, songId } = state
+  useWakeLock(isOpen)
 
   const panelRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
