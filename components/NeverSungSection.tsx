@@ -136,6 +136,11 @@ export default function NeverSungSection() {
     setSelectedTypeIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
   const hasFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0 || selectedLeaderIds.length > 0 || selectedTypeIds.length > 0
 
+  useEffect(() => {
+    document.body.style.overflow = modalOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [modalOpen])
+
   const filterLabel = useMemo(() => {
     const tagParts = selectedTagIds.map((id) => allTags.find((t) => t.id === id)?.name).filter(Boolean)
     const exclParts = excludedTagIds.map((id) => `bez: ${allTags.find((t) => t.id === id)?.name}`).filter((s) => !s.endsWith('undefined'))
@@ -184,8 +189,8 @@ export default function NeverSungSection() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end" onClick={() => setModalOpen(false)}>
-          <div className="w-full bg-white rounded-t-2xl pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[55] bg-black/50 flex items-end" onClick={() => setModalOpen(false)}>
+          <div className="w-full bg-white rounded-t-2xl pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-h-[80vh] overflow-y-auto overscroll-contain" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Filtruj</h3>
               <button onClick={() => setModalOpen(false)} className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-medium active:scale-95 transition-all">
