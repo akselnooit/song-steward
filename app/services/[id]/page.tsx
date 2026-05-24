@@ -50,14 +50,22 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
       setSearchResults([])
       return
     }
+    const controller = new AbortController()
     const timer = setTimeout(async () => {
       setSearchLoading(true)
-      const res = await fetch(`/api/songs?search=${encodeURIComponent(songSearch)}`)
-      const data = await res.json()
-      setSearchResults(data.slice(0, 8))
-      setSearchLoading(false)
+      try {
+        const res = await fetch(`/api/songs?search=${encodeURIComponent(songSearch)}`, { signal: controller.signal })
+        const data = await res.json()
+        setSearchResults(data.slice(0, 8))
+        setSearchLoading(false)
+      } catch {
+        if (!controller.signal.aborted) setSearchLoading(false)
+      }
     }, 300)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [songSearch])
 
   const addSong = async (songId: string, status: 'planned' | 'sung') => {
