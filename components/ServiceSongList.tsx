@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import Link from 'next/link'
 import { ServiceSong } from '@/lib/types'
+import { useSongOverlay } from '@/contexts/SongOverlayContext'
 
 interface Props {
   songs: ServiceSong[]
@@ -14,6 +14,7 @@ interface Props {
 }
 
 export default function ServiceSongList({ songs, status, onConfirm, onDelete, onReorder, navSongIds }: Props) {
+  const { openSong } = useSongOverlay()
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
 
@@ -186,16 +187,12 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
               <span className="shrink-0 bg-blue-900 text-white rounded px-1.5 py-0.5 text-xs font-bold">
                 {collectionLabel}
               </span>
-              <Link
-                href={`/songs/${song.id}`}
-                className="flex-1 text-sm text-gray-700 leading-tight hover:text-blue-900 line-clamp-1"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (navSongIds) sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: navSongIds }))
-                }}
+              <button
+                className="flex-1 text-sm text-gray-700 leading-tight hover:text-blue-900 line-clamp-1 text-left"
+                onClick={(e) => { e.stopPropagation(); openSong(song.id, navSongIds ?? []) }}
               >
                 {song.title}
-              </Link>
+              </button>
               <button
                 onClick={() => onDelete(ss.id)}
                 className="text-gray-300 hover:text-red-500 hover:scale-110 text-xs px-1 min-h-[36px] transition-all"
@@ -228,16 +225,12 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
               {collectionLabel}
             </span>
 
-            <Link
-              href={`/songs/${song.id}`}
-              className="flex-1 font-medium text-gray-900 text-sm leading-tight hover:text-blue-900"
-              onClick={(e) => {
-                e.stopPropagation()
-                if (navSongIds) sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: navSongIds }))
-              }}
+            <button
+              className="flex-1 font-medium text-gray-900 text-sm leading-tight hover:text-blue-900 text-left"
+              onClick={(e) => { e.stopPropagation(); openSong(song.id, navSongIds ?? []) }}
             >
               {song.title}
-            </Link>
+            </button>
 
             <div className="flex gap-1 shrink-0">
               {onConfirm && (

@@ -285,6 +285,7 @@ function SearchContent() {
               statusBadge={existingStatus}
               actions={actions}
               navSongIds={visibleSongs.map((s) => s.id)}
+              serviceCtx={serviceId && serviceName ? { serviceId, serviceName } : undefined}
             />
           )
         })}

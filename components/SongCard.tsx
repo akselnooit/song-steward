@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Song } from '@/lib/types'
+import { useSongOverlay, ServiceCtx } from '@/contexts/SongOverlayContext'
 
 interface Action {
   label: string
@@ -16,10 +17,12 @@ interface Props {
   actions?: Action[]
   statusBadge?: 'planned' | 'sung'
   navSongIds?: string[]
+  serviceCtx?: ServiceCtx
 }
 
-export default function SongCard({ song, actions, statusBadge, navSongIds }: Props) {
+export default function SongCard({ song, actions, statusBadge, navSongIds, serviceCtx }: Props) {
   const [lightbox, setLightbox] = useState(false)
+  const { openSong } = useSongOverlay()
 
   const collectionLabel = song.collection
     ? `${song.collection.short_name} ${song.number}`
@@ -86,17 +89,12 @@ export default function SongCard({ song, actions, statusBadge, navSongIds }: Pro
         </div>
 
         {/* Tytuł — pełna szerokość na dole */}
-        <Link
-          href={`/songs/${song.id}`}
-          className="font-semibold text-gray-900 hover:text-blue-900 leading-snug"
-          onClick={() => {
-            if (navSongIds) {
-              sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: navSongIds }))
-            }
-          }}
+        <button
+          className="font-semibold text-gray-900 hover:text-blue-900 leading-snug text-left"
+          onClick={() => openSong(song.id, navSongIds ?? [], serviceCtx ?? null, statusBadge ?? null)}
         >
           {song.title}
-        </Link>
+        </button>
       </div>
 
       {lightbox && song.author_image && (

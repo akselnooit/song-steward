@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
 import './globals.css'
-import BottomNav from '@/components/BottomNav'
+import ClientLayout from '@/components/ClientLayout'
 
 const geist = Geist({ subsets: ['latin'] })
 
@@ -34,10 +34,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={`${geist.className} bg-gray-50 text-gray-900`}>
-        <main className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))]">
-          {children}
-        </main>
-        <BottomNav />
+        <ClientLayout>
+          <main className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))]">
+            {children}
+          </main>
+        </ClientLayout>
       </body>
     </html>
   )
