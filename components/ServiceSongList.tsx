@@ -10,9 +10,10 @@ interface Props {
   onConfirm?: (serviceSongId: string) => void
   onDelete: (serviceSongId: string) => void
   onReorder: (orderedIds: string[]) => void
+  navSongIds?: string[]
 }
 
-export default function ServiceSongList({ songs, status, onConfirm, onDelete, onReorder }: Props) {
+export default function ServiceSongList({ songs, status, onConfirm, onDelete, onReorder, navSongIds }: Props) {
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
 
@@ -188,7 +189,10 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
               <Link
                 href={`/songs/${song.id}`}
                 className="flex-1 text-sm text-gray-700 leading-tight hover:text-blue-900 line-clamp-1"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (navSongIds) sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: navSongIds }))
+                }}
               >
                 {song.title}
               </Link>
@@ -227,7 +231,10 @@ export default function ServiceSongList({ songs, status, onConfirm, onDelete, on
             <Link
               href={`/songs/${song.id}`}
               className="flex-1 font-medium text-gray-900 text-sm leading-tight hover:text-blue-900"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (navSongIds) sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: navSongIds }))
+              }}
             >
               {song.title}
             </Link>

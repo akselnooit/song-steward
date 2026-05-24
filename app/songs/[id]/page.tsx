@@ -1,10 +1,11 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { Tag, TagCategory, TagSource } from '@/lib/types'
 import Link from 'next/link'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { fetcher } from '@/lib/fetcher'
 
 interface SongDetail {
@@ -27,9 +28,42 @@ interface SongDetail {
 
 export default function SongDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const router = useRouter()
   const [savingTag, setSavingTag] = useState(false)
   const [lightbox, setLightbox] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+
+  // Kontekst nawigacji (strzałki między pieśniami)
+  const [navCtx, setNavCtx] = useState<{ songIds: string[]; pos: number } | null>(null)
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('song_nav_context')
+      if (!stored) { setNavCtx(null); return }
+      const { songIds } = JSON.parse(stored) as { songIds: string[] }
+      const pos = songIds.indexOf(id)
+      if (pos === -1) { setNavCtx(null); return }
+      setNavCtx({ songIds, pos })
+    } catch {
+      setNavCtx(null)
+    }
+  }, [id])
+
+  const navigateTo = (targetId: string) => {
+    router.replace(`/songs/${targetId}`)
+  }
+
+  const handlePrev = () => {
+    if (!navCtx) return
+    const prevId = navCtx.songIds[(navCtx.pos - 1 + navCtx.songIds.length) % navCtx.songIds.length]
+    navigateTo(prevId)
+  }
+
+  const handleNext = () => {
+    if (!navCtx) return
+    const nextId = navCtx.songIds[(navCtx.pos + 1) % navCtx.songIds.length]
+    navigateTo(nextId)
+  }
 
   const { data: song, mutate: mutateSong } = useSWR<SongDetail>(`/api/songs/${id}`, fetcher, {
     revalidateOnFocus: false,
@@ -164,8 +198,29 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
-      {/* Nagłówek */}
-      <Link href="/songs" className="text-sm text-blue-900 mb-4 inline-block">← Wróć</Link>
+      {/* Nawigacja: wróć + pozycja + strzałki */}
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => router.back()} className="text-sm text-blue-900">← Wróć</button>
+        {navCtx && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-400 mr-1">{navCtx.pos + 1}/{navCtx.songIds.length}</span>
+            <button
+              onClick={handlePrev}
+              className="p-1.5 rounded-lg text-blue-900 hover:bg-blue-50 active:scale-95 transition-all"
+              title="Poprzednia"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={handleNext}
+              className="p-1.5 rounded-lg text-blue-900 hover:bg-blue-50 active:scale-95 transition-all"
+              title="Następna"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
+      </div>
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex items-start gap-3">
           <span className="bg-blue-900 text-white rounded-lg px-2.5 py-1 text-sm font-bold shrink-0">

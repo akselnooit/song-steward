@@ -169,7 +169,11 @@ export default function NeverSungSection() {
             {unsungSongs.map((song, i) => (
               <li key={song.id} className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
-                <Link href={`/songs/${song.id}`} className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1">
+                <Link
+                  href={`/songs/${song.id}`}
+                  className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1"
+                  onClick={() => sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: unsungSongs.map((s) => s.id) }))}
+                >
                   <span className="font-semibold text-gray-500 mr-1">{song.number}</span>
                   {song.title}
                 </Link>

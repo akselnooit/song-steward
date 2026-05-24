@@ -311,6 +311,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
           onConfirm={confirmSong}
           onDelete={deleteSong}
           onReorder={reorderSongs}
+          navSongIds={[...sungSongs, ...plannedSongs].map((ss) => ss.song_id)}
         />
       </div>
 
@@ -324,6 +325,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
           status="sung"
           onDelete={deleteSong}
           onReorder={reorderSongs}
+          navSongIds={[...sungSongs, ...plannedSongs].map((ss) => ss.song_id)}
         />
       </div>
 

@@ -311,6 +311,4 @@ W przyszłości: Supabase Auth + RLS.
 - [ ] **AI tagging** — kolor fioletowy przygotowany, logika do implementacji
 - [ ] Logowanie / konta per lider
 - [ ] Statystyki per lider
-- [ ] Eksport listy pieśni do PDF
 - [ ] Powiadomienia push przed nabożeństwem
-- [ ] Import kolekcji norweskiej (174 pieśni) po weryfikacji tytułów

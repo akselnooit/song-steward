@@ -233,6 +233,7 @@ function SearchContent() {
               song={song}
               statusBadge={existingStatus}
               actions={actions}
+              navSongIds={visibleSongs.map((s) => s.id)}
             />
           )
         })}

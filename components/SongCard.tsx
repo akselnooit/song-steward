@@ -15,9 +15,10 @@ interface Props {
   song: Song
   actions?: Action[]
   statusBadge?: 'planned' | 'sung'
+  navSongIds?: string[]
 }
 
-export default function SongCard({ song, actions, statusBadge }: Props) {
+export default function SongCard({ song, actions, statusBadge, navSongIds }: Props) {
   const [lightbox, setLightbox] = useState(false)
 
   const collectionLabel = song.collection
@@ -85,7 +86,15 @@ export default function SongCard({ song, actions, statusBadge }: Props) {
         </div>
 
         {/* Tytuł — pełna szerokość na dole */}
-        <Link href={`/songs/${song.id}`} className="font-semibold text-gray-900 hover:text-blue-900 leading-snug">
+        <Link
+          href={`/songs/${song.id}`}
+          className="font-semibold text-gray-900 hover:text-blue-900 leading-snug"
+          onClick={() => {
+            if (navSongIds) {
+              sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: navSongIds }))
+            }
+          }}
+        >
           {song.title}
         </Link>
       </div>
