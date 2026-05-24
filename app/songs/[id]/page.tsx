@@ -118,6 +118,17 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
     setSavingTag(false)
   }
 
+  const cancelPendingAdd = async (tagId: string) => {
+    setSavingTag(true)
+    await fetch('/api/song-tags', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ song_id: id, tag_id: tagId, action: 'cancel_add' }),
+    })
+    await mutateSong()
+    setSavingTag(false)
+  }
+
   const toggleCategory = (catId: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev)
@@ -300,9 +311,15 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Dodane — do zatwierdzenia</p>
             <div className="flex flex-wrap gap-2">
               {pendingAdditionTags.map(({ tag }) => (
-                <span key={tag.id} className="rounded-full px-3 py-1.5 text-sm font-medium bg-amber-100 text-amber-700 border border-amber-300">
+                <button
+                  key={tag.id}
+                  onClick={() => cancelPendingAdd(tag.id)}
+                  disabled={savingTag}
+                  className="rounded-full pl-3 pr-2 py-1.5 text-sm font-medium bg-amber-100 text-amber-700 border border-amber-300 flex items-center gap-1 hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50"
+                >
                   {tag.name}
-                </span>
+                  <span className="text-amber-500 text-xs leading-none">×</span>
+                </button>
               ))}
             </div>
           </div>

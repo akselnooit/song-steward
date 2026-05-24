@@ -91,5 +91,17 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
+  if (action === 'cancel_add') {
+    const { error } = await supabase
+      .from('song_tags')
+      .delete()
+      .eq('song_id', song_id)
+      .eq('tag_id', tag_id)
+      .eq('source', 'user')
+      .eq('pending_removal', false)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
 }

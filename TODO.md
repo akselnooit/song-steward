@@ -10,7 +10,7 @@
 
 ## Nabożeństwa
 
-*(brak zaplanowanych funkcji)*
+- **Częstotliwość pieśni przy planowaniu** — Podczas wybierania pieśni na nabożeństwo wyświetlać informację o tym, jak często dana pieśń była śpiewana w ostatnim czasie (np. ile razy w ciągu ostatnich 30/90 dni). Cel: lider uwielbienia widzi częstotliwość użycia każdej pieśni i może świadomie unikać powtarzania tych samych pieśni za często.
 
 ## Inne
 
