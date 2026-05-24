@@ -118,6 +118,17 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
     setSavingTag(false)
   }
 
+  const cancelPendingRemoval = async (tagId: string) => {
+    setSavingTag(true)
+    await fetch('/api/song-tags', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ song_id: id, tag_id: tagId, action: 'restore' }),
+    })
+    await mutateSong()
+    setSavingTag(false)
+  }
+
   const cancelPendingAdd = async (tagId: string) => {
     setSavingTag(true)
     await fetch('/api/song-tags', {
@@ -331,9 +342,15 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Do usunięcia — do zatwierdzenia</p>
             <div className="flex flex-wrap gap-2">
               {pendingRemovalTags.map(({ tag }) => (
-                <span key={tag.id} className="rounded-full px-3 py-1.5 text-sm font-medium bg-red-100 text-red-400 border border-red-200 line-through">
-                  {tag.name}
-                </span>
+                <button
+                  key={tag.id}
+                  onClick={() => cancelPendingRemoval(tag.id)}
+                  disabled={savingTag}
+                  className="rounded-full pl-3 pr-2 py-1.5 text-sm font-medium bg-red-100 text-red-400 border border-red-200 flex items-center gap-1 hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <span className="line-through">{tag.name}</span>
+                  <span className="text-red-400 text-xs leading-none">×</span>
+                </button>
               ))}
             </div>
           </div>
