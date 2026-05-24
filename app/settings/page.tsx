@@ -213,6 +213,10 @@ export default function SettingsPage() {
           { key: 'description', label: 'Opis (opcjonalnie)' },
         ]}
       />
+
+      <div className="text-center text-xs text-gray-400 py-2">
+        Wersja: {process.env.NEXT_PUBLIC_COMMIT_SHA?.slice(0, 7) ?? 'dev'}
+      </div>
     </div>
   )
 }
