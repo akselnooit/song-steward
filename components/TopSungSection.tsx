@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
 import { SlidersHorizontal } from 'lucide-react'
+import { useSongOverlay } from '@/contexts/SongOverlayContext'
 import { supabase } from '@/lib/supabase'
 import { cacheGet, cacheSet } from '@/lib/cache'
 
@@ -46,6 +46,7 @@ function FilterPills<T extends { id: string }>({
 }
 
 export default function TopSungSection() {
+  const { openSong } = useSongOverlay()
   const [entries, setEntries] = useState<Entry[]>([])
   const [leaders, setLeaders] = useState<Leader[]>([])
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
@@ -132,14 +133,13 @@ export default function TopSungSection() {
             {topFive.map((item, i) => (
               <li key={item.song.id} className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
-                <Link
-                  href={`/songs/${item.song.id}`}
-                  className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1"
-                  onClick={() => sessionStorage.setItem('song_nav_context', JSON.stringify({ songIds: topFive.map((t) => t.song.id) }))}
+                <button
+                  className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1 text-left"
+                  onClick={() => openSong(item.song.id, topFive.map((t) => t.song.id))}
                 >
                   <span className="font-semibold text-gray-500 mr-1">{item.song.number}</span>
                   {item.song.title}
-                </Link>
+                </button>
                 <span className="text-xs text-gray-400 shrink-0">{item.count}×</span>
               </li>
             ))}
