@@ -155,9 +155,12 @@ function SearchContent() {
 
   const hasFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0
 
+  const hasActiveFilters = selectedTagIds.length > 0 || excludedTagIds.length > 0
+  const clearFilters = () => { setSelectedTagIds([]); setExcludedTagIds([]); updateUrl([], []) }
+
   return (
     <div className="px-4 pt-0 pb-4 max-w-lg mx-auto">
-      {/* Sticky header: info o nabożeństwie + filtry tagów */}
+      {/* Sticky header: tytuł + nabożeństwo + tylko aktywne filtry */}
       <div className="sticky top-0 z-10 -mx-4 px-4 pt-4 pb-3 bg-white border-b border-gray-100 mb-4">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-base font-bold text-blue-900">Szukaj po tagach</h1>
@@ -172,14 +175,47 @@ function SearchContent() {
             Dodajesz do: <span className="font-semibold">{serviceName}</span>
           </p>
         )}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-xs text-blue-700 font-semibold shrink-0">Filtry:</span>
+            {selectedTagIds.map((tagId) => {
+              const tag = allTags.find((t) => t.id === tagId)
+              if (!tag) return null
+              return (
+                <button key={tagId} onClick={() => toggleTag(tagId)}
+                  className="bg-blue-900 text-white rounded-full px-2.5 py-1 text-xs font-medium flex items-center gap-1 active:scale-95 transition-all">
+                  {tag.name} <span className="opacity-70">✕</span>
+                </button>
+              )
+            })}
+            {excludedTagIds.map((tagId) => {
+              const tag = allTags.find((t) => t.id === tagId)
+              if (!tag) return null
+              return (
+                <button key={`excl-${tagId}`} onClick={() => toggleExclude(tagId)}
+                  className="bg-red-100 text-red-600 rounded-full px-2.5 py-1 text-xs font-medium flex items-center gap-1 line-through active:scale-95 transition-all">
+                  {tag.name} <span className="opacity-70 no-underline" style={{ textDecoration: 'none' }}>✕</span>
+                </button>
+              )
+            })}
+            <button onClick={clearFilters} className="text-xs text-blue-700 underline ml-auto shrink-0">
+              Wyczyść
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Pełny panel tagów do wyboru (nie-sticky) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <TagFilter
           availableTags={displayTags}
           selectedTagIds={selectedTagIds}
           excludedTagIds={excludedTagIds}
           onToggleTag={toggleTag}
           onToggleExclude={toggleExclude}
-          onClear={() => { setSelectedTagIds([]); setExcludedTagIds([]); updateUrl([], []) }}
+          onClear={clearFilters}
           categories={categories}
+          hideActiveFilters={hasActiveFilters}
         />
       </div>
 

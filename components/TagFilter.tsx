@@ -11,6 +11,7 @@ interface Props {
   onToggleExclude: (tagId: string) => void
   onClear: () => void
   categories: TagCategory[]
+  hideActiveFilters?: boolean
 }
 
 export default function TagFilter({
@@ -21,6 +22,7 @@ export default function TagFilter({
   onToggleExclude,
   onClear,
   categories,
+  hideActiveFilters = false,
 }: Props) {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
@@ -117,7 +119,7 @@ export default function TagFilter({
 
   return (
     <div className="space-y-3">
-      {(selectedTagIds.length > 0 || excludedTagIds.length > 0) && (
+      {!hideActiveFilters && (selectedTagIds.length > 0 || excludedTagIds.length > 0) && (
         <div className="flex flex-wrap gap-2 p-3 bg-blue-50 rounded-xl">
           <span className="text-xs text-blue-700 font-semibold self-center mr-1">Filtry:</span>
           {selectedTagIds.map((tagId) => {
