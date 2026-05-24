@@ -27,11 +27,9 @@ export default async function ServicesPage({
   const { all } = await searchParams
   const services = await getServices()
 
-  if (!all) {
-    const today = new Date().toISOString().slice(0, 10)
-    const todayService = services.find((s) => s.date === today)
-    if (todayService) redirect(`/services/${todayService.id}`)
-  }
+  const today = new Date().toISOString().slice(0, 10)
+  const todayServices = services.filter((s) => s.date === today)
+  if (!all && todayServices.length === 1) redirect(`/services/${todayServices[0].id}`)
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
@@ -61,20 +59,28 @@ export default async function ServicesPage({
             const plannedCount = service.service_songs?.filter(
               (ss: { status: string }) => ss.status === 'planned'
             ).length || 0
+            const isToday = service.date === today
 
             return (
               <Link
                 key={service.id}
                 href={`/services/${service.id}`}
-                className="block bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:border-blue-200 hover:shadow-md active:scale-[0.98] transition-all"
+                className={`block bg-white rounded-xl shadow-sm border p-4 hover:shadow-md active:scale-[0.98] transition-all ${
+                  isToday ? 'border-blue-300 hover:border-blue-400' : 'border-gray-100 hover:border-blue-200'
+                }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
+                    <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900">
                       {new Date(service.date).toLocaleDateString('pl-PL', {
                         weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
                       })}
                     </p>
+                    {isToday && (
+                      <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Dziś</span>
+                    )}
+                    </div>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {(service.service_type as unknown as { name: string } | null)?.name || '—'}
                       {(service.worship_leader as unknown as { name: string } | null)?.name && (
