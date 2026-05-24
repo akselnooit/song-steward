@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import { User } from 'lucide-react'
 import { Tag, TagCategory } from '@/lib/types'
 import AuthorFilter from './AuthorFilter'
 
@@ -31,6 +32,7 @@ export default function TagFilter({
   selectedAuthors = [],
   onToggleAuthor,
 }: Props) {
+  const [showAuthors, setShowAuthors] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -97,7 +99,7 @@ export default function TagFilter({
     const isSelected = selectedTagIds.includes(tag.id)
     const isExcluded = excludedTagIds.includes(tag.id)
 
-    let className = 'rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 select-none '
+    let className = 'rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 select-none '
     if (isExcluded) {
       className += 'bg-red-100 text-red-600 line-through'
     } else if (isSelected) {
@@ -135,7 +137,7 @@ export default function TagFilter({
               <button
                 key={tagId}
                 onClick={() => onToggleTag(tagId)}
-                className="bg-blue-900 text-white rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1 transition-all active:scale-95"
+                className="bg-blue-900 text-white rounded-full px-2 py-1 text-xs font-medium flex items-center gap-1 transition-all active:scale-95"
               >
                 {tag.name} <span className="opacity-70">✕</span>
               </button>
@@ -147,7 +149,7 @@ export default function TagFilter({
               <button
                 key={`excl-${tagId}`}
                 onClick={() => onToggleExclude(tagId)}
-                className="bg-red-100 text-red-600 rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1 line-through transition-all active:scale-95"
+                className="bg-red-100 text-red-600 rounded-full px-2 py-1 text-xs font-medium flex items-center gap-1 line-through transition-all active:scale-95"
               >
                 {tag.name} <span className="opacity-70">✕</span>
               </button>
@@ -194,11 +196,27 @@ export default function TagFilter({
 
       {authors && onToggleAuthor && (
         <div className="border-t border-gray-100 pt-3 mt-1">
-          <AuthorFilter
-            authors={authors}
-            selectedAuthors={selectedAuthors}
-            onToggleAuthor={onToggleAuthor}
-          />
+          <button
+            onClick={() => setShowAuthors((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <User size={13} />
+            Filtruj po autorze
+            {selectedAuthors.length > 0 && (
+              <span className="ml-1 bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                {selectedAuthors.length}
+              </span>
+            )}
+          </button>
+          {showAuthors && (
+            <div className="mt-2">
+              <AuthorFilter
+                authors={authors}
+                selectedAuthors={selectedAuthors}
+                onToggleAuthor={onToggleAuthor}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

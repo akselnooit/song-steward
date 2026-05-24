@@ -8,6 +8,7 @@ import SongCard from '@/components/SongCard'
 import { Song, Tag, TagCategory } from '@/lib/types'
 import { fetcher } from '@/lib/fetcher'
 import { cacheGet, cacheSet } from '@/lib/cache'
+import { AUTHORS } from '@/lib/authors'
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -64,14 +65,6 @@ function SearchContent() {
       })
       .catch(() => {})
   }, [serviceId])
-
-  // Autorzy: SWR + localStorage (TTL 5 min)
-  const { data: allAuthors = [] } = useSWR<string[]>('/api/authors', fetcher, {
-    fallbackData: cacheGet('/api/authors') ?? undefined,
-    onSuccess: (data) => cacheSet('/api/authors', data),
-    revalidateOnFocus: false,
-    dedupingInterval: 5 * 60 * 1000,
-  })
 
   // Tagi i kategorie: SWR + localStorage (TTL 10 min)
   const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, {
@@ -241,7 +234,7 @@ function SearchContent() {
           onClear={clearFilters}
           categories={categories}
           hideActiveFilters={hasActiveFilters}
-          authors={allAuthors}
+          authors={AUTHORS}
           selectedAuthors={selectedAuthors}
           onToggleAuthor={toggleAuthor}
         />

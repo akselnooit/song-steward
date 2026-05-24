@@ -25,7 +25,7 @@ export default function AuthorFilter({ authors, selectedAuthors, onToggleAuthor 
             <button
               key={author}
               onClick={() => onToggleAuthor(author)}
-              className="bg-amber-600 text-white rounded-full px-3 py-1.5 text-sm font-medium min-h-[36px] flex items-center gap-1 active:scale-95 transition-all"
+              className="bg-amber-600 text-white rounded-full px-2 py-1 text-xs font-medium flex items-center gap-1 active:scale-95 transition-all"
             >
               {author} <span className="opacity-70">✕</span>
             </button>
@@ -46,7 +46,7 @@ export default function AuthorFilter({ authors, selectedAuthors, onToggleAuthor 
           <button
             key={author}
             onClick={() => onToggleAuthor(author)}
-            className="rounded-full px-3 py-2 text-sm font-medium min-h-[44px] bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all active:scale-95 select-none"
+            className="rounded-full px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all active:scale-95 select-none"
           >
             {author}
           </button>
