@@ -6,6 +6,7 @@ import ServiceSongList from '@/components/ServiceSongList'
 import { ServiceSong, Song } from '@/lib/types'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
+import { usePullToRefresh } from '@/lib/usePullToRefresh'
 
 interface ServiceDetail {
   id: string
@@ -40,6 +41,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     fetchService()
   }, [fetchService])
+
+  const { refreshing } = usePullToRefresh(fetchService)
 
   // Wyszukiwanie pieśni do dodania
   useEffect(() => {
@@ -183,6 +186,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
+      {refreshing && (
+        <div className="flex items-center justify-center gap-2 text-xs text-blue-600 mb-2 -mt-2">
+          <Loader2 size={12} className="animate-spin" /> Odświeżanie...
+        </div>
+      )}
       <Link href="/services?all=1" className="text-sm text-blue-900 mb-3 inline-block">← Nabożeństwa</Link>
 
       {/* Nagłówek */}

@@ -7,6 +7,7 @@ import { Tag, TagCategory, TagSource } from '@/lib/types'
 import Link from 'next/link'
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { fetcher } from '@/lib/fetcher'
+import { usePullToRefresh } from '@/lib/usePullToRefresh'
 
 interface SongDetail {
   id: string
@@ -68,6 +69,8 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   const { data: song, mutate: mutateSong } = useSWR<SongDetail>(`/api/songs/${id}`, fetcher, {
     revalidateOnFocus: false,
   })
+
+  const { refreshing } = usePullToRefresh(mutateSong)
   const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, {
     revalidateOnFocus: false,
   })
@@ -198,6 +201,11 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
+      {refreshing && (
+        <div className="flex items-center justify-center gap-2 text-xs text-blue-600 mb-2 -mt-2">
+          <Loader2 size={12} className="animate-spin" /> Odświeżanie...
+        </div>
+      )}
       {/* Nawigacja: wróć + pozycja + strzałki */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => router.back()} className="text-sm text-blue-900">← Wróć</button>

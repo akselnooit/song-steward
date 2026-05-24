@@ -36,6 +36,19 @@ export default function NewServicePage() {
     e.preventDefault()
     setLoading(true)
 
+    // Sprawdź w bazie czy jest już nabożeństwo w ten dzień
+    const checkRes = await fetch(`/api/services?date=${date}`)
+    const existing = await checkRes.json()
+    if (Array.isArray(existing) && existing.length > 0) {
+      const ok = window.confirm(
+        `Na dzień ${new Date(date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })} jest już ${existing.length === 1 ? 'nabożeństwo' : 'kilka nabożeństw'}. Dodać kolejne?`
+      )
+      if (!ok) {
+        setLoading(false)
+        return
+      }
+    }
+
     const res = await fetch('/api/services', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -49,6 +62,7 @@ export default function NewServicePage() {
 
     if (res.ok) {
       const data = await res.json()
+      router.refresh() // odśwież cache listy nabożeństw
       router.push(`/services/${data.id}`)
     } else {
       setLoading(false)

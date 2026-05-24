@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import NeverSungSection from '@/components/NeverSungSection'
 import TopSungSection from '@/components/TopSungSection'
 
-export const revalidate = 30
+export const revalidate = 0
 
 type SongRef = { id: string; title: string; number: number; collection?: { short_name: string } }
 type CountMap = Record<string, { count: number; song: SongRef }>

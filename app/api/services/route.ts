@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
       .from('services')
       .select('id, date, service_type:service_types(id, name)')
       .eq('date', date)
-      .maybeSingle()
+      .order('date', { ascending: true })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data)
+    return NextResponse.json(data || [])
   }
 
   // Zwraca dzisiejsze nabożeństwo lub najbliższe przyszłe
