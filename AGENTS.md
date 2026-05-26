@@ -168,3 +168,15 @@ Schema changes (new columns) must be run manually in Supabase Dashboard SQL edit
 - Do not commit `.env.local`, files in `data/`, or files in `backups/`
 - Do not add heavy external libraries — keep dependencies minimal
 - Do not use emoji in navigation/component UI — use Lucide React icons
+
+## Performance
+
+App runs on low-end phones during live worship. Avoid unnecessary API calls on load. Data that rarely changes (e.g. author list) lives as a static file in `lib/`, not as an endpoint.
+
+## Song overlay
+
+Never navigate to `/songs/[id]`. Use `openSong()` from `SongOverlayContext`. Every song list passes `navSongIds` so arrow navigation works.
+
+## Before pushing
+
+Run `npx tsc --noEmit` and fix all errors before pushing — TypeScript errors block the Vercel build.
