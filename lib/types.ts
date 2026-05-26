@@ -26,6 +26,7 @@ export interface Song {
 export interface TagCategory {
   id: string
   name: string
+  user_editable: boolean
   created_at: string
 }
 

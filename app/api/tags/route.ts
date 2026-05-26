@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 export async function GET() {
   const { data, error } = await supabase
     .from('tags')
-    .select('*, category:tag_categories(id, name)')
+    .select('*, category:tag_categories(id, name, user_editable)')
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
