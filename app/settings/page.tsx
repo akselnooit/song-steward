@@ -192,30 +192,76 @@ function DictionarySection<T extends { id: string; name: string }>({
   )
 }
 
+const TABS = [
+  { id: 'service-types', label: 'Typy nabożeństw' },
+  { id: 'leaders', label: 'Liderzy' },
+  { id: 'tags', label: 'Tagi' },
+  { id: 'collections', label: 'Zbiory' },
+] as const
+
+type TabId = (typeof TABS)[number]['id']
+
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<TabId>('service-types')
+
   return (
-    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold text-blue-900 mb-6">Ustawienia</h1>
+    <div className="max-w-lg mx-auto">
+      {/* Nagłówek */}
+      <div className="px-4 pt-6 pb-3 flex items-baseline gap-3">
+        <h1 className="text-xl font-bold text-blue-900">Ustawienia</h1>
+        <span className="text-xs text-gray-400">
+          v{process.env.NEXT_PUBLIC_COMMIT_SHA?.slice(0, 7) ?? 'dev'}
+        </span>
+      </div>
 
-      <DictionarySection title="Typy nabożeństw" endpoint="service-types" />
-      <DictionarySection title="Liderzy muzyki" endpoint="worship-leaders" />
-      <DictionarySection
-        title="Zbiory pieśni"
-        endpoint="collections"
-        extraFields={[{ key: 'short_name', label: 'Skrót (np. SE)' }]}
-      />
-      <DictionarySection title="Kategorie tagów" endpoint="tag-categories" />
-      <DictionarySection
-        title="Tagi"
-        endpoint="tags"
-        extraFields={[
-          { key: 'category_id', label: 'Kategoria', optionsEndpoint: 'tag-categories' },
-          { key: 'description', label: 'Opis (opcjonalnie)' },
-        ]}
-      />
+      {/* Zakładki */}
+      <div className="overflow-x-auto border-b border-gray-200 px-4">
+        <div className="flex gap-0 min-w-max">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={[
+                'px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
+                activeTab === tab.id
+                  ? 'border-blue-900 text-blue-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700',
+              ].join(' ')}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div className="text-center text-xs text-gray-400 py-2">
-        Wersja: {process.env.NEXT_PUBLIC_COMMIT_SHA?.slice(0, 7) ?? 'dev'}
+      {/* Zawartość zakładki */}
+      <div className="px-4 pt-4 pb-4">
+        {activeTab === 'service-types' && (
+          <DictionarySection title="Typy nabożeństw" endpoint="service-types" />
+        )}
+        {activeTab === 'leaders' && (
+          <DictionarySection title="Liderzy muzyki" endpoint="worship-leaders" />
+        )}
+        {activeTab === 'tags' && (
+          <>
+            <DictionarySection title="Kategorie tagów" endpoint="tag-categories" />
+            <DictionarySection
+              title="Tagi"
+              endpoint="tags"
+              extraFields={[
+                { key: 'category_id', label: 'Kategoria', optionsEndpoint: 'tag-categories' },
+                { key: 'description', label: 'Opis (opcjonalnie)' },
+              ]}
+            />
+          </>
+        )}
+        {activeTab === 'collections' && (
+          <DictionarySection
+            title="Zbiory pieśni"
+            endpoint="collections"
+            extraFields={[{ key: 'short_name', label: 'Skrót (np. SE)' }]}
+          />
+        )}
       </div>
     </div>
   )
