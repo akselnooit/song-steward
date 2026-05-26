@@ -161,11 +161,14 @@ song-steward/
 ├── components/
 │   ├── TagFilter.tsx           # Filtrowanie po tagach (scroll-safe, long-press = wyklucz)
 │   ├── SongCard.tsx            # Karta pieśni
+│   ├── SongOverlay.tsx         # Slide-in overlay podglądu pieśni (nawigacja strzałkami, swipe)
+│   ├── FilterModal.tsx         # Współdzielony modal filtrów (dashboard, wyszukiwanie)
 │   ├── ServiceSongList.tsx     # Lista pieśni z drag-and-drop (long-press 400ms)
 │   └── BottomNav.tsx           # Nawigacja dolna z Lucide icons
 ├── lib/
 │   ├── supabase.ts             # Klient Supabase
-│   └── types.ts                # Definicje TypeScript
+│   ├── types.ts                # Definicje TypeScript
+│   └── authors.ts              # Statyczna lista 384 autorów do filtrowania
 ├── supabase/                   # Migracje SQL (uruchamiane ręcznie w Supabase Dashboard)
 │   ├── add_song_tag_source.sql
 │   └── add_song_key.sql
@@ -185,8 +188,14 @@ song-steward/
 
 - Lista z wyszukiwarką (tytuł, numer, autor)
 - Filtrowanie po zbiorze (domyślnie DP)
-- Szczegóły pieśni: tonacja (np. "🎵 G dur"), tagi z podziałem na kategorie (zwijane), historia śpiewania
-- Edycja tagów z oznaczeniem źródła (confirmed / user / ai)
+- Szczegóły pieśni otwierane jako **SongOverlay** — slide-in panel z prawej strony (nie osobna strona `/songs/[id]`):
+  - Tonacja (np. "🎵 G dur"), tagi z podziałem na kategorie (zwijane), historia śpiewania
+  - Nawigacja strzałkami ← → przez listę wyników (kołowa — po ostatnim wraca do pierwszego)
+  - Swipe lewo/prawo — zmiana pieśni w liście
+  - Swipe w dół — zamknięcie overlaya
+- Edycja tagów z oznaczeniem źródła (confirmed / user / ai):
+  - Oczekujące dodanie (pending add, żółte) — przycisk × anuluje przed zapisaniem
+  - Oczekujące usunięcie (pending removal, czerwone) — przycisk × cofa operację
 - Wyniki wyszukiwania sortowane: DP → KM → NDP → NKM → SOS
 
 ### 5.2 Wyszukiwanie po tagach (`/search`)
@@ -196,6 +205,8 @@ song-steward/
 - Scroll nie wyzwala selekcji tagu
 - Pieśń zaplanowana pokazuje ✕ (usuń z nabożeństwa) zamiast wyłączonego 🔖
 - Kontekst aktywnego nabożeństwa auto-wykrywany lub przekazywany przez `?service_id=`
+- **Sticky nagłówek z aktywnymi filtrami** — chips wybranych tagów i autora zawsze widoczne podczas scrollowania listy wyników
+- **Filtrowanie po autorze** — ukryty panel (rozwijany z nagłówka) z wyszukiwarką tekstową i multi-selectem; statyczna lista 384 autorów w `lib/authors.ts` (brak dodatkowego zapytania do bazy)
 
 ### 5.3 Nabożeństwa (`/services`)
 
@@ -208,13 +219,16 @@ song-steward/
 
 - Liczba pieśni w bazie
 - Ostatnie/najbliższe nabożeństwo
-- Top 5 najczęściej śpiewanych (3 miesiące)
-- Top 5 rzadko śpiewanych
+- Top 5 najczęściej śpiewanych (3 miesiące) i top 5 rzadko śpiewanych:
+  - Kafelki z opisowym tekstem pod wynikami — np. "Niepodawane przez Aksela na Wrocław - Ogólne · z tagami: Chwała"
+  - Ujednolicony `FilterModal` do filtrowania obu sekcji (lider, typ nabożeństwa, tagi)
 - Przycisk "+ Nowe nabożeństwo"
 
 ### 5.5 Ustawienia (`/settings`)
 
 Pełny CRUD dla: typy nabożeństw, liderzy muzyki, zbiory, kategorie tagów, tagi.
+
+**Numer wersji** — 7-znakowy hash bieżącego commita git, wyświetlany na dole strony ustawień. Pochodzi ze zmiennej środowiskowej `NEXT_PUBLIC_COMMIT_SHA` ustawianej automatycznie przez Vercel podczas każdego buildu.
 
 ---
 
@@ -225,6 +239,7 @@ Pełny CRUD dla: typy nabożeństw, liderzy muzyki, zbiory, kategorie tagów, ta
 - `touch-action: manipulation` — eliminacja 300ms tap delay na iOS
 - `-webkit-tap-highlight-color: transparent` — brak niebieskiego podświetlenia przy tapnięciu
 - Micro-animacje: `active:scale-95` na przyciskach, `hover:shadow-md` na kartach
+- **Wake Lock API** — ekran nie gaśnie automatycznie na `/services/[id]` oraz gdy `SongOverlay` jest otwarty; blokada zwalniana przy odmontowaniu komponentu lub zamknięciu overlaya
 
 ---
 
@@ -237,7 +252,11 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
 ### Vercel
-Te same zmienne w: Settings → Environment Variables.
+Te same zmienne w: Settings → Environment Variables. Dodatkowe zmienne ustawiane automatycznie przez Vercel:
+
+| Zmienna | Opis |
+|---------|------|
+| `NEXT_PUBLIC_COMMIT_SHA` | 7-znakowy hash bieżącego commita git — wyświetlany jako numer wersji w ustawieniach |
 
 ---
 
