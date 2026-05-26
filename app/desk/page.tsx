@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { CheckCircle, RotateCcw } from 'lucide-react'
+import { useSongOverlay } from '@/contexts/SongOverlayContext'
 
 type PendingTag = { id: string; name: string }
 type PendingSong = {
@@ -75,6 +75,7 @@ export default function DeskPage() {
   }
 
   const total = (data?.totalAdditions ?? 0) + (data?.totalRemovals ?? 0)
+  const { openSong } = useSongOverlay()
 
   return (
     <div className="px-6 pt-8 pb-8 max-w-2xl mx-auto">
@@ -121,14 +122,13 @@ export default function DeskPage() {
                 : `#${song.number}`
               return (
                 <div key={song.id} className="bg-white rounded-xl border border-gray-100 p-4">
-                  <div className="flex items-start gap-2 mb-3">
-                    <Link href={`/songs/${song.id}`}>
-                      <span className="bg-blue-900 text-white rounded-lg px-2 py-0.5 text-xs font-bold">{label}</span>
-                    </Link>
-                    <Link href={`/songs/${song.id}`} className="text-sm font-semibold text-gray-900 hover:text-blue-900 leading-tight">
-                      {song.title}
-                    </Link>
-                  </div>
+                  <button
+                    onClick={() => openSong(song.id)}
+                    className="flex items-start gap-2 mb-3 text-left hover:text-blue-900 group w-full"
+                  >
+                    <span className="bg-blue-900 text-white rounded-lg px-2 py-0.5 text-xs font-bold shrink-0">{label}</span>
+                    <span className="text-sm font-semibold text-gray-900 group-hover:text-blue-900 leading-tight">{song.title}</span>
+                  </button>
 
                   {/* Oczekujące dodania */}
                   {song.pending_additions.length > 0 && (

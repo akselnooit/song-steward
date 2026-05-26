@@ -209,11 +209,16 @@ function SongOverlayContent({
             <div className="px-3 py-2.5 flex flex-wrap gap-2 bg-white">
               {sortedTags.map((tag) => {
                 if (!userEditable) {
+                  const isActive = activeTagIds.includes(tag.id)
                   return (
                     <button
                       key={tag.id}
                       onClick={() => handleLockedTagClick(tag.id)}
-                      className={`rounded-full px-2 py-1 text-xs font-medium bg-slate-100 text-slate-500 ${shakingTagId === tag.id ? 'tag-shake' : ''}`}
+                      className={`rounded-full px-2 py-1 text-xs font-medium border ${
+                        isActive
+                          ? 'bg-blue-100 text-blue-600 border-blue-200'
+                          : 'bg-slate-100 text-slate-500 border-transparent'
+                      } ${shakingTagId === tag.id ? 'tag-shake' : ''}`}
                     >
                       {tag.name}
                     </button>
@@ -386,7 +391,7 @@ function SongOverlayContent({
                   <button
                     key={tag.id}
                     onClick={() => handleLockedTagClick(tag.id)}
-                    className={`rounded-full px-2 py-1 text-xs font-medium bg-slate-100 text-slate-500 ${shakingTagId === tag.id ? 'tag-shake' : ''}`}
+                    className={`rounded-full px-2 py-1 text-xs font-medium border bg-blue-100 text-blue-600 border-blue-200 ${shakingTagId === tag.id ? 'tag-shake' : ''}`}
                   >
                     {tag.name}
                   </button>
