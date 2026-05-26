@@ -202,7 +202,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                     key={tag.id}
                     onClick={() => toggleTag(tag.id)}
                     disabled={savingTag}
-                    className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 disabled:opacity-50 ${
+                    className={`rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${
                       active
                         ? tagSourceClass(source)
                         : pendingRemoval
@@ -308,7 +308,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                 key={tag.id}
                 onClick={() => toggleTag(tag.id)}
                 disabled={savingTag}
-                className={`rounded-full px-3 py-2 text-sm font-medium min-h-[44px] transition-all active:scale-95 disabled:opacity-50 ${tagSourceClass(source)}`}
+                className={`rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${tagSourceClass(source)}`}
               >
                 {tag.name}
               </button>
@@ -326,7 +326,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                   key={tag.id}
                   onClick={() => cancelPendingAdd(tag.id)}
                   disabled={savingTag}
-                  className="rounded-full pl-3 pr-2 py-1.5 text-sm font-medium bg-amber-100 text-amber-700 border border-amber-300 flex items-center gap-1 hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50"
+                  className="rounded-full pl-2 pr-1.5 py-1 text-xs font-medium bg-amber-100 text-amber-700 border border-amber-300 flex items-center gap-1 hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-50"
                 >
                   {tag.name}
                   <span className="text-amber-500 text-xs leading-none">×</span>
@@ -346,7 +346,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                   key={tag.id}
                   onClick={() => cancelPendingRemoval(tag.id)}
                   disabled={savingTag}
-                  className="rounded-full pl-3 pr-2 py-1.5 text-sm font-medium bg-red-100 text-red-400 border border-red-200 flex items-center gap-1 hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50"
+                  className="rounded-full pl-2 pr-1.5 py-1 text-xs font-medium bg-red-100 text-red-400 border border-red-200 flex items-center gap-1 hover:bg-red-200 active:scale-95 transition-all disabled:opacity-50"
                 >
                   <span className="line-through">{tag.name}</span>
                   <span className="text-red-400 text-xs leading-none">×</span>
