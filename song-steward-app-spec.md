@@ -65,9 +65,12 @@ CREATE TABLE songs (
 CREATE TABLE tag_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
+  user_editable BOOLEAN NOT NULL DEFAULT true,
+  -- false = tagi tylko do odczytu; UI blokuje dodawanie/usuwanie
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
+Aktualnie `user_editable = false` tylko dla kategorii **Tagi SSF**.
 
 ### `tags` — Tagi
 ```sql
@@ -196,6 +199,7 @@ song-steward/
 - Edycja tagów z oznaczeniem źródła (confirmed / user / ai):
   - Oczekujące dodanie (pending add, żółte) — przycisk × anuluje przed zapisaniem
   - Oczekujące usunięcie (pending removal, czerwone) — przycisk × cofa operację
+  - Tagi z kategorii `user_editable = false` są tylko do odczytu: szary styl (`bg-slate-100`), kliknięcie wywołuje animację shake + wibrację, brak akcji
 - Wyniki wyszukiwania sortowane: DP → KM → NDP → NKM → SOS
 
 ### 5.2 Wyszukiwanie po tagach (`/search`)

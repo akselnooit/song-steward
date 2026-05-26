@@ -67,7 +67,7 @@ These IDs are stable — use them directly in scripts and data entry.
 | 🎯 Okazja     | `13017e82-63eb-4f33-8671-bf5a574c6e25` |
 | 🎶 Melodia    | `b110b0e8-f59c-49b9-93a5-98e36139eb92` |
 | 📖 Tematyka   | `e33b9451-f22a-4cda-8e9b-eca621dbf3dd` |
-| Tagi SSF      | `611b904a-f262-4a25-9f6e-f4d64552cf62` |
+| Tagi SSF      | `611b904a-f262-4a25-9f6e-f4d64552cf62` | ← `user_editable = false` |
 
 ## Data entry conventions
 
@@ -129,6 +129,7 @@ New tags added via UI always get `source: 'user'`.
 - `service_songs.status` CHECK: `'planned' | 'sung'`
 - `songs.minor`: `true` = minor key (mol), `false` = major key (dur)
 - `songs` has UNIQUE constraint on `(collection_id, number)`
+- `tag_categories.user_editable boolean DEFAULT true` — when `false`, tags in that category are read-only: UI blocks add/remove, shows shake animation + `navigator.vibrate(100)` on tap. Currently `false` only for "Tagi SSF" (`611b904a-f262-4a25-9f6e-f4d64552cf62`).
 - All FKs use ON DELETE CASCADE or SET NULL (see spec for details)
 - RLS is disabled (MVP) — no auth required
 
