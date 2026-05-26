@@ -50,6 +50,7 @@ function SongOverlayContent({
 
   const [savingTag, setSavingTag] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [shakingTagId, setShakingTagId] = useState<string | null>(null)
   const [addedStatus, setAddedStatus] = useState<'planned' | 'sung' | null>(initialStatus ?? null)
   const [adding, setAdding] = useState(false)
 
@@ -139,6 +140,12 @@ function SongOverlayContent({
     })
   }
 
+  const handleLockedTagClick = (tagId: string) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100)
+    setShakingTagId(tagId)
+    setTimeout(() => setShakingTagId(null), 400)
+  }
+
   const tagSourceClass = (source: TagSource | undefined) => {
     if (source === 'user') return 'bg-amber-100 text-amber-700 border border-amber-300'
     if (source === 'ai') return 'bg-purple-100 text-purple-700 border border-purple-200'
@@ -171,7 +178,11 @@ function SongOverlayContent({
   )
   const uncategorized = allTags.filter((t) => !t.category_id)
 
-  const renderTagCategory = (catId: string, catName: string, tags: (Tag & { category?: TagCategory })[]) => {
+  const tagEditableMap = new Map(
+    allTags.map((t) => [t.id, t.category ? (t.category.user_editable ?? true) : true])
+  )
+
+  const renderTagCategory = (catId: string, catName: string, tags: (Tag & { category?: TagCategory })[], userEditable: boolean) => {
     const isOpen = expandedCategories.has(catId)
     const activeTags = tags.filter((t) => activeTagIds.includes(t.id))
     const inactiveTags = tags
@@ -197,6 +208,17 @@ function SongOverlayContent({
           <div className="overflow-hidden">
             <div className="px-3 py-2.5 flex flex-wrap gap-2 bg-white">
               {sortedTags.map((tag) => {
+                if (!userEditable) {
+                  return (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleLockedTagClick(tag.id)}
+                      className={`rounded-full px-2 py-1 text-xs font-medium bg-slate-100 text-slate-500 ${shakingTagId === tag.id ? 'tag-shake' : ''}`}
+                    >
+                      {tag.name}
+                    </button>
+                  )
+                }
                 const active = activeTagIds.includes(tag.id)
                 const pendingRemoval = pendingRemovalTagIds.includes(tag.id)
                 const source = tagSourceMap.get(tag.id)
@@ -357,16 +379,30 @@ function SongOverlayContent({
 
         {activeTagIds.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
-            {activeSongTags.map(({ tag, source }) => (
-              <button
-                key={tag.id}
-                onClick={() => toggleTag(tag.id)}
-                disabled={savingTag}
-                className={`rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${tagSourceClass(source)}`}
-              >
-                {tag.name}
-              </button>
-            ))}
+            {activeSongTags.map(({ tag, source }) => {
+              const editable = tagEditableMap.get(tag.id) !== false
+              if (!editable) {
+                return (
+                  <button
+                    key={tag.id}
+                    onClick={() => handleLockedTagClick(tag.id)}
+                    className={`rounded-full px-2 py-1 text-xs font-medium bg-slate-100 text-slate-500 ${shakingTagId === tag.id ? 'tag-shake' : ''}`}
+                  >
+                    {tag.name}
+                  </button>
+                )
+              }
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTag(tag.id)}
+                  disabled={savingTag}
+                  className={`rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 disabled:opacity-50 ${tagSourceClass(source)}`}
+                >
+                  {tag.name}
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -416,9 +452,9 @@ function SongOverlayContent({
           <div className="flex flex-col gap-2">
             {categories.map((cat) => {
               const tags = allTags.filter((t) => t.category_id === cat.id)
-              return renderTagCategory(cat.id, cat.name, tags)
+              return renderTagCategory(cat.id, cat.name, tags, cat.user_editable ?? true)
             })}
-            {uncategorized.length > 0 && renderTagCategory('__uncategorized__', 'Inne', uncategorized)}
+            {uncategorized.length > 0 && renderTagCategory('__uncategorized__', 'Inne', uncategorized, true)}
           </div>
         )}
 
