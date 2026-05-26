@@ -5,7 +5,9 @@
 - **Tag "Krótka" — otagowanie pieśni** — Dodać tag "Krótka" do kategorii 🎤 Charakter, a następnie przejść przez kolekcje (szczególnie DP) i otagować krótkie pieśni. Cel: szybkie znalezienie czegoś krótkiego w trakcie świadectw lub na koniec nabożeństwa — wystarczy wyfiltrować "Krótka" + "Żywa melodia" w wyszukiwarce.
 - **Tekst z akordami** — Widok pieśni powinien mieć tekst z akordami po prawej stronie z przewijaniem. Na razie nie mamy tekstów w bazie, więc odkładamy na później.
 - **Podobne pieśni** — Na stronie danej pieśni wyświetlać listę podobnych pieśni na podstawie wspólnych tagów/znaczników. Cel: lider uwielbienia może łatwo znaleźć pieśni o podobnym charakterze lub tematyce bez potrzeby ręcznego przeszukiwania bazy.
-- **Tempo (BPM)** — Przechowywać i wyświetlać tempo pieśni w BPM. Cel: lider uwielbienia planując nabożeństwo widzi tempo poszczególnych pieśni, co pomaga zadbać o płynność i spójność rytmiczną całego zestawu.
+- **Posłuchaj melodii** — Przycisk w SongOverlay otwierający nagranie pieśni. Do rozważenia: link do SongTreasures (mamy `author_id` — sprawdzić czy ST udostępnia stabilne URL-e do nagrań) lub ręcznie dodawany URL (`recording_url` w tabeli `songs`). Cel: lider może odświeżyć melodię przed lub w trakcie nabożeństwa bez opuszczania aplikacji.
+- **Tempo i styl gry** — Dwa nowe pola na pieśni: `bpm INTEGER` (tempo metronomu) oraz `play_style TEXT` z dwiema wartościami: "swing" lub "straight". Wprowadzane ręcznie, wyświetlane w SongOverlay obok tonacji. Cel: lider widzi jednym rzutem oka charakter wykonania i może dbać o spójność zestawu.
+- **Detekcja tempa na żywo** — Aplikacja nasłuchuje przez mikrofon i wykrywa aktualne BPM granej pieśni w czasie rzeczywistym. Porównuje je z docelowym BPM zapisanym dla pieśni i pokazuje czy gramy za szybko, za wolno czy w dobrym tempie. Wymaga Web Audio API + algorytmu detekcji rytmu (np. beat detection przez analizę energii częstotliwości).
 
 ## Wyszukiwanie
 
