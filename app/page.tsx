@@ -84,7 +84,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold text-blue-900 mb-6">Song Steward 🎵</h1>
+      <h1 className="text-2xl font-bold text-blue-900 mb-1">Song Steward 🎵</h1>
+      <p className="text-xs text-gray-400 mb-6">Jakub</p>
 
       {/* Szybka akcja */}
       <Link
