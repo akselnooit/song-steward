@@ -133,7 +133,10 @@ export default async function DashboardPage() {
 
       <TopSungSection />
 
-      <NeverSungSection />
+      <NeverSungSection nearestServiceCtx={nearestService ? {
+        serviceId: nearestService.id,
+        serviceName: `${new Date(nearestService.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}${(nearestService.service_type as unknown as { name: string } | null)?.name ? ` · ${(nearestService.service_type as unknown as { name: string }).name}` : ''}`,
+      } : null} />
 
 
       {/* TODO: lepsze statystyki śpiewanych pieśni — naciśnięcie na kafelek otwiera osobną stronę ze statystykami */}

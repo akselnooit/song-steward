@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
-import { useSongOverlay } from '@/contexts/SongOverlayContext'
+import { useSongOverlay, type ServiceCtx } from '@/contexts/SongOverlayContext'
 import { supabase } from '@/lib/supabase'
 import { cacheGet, cacheSet } from '@/lib/cache'
 import TagFilter from '@/components/TagFilter'
@@ -55,7 +55,7 @@ function FilterPills<T extends { id: string }>({
   )
 }
 
-export default function NeverSungSection() {
+export default function NeverSungSection({ nearestServiceCtx }: { nearestServiceCtx?: ServiceCtx | null }) {
   const { openSong } = useSongOverlay()
   const [allSongs, setAllSongs] = useState<SongWithTags[]>([])
   const [allTags, setAllTags] = useState<(Tag & { category?: TagCategory })[]>([])
@@ -192,7 +192,7 @@ export default function NeverSungSection() {
                 <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
                 <button
                   className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1 text-left"
-                  onClick={() => openSong(song.id, unsungSongs.map((s) => s.id))}
+                  onClick={() => openSong(song.id, unsungSongs.map((s) => s.id), nearestServiceCtx ?? null)}
                 >
                   <span className="font-semibold text-gray-500 mr-1">{song.number}</span>
                   {song.title}
