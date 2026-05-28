@@ -55,6 +55,18 @@ export interface ServiceType {
   created_at: string
 }
 
+export interface Location {
+  id: string
+  name: string
+  created_at: string
+}
+
+export interface ServiceCategory {
+  id: string
+  name: string
+  created_at: string
+}
+
 export interface WorshipLeader {
   id: string
   name: string
@@ -63,13 +75,19 @@ export interface WorshipLeader {
 
 export interface Service {
   id: string
-  service_type_id: string | null
+  // Legacy — kept for backward compat during migration
+  service_type_id?: string | null
+  service_type?: ServiceType
+  // New fields
+  location_id: string | null
+  category_id: string | null
   worship_leader_id: string | null
   date: string
   notes: string | null
   created_at: string
   // dołączane przez JOIN
-  service_type?: ServiceType
+  location?: Location
+  category?: ServiceCategory
   worship_leader?: WorshipLeader
   service_songs?: ServiceSong[]
 }

@@ -1,35 +1,62 @@
+'use client'
+
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { useGlobalLocation } from '@/lib/useGlobalLocation'
+import type { Service } from '@/lib/types'
 
-export const revalidate = 0
-
-async function getServices() {
-  const { data, error } = await supabase
-    .from('services')
-    .select(`
-      id, date, notes,
-      service_type:service_types(name),
-      worship_leader:worship_leaders(name),
-      service_songs(id, status)
-    `)
-    .order('date', { ascending: false })
-
-  if (error) return []
-  return data || []
+type ServiceListItem = Pick<Service, 'id' | 'date' | 'notes' | 'location' | 'category' | 'worship_leader'> & {
+  service_songs?: { id: string; status: string }[]
 }
 
-export default async function ServicesPage({
+export default function ServicesPage({
   searchParams,
 }: {
   searchParams: Promise<{ all?: string }>
 }) {
-  const { all } = await searchParams
-  const services = await getServices()
+  const router = useRouter()
+  const { locationId } = useGlobalLocation()
+  const [services, setServices] = useState<ServiceListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [allParam, setAllParam] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    searchParams.then(({ all }) => setAllParam(all))
+  }, [searchParams])
+
+  useEffect(() => {
+    fetch('/api/services')
+      .then((r) => r.json())
+      .then((data) => {
+        setServices(data || [])
+        setLoading(false)
+      })
+  }, [])
 
   const today = new Date().toISOString().slice(0, 10)
-  const todayServices = services.filter((s) => s.date === today)
-  if (!all && todayServices.length === 1) redirect(`/services/${todayServices[0].id}`)
+
+  // Redirect to today's service if there's exactly one today and no ?all param
+  useEffect(() => {
+    if (loading || allParam !== undefined) return
+    const todayServices = services.filter((s) => s.date === today)
+    if (todayServices.length === 1) {
+      router.replace(`/services/${todayServices[0].id}`)
+    }
+  }, [loading, allParam, services, today, router])
+
+  const filtered = useMemo(() => {
+    if (!locationId) return services
+    return services.filter((s) => {
+      const loc = Array.isArray(s.location) ? (s.location as unknown[])[0] : s.location
+      const locObj = loc as { id: string } | null | undefined
+      return locObj?.id === locationId
+    })
+  }, [services, locationId])
+
+  if (loading) {
+    return <div className="px-4 pt-6 pb-4 max-w-lg mx-auto text-gray-400 text-sm">Ładowanie...</div>
+  }
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
@@ -43,7 +70,7 @@ export default async function ServicesPage({
         </Link>
       </div>
 
-      {services.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <p className="mb-4">Brak nabożeństw</p>
           <Link href="/services/new" className="text-blue-900 underline text-sm">
@@ -52,7 +79,7 @@ export default async function ServicesPage({
         </div>
       ) : (
         <div className="space-y-3">
-          {services.map((service) => {
+          {filtered.map((service) => {
             const sungCount = service.service_songs?.filter(
               (ss: { status: string }) => ss.status === 'sung'
             ).length || 0
@@ -60,6 +87,20 @@ export default async function ServicesPage({
               (ss: { status: string }) => ss.status === 'planned'
             ).length || 0
             const isToday = service.date === today
+
+            const loc = Array.isArray(service.location)
+              ? (service.location as unknown as { name: string }[])[0]
+              : service.location as unknown as { name: string } | null | undefined
+            const cat = Array.isArray(service.category)
+              ? (service.category as unknown as { name: string }[])[0]
+              : service.category as unknown as { name: string } | null | undefined
+            const leader = Array.isArray(service.worship_leader)
+              ? (service.worship_leader as unknown as { name: string }[])[0]
+              : service.worship_leader as unknown as { name: string } | null | undefined
+
+            const serviceLabel = loc && cat
+              ? `${loc.name} — ${cat.name}`
+              : loc?.name ?? cat?.name ?? '—'
 
             return (
               <Link
@@ -72,21 +113,19 @@ export default async function ServicesPage({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900">
-                      {new Date(service.date).toLocaleDateString('pl-PL', {
-                        weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
-                      })}
-                    </p>
-                    {isToday && (
-                      <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Dziś</span>
-                    )}
+                      <p className="font-semibold text-gray-900">
+                        {new Date(service.date).toLocaleDateString('pl-PL', {
+                          weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
+                        })}
+                      </p>
+                      {isToday && (
+                        <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Dziś</span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-500 mt-0.5">
-                      {(service.service_type as unknown as { name: string } | null)?.name || '—'}
-                      {(service.worship_leader as unknown as { name: string } | null)?.name && (
-                        <span className="ml-2 text-gray-400">
-                          · {(service.worship_leader as unknown as { name: string }).name}
-                        </span>
+                      {serviceLabel}
+                      {leader?.name && (
+                        <span className="ml-2 text-gray-400">· {leader.name}</span>
                       )}
                     </p>
                   </div>

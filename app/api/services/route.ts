@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   if (date) {
     const { data, error } = await supabase
       .from('services')
-      .select('id, date, service_type:service_types(id, name)')
+      .select('id, date, location:locations(id, name), category:service_categories(id, name)')
       .eq('date', date)
       .order('date', { ascending: true })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().slice(0, 10)
     const { data, error } = await supabase
       .from('services')
-      .select('id, date, service_type:service_types(id, name)')
+      .select('id, date, location:locations(id, name), category:service_categories(id, name)')
       .gte('date', today)
       .order('date', { ascending: true })
       .limit(1)
@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
     .from('services')
     .select(`
       *,
-      service_type:service_types(id, name),
+      location:locations(id, name),
+      category:service_categories(id, name),
       worship_leader:worship_leaders(id, name),
       service_songs(id, status)
     `)
@@ -47,11 +48,11 @@ export async function GET(request: NextRequest) {
 // POST /api/services — utwórz nowe nabożeństwo
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { service_type_id, worship_leader_id, date, notes } = body
+  const { location_id, category_id, worship_leader_id, date, notes } = body
 
   const { data, error } = await supabase
     .from('services')
-    .insert({ service_type_id, worship_leader_id, date, notes })
+    .insert({ location_id, category_id, worship_leader_id, date, notes })
     .select()
     .single()
 

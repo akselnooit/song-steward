@@ -3,10 +3,27 @@ import { supabase } from '@/lib/supabase'
 
 // GET /api/songs/[id] — szczegóły pieśni z tagami i historią śpiewania
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  const locationId = request.nextUrl.searchParams.get('location_id')
+
+  let historyQuery = supabase
+    .from('service_songs')
+    .select(`
+      id, status, added_at,
+      service:services(
+        id, date, location_id,
+        location:locations(id, name),
+        category:service_categories(id, name),
+        worship_leader:worship_leaders(name)
+      )
+    `)
+    .eq('song_id', id)
+    .eq('status', 'sung')
+    .order('added_at', { ascending: false })
+    .limit(20)
 
   const [songResult, historyResult] = await Promise.all([
     supabase
@@ -22,23 +39,24 @@ export async function GET(
       `)
       .eq('id', id)
       .single(),
-    supabase
-      .from('service_songs')
-      .select(`
-        id, status, added_at,
-        service:services(id, date, service_type:service_types(name), worship_leader:worship_leaders(name))
-      `)
-      .eq('song_id', id)
-      .eq('status', 'sung')
-      .order('added_at', { ascending: false })
-      .limit(20),
+    historyQuery,
   ])
 
   if (songResult.error) return NextResponse.json({ error: songResult.error.message }, { status: 500 })
 
+  let history = historyResult.data || []
+
+  // Filter by location if provided
+  if (locationId) {
+    history = history.filter((entry) => {
+      const svc = Array.isArray(entry.service) ? entry.service[0] : entry.service
+      return svc?.location_id === locationId
+    })
+  }
+
   return NextResponse.json({
     ...songResult.data,
-    history: historyResult.data || [],
+    history,
   })
 }
 

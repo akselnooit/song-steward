@@ -36,14 +36,14 @@ async function getDashboardData() {
     supabase.from('songs').select('collection:collections(short_name)'),
     supabase
       .from('services')
-      .select('id, date, service_type:service_types(name), service_songs(id, status)')
+      .select('id, date, location:locations(name), category:service_categories(name), service_songs(id, status)')
       .gte('date', today)
       .order('date', { ascending: true })
       .limit(1)
       .maybeSingle(),
     supabase
       .from('services')
-      .select('id, date, service_type:service_types(name), service_songs(id, status)')
+      .select('id, date, location:locations(name), category:service_categories(name), service_songs(id, status)')
       .lt('date', today)
       .order('date', { ascending: false })
       .limit(1)
@@ -116,7 +116,11 @@ export default async function DashboardPage() {
               })}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {(nearestService.service_type as unknown as { name: string } | null)?.name || '—'}
+              {(() => {
+                const loc = (nearestService.location as unknown as { name: string } | null)?.name
+                const cat = (nearestService.category as unknown as { name: string } | null)?.name
+                return loc && cat ? `${loc} — ${cat}` : loc ?? cat ?? '—'
+              })()}
             </p>
             {serviceStatus === 'future' || serviceStatus === 'today' ? (
               <p className="text-xs text-blue-600 font-semibold mt-1">{totalCount} pieśni</p>
@@ -135,7 +139,13 @@ export default async function DashboardPage() {
 
       <NeverSungSection nearestServiceCtx={nearestService ? {
         serviceId: nearestService.id,
-        serviceName: `${new Date(nearestService.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}${(nearestService.service_type as unknown as { name: string } | null)?.name ? ` · ${(nearestService.service_type as unknown as { name: string }).name}` : ''}`,
+        serviceName: (() => {
+          const date = new Date(nearestService.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
+          const loc = (nearestService.location as unknown as { name: string } | null)?.name
+          const cat = (nearestService.category as unknown as { name: string } | null)?.name
+          const label = loc && cat ? `${loc} — ${cat}` : loc ?? cat ?? ''
+          return `${date}${label ? ` · ${label}` : ''}`
+        })(),
       } : null} />
 
 

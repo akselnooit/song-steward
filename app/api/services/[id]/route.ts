@@ -12,7 +12,8 @@ export async function GET(
     .from('services')
     .select(`
       *,
-      service_type:service_types(id, name),
+      location:locations(id, name),
+      category:service_categories(id, name),
       worship_leader:worship_leaders(id, name),
       service_songs(
         id, song_id, status, song_order, added_at,

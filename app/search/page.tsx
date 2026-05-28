@@ -35,9 +35,11 @@ function SearchContent() {
       .then((data) => {
         if (data?.id) {
           setServiceId(data.id)
-          const typeName = data.service_type?.name || ''
+          const loc = (data.location as { name: string } | null)?.name
+          const cat = (data.category as { name: string } | null)?.name
+          const label = loc && cat ? `${loc} — ${cat}` : loc ?? cat ?? ''
           const dateStr = new Date(data.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
-          setServiceName(`${dateStr}${typeName ? ` – ${typeName}` : ''}`)
+          setServiceName(`${dateStr}${label ? ` – ${label}` : ''}`)
         }
       })
       .catch(() => {})
@@ -58,9 +60,11 @@ function SearchContent() {
         setServiceStatusMap(map)
         setServiceSongIdMap(idMap)
         if (!serviceName && data?.date) {
-          const typeName = data.service_type?.name || ''
+          const loc = (data.location as { name: string } | null)?.name
+          const cat = (data.category as { name: string } | null)?.name
+          const label = loc && cat ? `${loc} — ${cat}` : loc ?? cat ?? ''
           const dateStr = new Date(data.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
-          setServiceName(`${dateStr}${typeName ? ` – ${typeName}` : ''}`)
+          setServiceName(`${dateStr}${label ? ` – ${label}` : ''}`)
         }
       })
       .catch(() => {})

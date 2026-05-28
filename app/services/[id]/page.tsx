@@ -13,7 +13,8 @@ interface ServiceDetail {
   id: string
   date: string
   notes: string | null
-  service_type?: { name: string }
+  location?: { id: string; name: string }
+  category?: { id: string; name: string }
   worship_leader?: { name: string }
   service_songs: ServiceSong[]
 }
@@ -211,7 +212,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
           })}
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          {service.service_type?.name || '—'}
+          {service.location && service.category
+            ? `${service.location.name} — ${service.category.name}`
+            : service.location?.name ?? service.category?.name ?? '—'}
           {service.worship_leader?.name && (
             <span className="ml-2 text-gray-400">· {service.worship_leader.name}</span>
           )}

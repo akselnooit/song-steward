@@ -2,35 +2,56 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ServiceType, WorshipLeader } from '@/lib/types'
+import { WorshipLeader } from '@/lib/types'
+import type { Location, ServiceCategory } from '@/lib/types'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
+import { useGlobalLocation } from '@/lib/useGlobalLocation'
 
 export default function NewServicePage() {
   const router = useRouter()
-  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
+  const { locationId: cookieLocationId } = useGlobalLocation()
+  const [locations, setLocations] = useState<Location[]>([])
+  const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [leaders, setLeaders] = useState<WorshipLeader[]>([])
   const [loading, setLoading] = useState(false)
 
   // Domyślnie dzisiaj
   const today = new Date().toISOString().split('T')[0]
   const [date, setDate] = useState(today)
-  const [serviceTypeId, setServiceTypeId] = useState('')
+  const [locationId, setLocationId] = useState('')
+  const [categoryId, setCategoryId] = useState('')
   const [worshipLeaderId, setWorshipLeaderId] = useState('')
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/service-types').then((r) => r.json()),
+      fetch('/api/locations').then((r) => r.json()),
+      fetch('/api/service-categories').then((r) => r.json()),
       fetch('/api/worship-leaders').then((r) => r.json()),
-    ]).then(([types, leads]) => {
-      setServiceTypes(types)
+    ]).then(([locs, cats, leads]) => {
+      setLocations(locs)
+      setCategories(cats)
       setLeaders(leads)
-      // Ustaw domyślny typ jeśli jest tylko jeden
-      if (types.length === 1) setServiceTypeId(types[0].id)
+      // Pre-fill location from cookie
+      if (cookieLocationId && locs.some((l: Location) => l.id === cookieLocationId)) {
+        setLocationId(cookieLocationId)
+      } else if (locs.length === 1) {
+        setLocationId(locs[0].id)
+      }
+      if (cats.length === 1) setCategoryId(cats[0].id)
       if (leads.length === 1) setWorshipLeaderId(leads[0].id)
     })
+  // cookieLocationId may update after hydration — only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Once cookie value becomes available, pre-fill if not yet set
+  useEffect(() => {
+    if (!locationId && cookieLocationId && locations.some((l) => l.id === cookieLocationId)) {
+      setLocationId(cookieLocationId)
+    }
+  }, [cookieLocationId, locations, locationId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +75,8 @@ export default function NewServicePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date,
-        service_type_id: serviceTypeId || null,
+        location_id: locationId || null,
+        category_id: categoryId || null,
         worship_leader_id: worshipLeaderId || null,
         notes: notes || null,
       }),
@@ -62,7 +84,7 @@ export default function NewServicePage() {
 
     if (res.ok) {
       const data = await res.json()
-      router.refresh() // odśwież cache listy nabożeństw
+      router.refresh()
       router.push(`/services/${data.id}`)
     } else {
       setLoading(false)
@@ -88,22 +110,44 @@ export default function NewServicePage() {
           />
         </div>
 
-        {/* Typ nabożeństwa */}
+        {/* Lokalizacja */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Typ nabożeństwa</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Lokalizacja</label>
           <select
-            value={serviceTypeId}
-            onChange={(e) => setServiceTypeId(e.target.value)}
+            value={locationId}
+            onChange={(e) => setLocationId(e.target.value)}
+            required
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
           >
             <option value="">— wybierz —</option>
-            {serviceTypes.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
-          {serviceTypes.length === 0 && (
+          {locations.length === 0 && (
             <p className="text-xs text-gray-400 mt-1">
-              <Link href="/settings" className="text-blue-900 underline">Dodaj typy nabożeństw w ustawieniach</Link>
+              <Link href="/settings" className="text-blue-900 underline">Dodaj lokalizacje w ustawieniach</Link>
+            </p>
+          )}
+        </div>
+
+        {/* Kategoria nabożeństwa */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kategoria nabożeństwa</label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            required
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white"
+          >
+            <option value="">— wybierz —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {categories.length === 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              <Link href="/settings" className="text-blue-900 underline">Dodaj kategorie nabożeństw w ustawieniach</Link>
             </p>
           )}
         </div>

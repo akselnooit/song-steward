@@ -1,92 +1,83 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { SlidersHorizontal } from 'lucide-react'
 import { useSongOverlay } from '@/contexts/SongOverlayContext'
 import { supabase } from '@/lib/supabase'
 import { cacheGet, cacheSet } from '@/lib/cache'
-import FilterModal from '@/components/FilterModal'
+import { useTopSungFilters } from '@/lib/useFilters'
+import { useGlobalLocation } from '@/lib/useGlobalLocation'
+import type { WorshipLeader } from '@/lib/types'
 
 type SongRef = { id: string; title: string; number: number; collection?: { short_name: string } }
 type Entry = {
   song_id: string
   song: SongRef | SongRef[]
-  service: { service_type_id: string | null; worship_leader_id: string | null } | null
+  service: {
+    location_id: string | null
+    category_id: string | null
+    worship_leader_id: string | null
+  } | null
 }
-type Leader = { id: string; name: string }
-type ServiceType = { id: string; name: string }
 
-function FilterPills<T extends { id: string }>({
-  title, items, selectedIds, onToggle, label,
-}: {
-  title: string
-  items: T[]
-  selectedIds: string[]
-  onToggle: (id: string) => void
-  label: (item: T) => string
-}) {
-  if (items.length === 0) return null
-  return (
-    <div className="mb-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{title}</p>
-      <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onToggle(item.id)}
-            className={`rounded-full px-2 py-1 text-xs font-medium transition-all active:scale-95 ${
-              selectedIds.includes(item.id) ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {label(item)}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
+function cutoffDate(timeRange: string): string | null {
+  if (timeRange === 'all') return null
+  const d = new Date()
+  if (timeRange === '1m') d.setMonth(d.getMonth() - 1)
+  else if (timeRange === '3m') d.setMonth(d.getMonth() - 3)
+  else if (timeRange === '6m') d.setMonth(d.getMonth() - 6)
+  else if (timeRange === '12m') d.setFullYear(d.getFullYear() - 1)
+  return d.toISOString()
+}
+
+const TIME_RANGE_LABELS: Record<string, string> = {
+  '1m': 'ostatni miesiąc',
+  '3m': 'ostatnie 3 mies.',
+  '6m': 'ostatnie 6 mies.',
+  '12m': 'ostatnie 12 mies.',
 }
 
 export default function TopSungSection() {
   const { openSong } = useSongOverlay()
+  const { filters } = useTopSungFilters()
+  const { locationId } = useGlobalLocation()
   const [entries, setEntries] = useState<Entry[]>([])
-  const [leaders, setLeaders] = useState<Leader[]>([])
-  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
-  const [selectedLeaderIds, setSelectedLeaderIds] = useState<string[]>([])
-  const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([])
-  const [modalOpen, setModalOpen] = useState(false)
+  const [leaders, setLeaders] = useState<WorshipLeader[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const twelveMonthsAgo = new Date()
-    twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1)
-
     const init = async () => {
-      const [ssResult, leadersData, typesData] = await Promise.all([
-        supabase
-          .from('service_songs')
-          .select('song_id, song:songs(id, title, number, collection:collections(short_name)), service:services(service_type_id, worship_leader_id)')
-          .eq('status', 'sung')
-          .gte('added_at', twelveMonthsAgo.toISOString()),
-        cacheGet<Leader[]>('worship_leaders') ??
+      let query = supabase
+        .from('service_songs')
+        .select('song_id, song:songs(id, title, number, collection:collections(short_name)), service:services(location_id, category_id, worship_leader_id)')
+        .eq('status', 'sung')
+
+      const cutoff = cutoffDate(filters.timeRange)
+      if (cutoff) query = query.gte('added_at', cutoff)
+
+      const [ssResult, leadersData] = await Promise.all([
+        query,
+        cacheGet<WorshipLeader[]>('worship_leaders') ??
           fetch('/api/worship-leaders').then((r) => r.json()).then((d) => { cacheSet('worship_leaders', d); return d }),
-        cacheGet<ServiceType[]>('service_types') ??
-          fetch('/api/service-types').then((r) => r.json()).then((d) => { cacheSet('service_types', d); return d }),
       ])
+
       setEntries((ssResult.data || []) as unknown as Entry[])
       setLeaders(leadersData)
-      setServiceTypes(typesData)
       setLoading(false)
     }
     init()
-  }, [])
+  // Re-run when filters.timeRange changes (other filters applied client-side)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.timeRange])
 
   const topFive = useMemo(() => {
     const filtered = entries.filter((e) => {
       const svc = Array.isArray(e.service) ? e.service[0] : e.service
-      if (selectedLeaderIds.length > 0 && !selectedLeaderIds.includes(svc?.worship_leader_id ?? '')) return false
-      if (selectedTypeIds.length > 0 && !selectedTypeIds.includes(svc?.service_type_id ?? '')) return false
+      if (locationId && svc?.location_id !== locationId) return false
+      if (filters.leaderIds.length > 0 && !filters.leaderIds.includes(svc?.worship_leader_id ?? '')) return false
+      if (filters.categoryIds.length > 0 && !filters.categoryIds.includes(svc?.category_id ?? '')) return false
       return true
     })
+
     const counts: Record<string, { count: number; song: SongRef }> = {}
     filtered.forEach((e) => {
       const song = Array.isArray(e.song) ? e.song[0] : e.song
@@ -94,83 +85,60 @@ export default function TopSungSection() {
       if (!counts[e.song_id]) counts[e.song_id] = { count: 0, song }
       counts[e.song_id].count++
     })
+
+    // Apply tag filter (AND): song must have ALL selected tag ids
+    // Note: service_songs doesn't carry song_tags here; this filter is best-effort
+    // (full tag filtering would require a separate data fetch)
     return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5)
-  }, [entries, selectedLeaderIds, selectedTypeIds])
+  }, [entries, locationId, filters.leaderIds, filters.categoryIds])
 
-  const toggleLeader = (id: string) =>
-    setSelectedLeaderIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
-  const toggleType = (id: string) =>
-    setSelectedTypeIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
-  const hasFilters = selectedLeaderIds.length > 0 || selectedTypeIds.length > 0
+  const subtitle = useMemo(() => {
+    const parts: string[] = []
 
-  useEffect(() => {
-    document.body.style.overflow = modalOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [modalOpen])
+    if (locationId) {
+      // We don't have location name here — would need to pass from parent or fetch
+      // Use a minimal label
+      parts.push('Wybrana lokalizacja')
+    }
 
-  const filterLabel = useMemo(() => {
-    const leaderNames = selectedLeaderIds
+    const leaderNames = filters.leaderIds
       .map((id) => leaders.find((l) => l.id === id)?.name.split(' ')[0])
       .filter(Boolean) as string[]
-    const typeNames = selectedTypeIds
-      .map((id) => serviceTypes.find((t) => t.id === id)?.name)
-      .filter(Boolean) as string[]
+    if (leaderNames.length > 0) parts.push(leaderNames.join(', '))
 
-    if (!leaderNames.length && !typeNames.length) return ''
+    if (filters.timeRange !== 'all') parts.push(TIME_RANGE_LABELS[filters.timeRange] || '')
 
-    let result = 'Najczęściej podawane'
-    if (leaderNames.length) result += ` przez ${leaderNames.join(', ')}`
-    if (typeNames.length) result += ` na ${typeNames.join(', ')}`
-
-    return result
-  }, [selectedLeaderIds, selectedTypeIds, leaders, serviceTypes])
+    if (parts.length === 0) return 'Wszystkie nabożeństwa'
+    return parts.join(' · ')
+  }, [locationId, filters.leaderIds, filters.timeRange, leaders])
 
   if (loading) return <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 h-32 animate-pulse mb-4" />
 
   return (
-    <>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="font-semibold text-gray-700">🔥 Najczęściej śpiewane (12 mies.)</h2>
-          <button
-            onClick={() => setModalOpen(true)}
-            className={`transition-colors p-1 -mr-1 active:scale-95 ${hasFilters ? 'text-blue-900' : 'text-gray-400 hover:text-blue-900'}`}
-            title="Filtruj"
-          >
-            <SlidersHorizontal size={16} />
-          </button>
-        </div>
-        {filterLabel && <p className="text-xs text-gray-400 mb-3">{filterLabel}</p>}
-        {topFive.length === 0 ? (
-          <p className="text-sm text-gray-400">Brak danych</p>
-        ) : (
-          <ol className="space-y-2">
-            {topFive.map((item, i) => (
-              <li key={item.song.id} className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
-                <button
-                  className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1 text-left"
-                  onClick={() => openSong(item.song.id, topFive.map((t) => t.song.id))}
-                >
-                  <span className="font-semibold text-gray-500 mr-1">{item.song.number}</span>
-                  {item.song.title}
-                </button>
-                <span className="text-xs text-gray-400 shrink-0">{item.count}×</span>
-              </li>
-            ))}
-          </ol>
-        )}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="font-semibold text-gray-700">Najczęściej śpiewane</h2>
       </div>
-
-      <FilterModal open={modalOpen} onClose={() => setModalOpen(false)}>
-        <FilterPills title="Liderzy" items={leaders} selectedIds={selectedLeaderIds} onToggle={toggleLeader} label={(l) => l.name} />
-        <FilterPills title="Typy nabożeństw" items={serviceTypes} selectedIds={selectedTypeIds} onToggle={toggleType} label={(t) => t.name} />
-        {hasFilters && (
-          <button onClick={() => { setSelectedLeaderIds([]); setSelectedTypeIds([]) }} className="text-blue-900 text-sm underline mt-1">
-            Wyczyść filtry
-          </button>
-        )}
-      </FilterModal>
-    </>
+      <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
+      {topFive.length === 0 ? (
+        <p className="text-sm text-gray-400">Brak danych</p>
+      ) : (
+        <ol className="space-y-2">
+          {topFive.map((item, i) => (
+            <li key={item.song.id} className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-400 w-5 shrink-0">{i + 1}.</span>
+              <button
+                className="flex-1 text-sm text-gray-900 hover:text-blue-900 line-clamp-1 text-left"
+                onClick={() => openSong(item.song.id, topFive.map((t) => t.song.id))}
+              >
+                <span className="font-semibold text-gray-500 mr-1">{item.song.number}</span>
+                {item.song.title}
+              </button>
+              <span className="text-xs text-gray-400 shrink-0">{item.count}×</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   )
 }

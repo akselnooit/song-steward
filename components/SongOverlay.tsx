@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react'
 import { useSongOverlay } from '@/contexts/SongOverlayContext'
 import { fetcher } from '@/lib/fetcher'
 import { Tag, TagCategory, TagSource } from '@/lib/types'
+import { useGlobalLocation } from '@/lib/useGlobalLocation'
 
 interface SongDetail {
   id: string
@@ -23,7 +24,13 @@ interface SongDetail {
   history: {
     id: string
     added_at: string
-    service: { id: string; date: string; service_type?: { name: string }; worship_leader?: { name: string } }
+    service: {
+      id: string
+      date: string
+      location?: { name: string }
+      category?: { name: string }
+      worship_leader?: { name: string }
+    }
   }[]
 }
 
@@ -47,6 +54,7 @@ function SongOverlayContent({
 }) {
   const { state } = useSongOverlay()
   const { serviceCtx, queue, index, initialStatus } = state
+  const { locationId } = useGlobalLocation()
 
   const [savingTag, setSavingTag] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -59,8 +67,11 @@ function SongOverlayContent({
     setExpandedCategories(new Set())
   }, [songId, initialStatus])
 
+  const songUrl = locationId
+    ? `/api/songs/${songId}?location_id=${encodeURIComponent(locationId)}`
+    : `/api/songs/${songId}`
   const { data: song, mutate: mutateSong } = useSWR<SongDetail>(
-    `/api/songs/${songId}`,
+    songUrl,
     fetcher,
     { revalidateOnFocus: false },
   )
@@ -487,8 +498,12 @@ function SongOverlayContent({
                       year: 'numeric',
                     })}
                   </span>
-                  {entry.service.service_type && (
-                    <span className="text-gray-500 ml-2">— {entry.service.service_type.name}</span>
+                  {(entry.service.location || entry.service.category) && (
+                    <span className="text-gray-500 ml-2">
+                      — {entry.service.location && entry.service.category
+                        ? `${entry.service.location.name} — ${entry.service.category.name}`
+                        : entry.service.location?.name ?? entry.service.category?.name}
+                    </span>
                   )}
                   {entry.service.worship_leader && (
                     <span className="text-gray-400 ml-2">· {entry.service.worship_leader.name}</span>

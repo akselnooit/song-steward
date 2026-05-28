@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
+import { useGlobalLocation } from '@/lib/useGlobalLocation'
+import { useTopSungFilters, useNeverSungFilters, type TimeRange } from '@/lib/useFilters'
+import type { Location, ServiceCategory, WorshipLeader, Tag, TagCategory } from '@/lib/types'
 
 // Generyczny komponent do zarządzania słownikiem
 function DictionarySection<T extends { id: string; name: string }>({
@@ -24,13 +27,11 @@ function DictionarySection<T extends { id: string; name: string }>({
   const [adding, setAdding] = useState(false)
   const [options, setOptions] = useState<Record<string, { id: string; name: string }[]>>({})
 
-  // Dane sekcji przez SWR — przy powrocie na stronę widoczne natychmiast z cache
   const { data: items = [], mutate: mutateItems } = useSWR<T[]>(`/api/${endpoint}`, fetcher, {
     revalidateOnFocus: false,
   })
 
   useEffect(() => {
-    // Pobierz opcje dla pól select (rzadko się zmieniają, bez SWR)
     extraFields?.forEach(async (field) => {
       if (field.optionsEndpoint) {
         const res = await fetch(`/api/${field.optionsEndpoint}`)
@@ -158,7 +159,6 @@ function DictionarySection<T extends { id: string; name: string }>({
                 <span className="text-sm text-gray-900 font-medium">{item.name}</span>
                 {extraFields?.map((f) => {
                   if (!item[f.key]) return null
-                  // Jeśli to pole select, pokaż nazwę z opcji
                   if (f.optionsEndpoint) {
                     const opt = (options[f.key] || []).find((o) => o.id === item[f.key])
                     return opt ? (
@@ -192,17 +192,224 @@ function DictionarySection<T extends { id: string; name: string }>({
   )
 }
 
+// Pill button helper
+function PillButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all active:scale-95 ${
+        active
+          ? 'bg-blue-900 text-white'
+          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+// Multi-select pill group
+function MultiSelectPills<T extends { id: string; name: string }>({
+  title,
+  items,
+  selectedIds,
+  onToggle,
+}: {
+  title: string
+  items: T[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
+}) {
+  if (items.length === 0) return null
+  return (
+    <div className="mb-4">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{title}</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <PillButton
+            key={item.id}
+            active={selectedIds.includes(item.id)}
+            onClick={() => onToggle(item.id)}
+          >
+            {item.name}
+          </PillButton>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function toggle(arr: string[], id: string): string[] {
+  return arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]
+}
+
+// Filtry tab
+function FiltersTab() {
+  const { locationId, setLocationId } = useGlobalLocation()
+  const { filters: topFilters, setFilters: setTopFilters } = useTopSungFilters()
+  const { filters: neverFilters, setFilters: setNeverFilters } = useNeverSungFilters()
+
+  const { data: locations = [] } = useSWR<Location[]>('/api/locations', fetcher, { revalidateOnFocus: false })
+  const { data: categories = [] } = useSWR<ServiceCategory[]>('/api/service-categories', fetcher, { revalidateOnFocus: false })
+  const { data: leaders = [] } = useSWR<WorshipLeader[]>('/api/worship-leaders', fetcher, { revalidateOnFocus: false })
+  const { data: allTags = [] } = useSWR<(Tag & { category?: TagCategory })[]>('/api/tags', fetcher, { revalidateOnFocus: false })
+
+  const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
+    { value: 'all', label: 'Od początku' },
+    { value: '1m', label: 'Ostatni miesiąc' },
+    { value: '3m', label: 'Ostatnie 3 mies.' },
+    { value: '6m', label: 'Ostatnie 6 mies.' },
+    { value: '12m', label: 'Ostatnie 12 mies.' },
+  ]
+
+  return (
+    <div className="space-y-4">
+      {/* Filtr globalny */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h2 className="font-semibold text-gray-800 mb-1">Filtr globalny</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Wybrana lokalizacja ogranicza widoki w całej aplikacji — dashboard, listę nabożeństw i historię śpiewania. Wybierz &apos;Wszystkie&apos;, żeby widzieć dane z każdej lokalizacji.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <PillButton active={locationId === null} onClick={() => setLocationId(null)}>
+            Wszystkie
+          </PillButton>
+          {locations.map((loc) => (
+            <PillButton
+              key={loc.id}
+              active={locationId === loc.id}
+              onClick={() => setLocationId(loc.id)}
+            >
+              {loc.name}
+            </PillButton>
+          ))}
+        </div>
+      </div>
+
+      {/* Najczęściej śpiewane — filtry domyślne */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h2 className="font-semibold text-gray-800 mb-3">Najczęściej śpiewane — filtry domyślne</h2>
+
+        <MultiSelectPills
+          title="Lider"
+          items={leaders}
+          selectedIds={topFilters.leaderIds}
+          onToggle={(id) => setTopFilters({ ...topFilters, leaderIds: toggle(topFilters.leaderIds, id) })}
+        />
+
+        <MultiSelectPills
+          title="Kategoria"
+          items={categories}
+          selectedIds={topFilters.categoryIds}
+          onToggle={(id) => setTopFilters({ ...topFilters, categoryIds: toggle(topFilters.categoryIds, id) })}
+        />
+
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tagi</p>
+          <div className="flex flex-wrap gap-2">
+            {allTags.map((tag) => (
+              <PillButton
+                key={tag.id}
+                active={topFilters.tagIds.includes(tag.id)}
+                onClick={() => setTopFilters({ ...topFilters, tagIds: toggle(topFilters.tagIds, tag.id) })}
+              >
+                {tag.name}
+              </PillButton>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Zakres czasowy</p>
+          <div className="flex flex-wrap gap-2">
+            {TIME_RANGE_OPTIONS.map((opt) => (
+              <PillButton
+                key={opt.value}
+                active={topFilters.timeRange === opt.value}
+                onClick={() => setTopFilters({ ...topFilters, timeRange: opt.value })}
+              >
+                {opt.label}
+              </PillButton>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Nigdy nieśpiewane — filtry domyślne */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h2 className="font-semibold text-gray-800 mb-1">Nigdy nieśpiewane — filtry domyślne</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Brak wyboru = wszystkie. Wielu liderów lub kategorii = wystarczy jeden. Wiele tagów = muszą być wszystkie.
+        </p>
+
+        <MultiSelectPills
+          title="Lider"
+          items={leaders}
+          selectedIds={neverFilters.leaderIds}
+          onToggle={(id) => setNeverFilters({ ...neverFilters, leaderIds: toggle(neverFilters.leaderIds, id) })}
+        />
+
+        <MultiSelectPills
+          title="Kategoria"
+          items={categories}
+          selectedIds={neverFilters.categoryIds}
+          onToggle={(id) => setNeverFilters({ ...neverFilters, categoryIds: toggle(neverFilters.categoryIds, id) })}
+        />
+
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tagi (AND — muszą być wszystkie)</p>
+          <div className="flex flex-wrap gap-2">
+            {allTags.map((tag) => (
+              <PillButton
+                key={tag.id}
+                active={neverFilters.includedTagIds.includes(tag.id)}
+                onClick={() => setNeverFilters({ ...neverFilters, includedTagIds: toggle(neverFilters.includedTagIds, tag.id) })}
+              >
+                {tag.name}
+              </PillButton>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tagi wykluczone (AND — żadnego z tych)</p>
+          <div className="flex flex-wrap gap-2">
+            {allTags.map((tag) => (
+              <PillButton
+                key={tag.id}
+                active={neverFilters.excludedTagIds.includes(tag.id)}
+                onClick={() => setNeverFilters({ ...neverFilters, excludedTagIds: toggle(neverFilters.excludedTagIds, tag.id) })}
+              >
+                {tag.name}
+              </PillButton>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const TABS = [
-  { id: 'service-types', label: 'Typy nabożeństw' },
+  { id: 'nabozenstwa', label: 'Nabożeństwa' },
   { id: 'leaders', label: 'Liderzy' },
   { id: 'tags', label: 'Tagi' },
   { id: 'collections', label: 'Zbiory' },
+  { id: 'filtry', label: 'Filtry' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('service-types')
+  const [activeTab, setActiveTab] = useState<TabId>('nabozenstwa')
 
   return (
     <div className="max-w-lg mx-auto">
@@ -236,8 +443,11 @@ export default function SettingsPage() {
 
       {/* Zawartość zakładki */}
       <div className="px-4 pt-4 pb-4">
-        {activeTab === 'service-types' && (
-          <DictionarySection title="Typy nabożeństw" endpoint="service-types" />
+        {activeTab === 'nabozenstwa' && (
+          <>
+            <DictionarySection title="Lokalizacje" endpoint="locations" />
+            <DictionarySection title="Kategorie nabożeństw" endpoint="service-categories" />
+          </>
         )}
         {activeTab === 'leaders' && (
           <DictionarySection title="Liderzy muzyki" endpoint="worship-leaders" />
@@ -262,6 +472,7 @@ export default function SettingsPage() {
             extraFields={[{ key: 'short_name', label: 'Skrót (np. SE)' }]}
           />
         )}
+        {activeTab === 'filtry' && <FiltersTab />}
       </div>
     </div>
   )
