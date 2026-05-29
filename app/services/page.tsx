@@ -103,10 +103,15 @@ export default function ServicesPage({
               : loc?.name ?? cat?.name ?? '—'
 
             return (
-              <Link
+              <button
                 key={service.id}
-                href={`/services/${service.id}`}
-                className={`block bg-white rounded-xl shadow-sm border p-4 hover:shadow-md active:scale-[0.98] transition-all ${
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem('ss_service_nav', JSON.stringify(filtered.map((s) => s.id)))
+                  } catch { /* ignore */ }
+                  router.push(`/services/${service.id}`)
+                }}
+                className={`w-full text-left block bg-white rounded-xl shadow-sm border p-4 hover:shadow-md active:scale-[0.98] transition-all ${
                   isToday ? 'border-blue-300 hover:border-blue-400' : 'border-gray-100 hover:border-blue-200'
                 }`}
               >
@@ -141,7 +146,7 @@ export default function ServicesPage({
                     )}
                   </div>
                 </div>
-              </Link>
+              </button>
             )
           })}
         </div>

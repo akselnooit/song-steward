@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, use, useCallback } from 'react'
+import { useEffect, useState, use, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import ServiceSongList from '@/components/ServiceSongList'
+import ServiceNavHeader from '@/components/ServiceNavHeader'
 import { ServiceSong, Song } from '@/lib/types'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
@@ -31,6 +32,44 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [addingStatus, setAddingStatus] = useState<'planned' | 'sung' | null>(null)
+
+  // Service navigation via sessionStorage
+  const [navIds, setNavIds] = useState<string[]>([])
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('ss_service_nav')
+      if (stored) {
+        const ids = JSON.parse(stored) as string[]
+        if (Array.isArray(ids)) setNavIds(ids)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y
+    touchStartRef.current = null
+
+    const absDx = Math.abs(dx)
+    const absDy = Math.abs(dy)
+
+    if (absDx > 60 && absDx > absDy && navIds.length > 1) {
+      const currentIndex = navIds.indexOf(id)
+      if (currentIndex < 0) return
+      if (dx < 0 && currentIndex < navIds.length - 1) {
+        router.push(`/services/${navIds[currentIndex + 1]}`)
+      } else if (dx > 0 && currentIndex > 0) {
+        router.push(`/services/${navIds[currentIndex - 1]}`)
+      }
+    }
+  }
 
   const fetchService = useCallback(async () => {
     const res = await fetch(`/api/services/${id}`)
@@ -196,13 +235,17 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
   const addedSongStatus = new Map(service.service_songs.map((ss) => [ss.song_id, ss.status]))
 
   return (
-    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
+    <div
+      className="px-4 pt-6 pb-4 max-w-lg mx-auto"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {refreshing && (
         <div className="flex items-center justify-center gap-2 text-xs text-blue-600 mb-2 -mt-2">
           <Loader2 size={12} className="animate-spin" /> Odświeżanie...
         </div>
       )}
-      <Link href="/services?all=1" className="text-sm text-blue-900 mb-3 inline-block">← Nabożeństwa</Link>
+      <ServiceNavHeader currentId={id} />
 
       {/* Nagłówek */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-5">
