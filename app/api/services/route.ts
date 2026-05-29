@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       .from('services')
       .select('id, date, location:locations(id, name), category:service_categories(id, name)')
       .eq('date', date)
-      .order('date', { ascending: true })
+      .order('created_at', { ascending: false })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data || [])
   }
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       .select('id, date, location:locations(id, name), category:service_categories(id, name)')
       .gte('date', today)
       .order('date', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
       service_songs(id, status)
     `)
     .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)

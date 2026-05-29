@@ -39,6 +39,7 @@ async function getDashboardData() {
       .select('id, date, location:locations(name), category:service_categories(name), service_songs(id, status)')
       .gte('date', today)
       .order('date', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -46,6 +47,7 @@ async function getDashboardData() {
       .select('id, date, location:locations(name), category:service_categories(name), service_songs(id, status)')
       .lt('date', today)
       .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
   ])
