@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Song Steward — Agent Context
 
-> Full human-readable spec: `song-steward-app-spec.md`
+> Full human-readable spec: `song-steward-app-spec.md` — read relevant sections for full feature design, schema details, or UI conventions.
 
 ## What this app is
 
@@ -37,18 +37,25 @@ These IDs are stable — use them directly in scripts and data entry.
 | NKM | Kwiat Migdałowy - dodatek | `2a32a3fb-8a2c-4429-b10f-36e7f3213f55` |
 | SOS | Sing Our Songs            | `0f13dd2f-fd58-4d6f-b2e4-79d9200be519` |
 
-### Service types
+### Locations
 
 | Name | ID |
 |------|----|
-| Wrocław - Ogólne    | `6c7242ce-817f-4bd8-ab26-9a355302047c` |
-| Wrocław - Środowe   | `008be775-f916-4542-850f-620ad5ad6aed` |
-| Wrocław - Młodzieżowe | `a5eaa748-1b76-4a23-9d60-ca0874c843be` |
-| Ustroń - Ogólne     | `b4297a7f-61e9-4331-a225-cd4ed524e8ba` |
-| Ustroń - Młodzieżowe | `97ee370f-b703-40b1-aff0-cb1f8f1e909b` |
-| Brunstad - Ogólne   | `5df457eb-5cef-451c-8b61-e7168355748a` |
-| Brunstad - Młodzieżowe | `78e12f76-262c-4a85-800b-63508576a2cb` |
-| Ukraina             | `b55beaa2-4704-4be6-9f25-c31c796ce0d4` |
+| Wrocław  | `a78b5a31-3653-4bdc-a7eb-e47820f94528` |
+| Ustroń   | `ee93b93a-b1ff-49cc-ba85-03fa9650ee96` |
+| Brunstad | `58012fc7-ff5c-40c0-95e0-e71c062cac03` |
+| Ukraina  | `e585d8cb-a3da-467d-9928-a8daad4c0911` |
+
+### Service categories
+
+| Name | ID |
+|------|----|
+| Ogólne          | `25bea1bb-a732-4af3-b1f6-c8ce5b660dd6` |
+| Środowe         | `32040e20-bacf-4b40-ba80-144a0389e99b` |
+| Młodzieżowe     | `cebe3a0e-89c5-48ee-8ae3-33d571f46922` |
+| Braterskie      | `fd1b0c48-90cd-4370-a98c-e3af1bf0c012` |
+| Magasinet       | `d342f6c6-9bcc-4a06-bdfd-8129fc420530` |
+| Próba orkiestry | `65fa3d07-8f20-4794-8bcf-8a90c0cd1f46` |
 
 ### Worship leaders
 
@@ -74,7 +81,7 @@ These IDs are stable — use them directly in scripts and data entry.
 When Aksel provides service data without explicit values, use these defaults:
 - **No collection prefix on song number** → DP (Drogi Pańskie)
 - **No worship leader specified** → Aksel Nooitgedagt
-- **No location specified** → Wrocław - Ogólne
+- **No location specified** → Wrocław (`a78b5a31`) + Ogólne (`25bea1bb`)
 - **Song status** → `'sung'` (unless Aksel says it was only planned)
 - **NHV prefix** = NDP (Drogi Pańskie - dodatek) — not a separate collection
 
@@ -91,7 +98,7 @@ const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': '
 await fetch(`${url}/rest/v1/services`, {
   method: 'POST',
   headers: { ...headers, Prefer: 'return=representation' },
-  body: JSON.stringify({ date: '2026-01-20', service_type_id: '...', worship_leader_id: '...' })
+  body: JSON.stringify({ date: '2026-01-20', location_id: '...', category_id: '...', worship_leader_id: '...' })
 })
 ```
 
@@ -130,6 +137,9 @@ New tags added via UI always get `source: 'user'`.
 - `songs.minor`: `true` = minor key (mol), `false` = major key (dur)
 - `songs` has UNIQUE constraint on `(collection_id, number)`
 - `tag_categories.user_editable boolean DEFAULT true` — when `false`, tags in that category are read-only: UI blocks add/remove, shows shake animation + `navigator.vibrate(100)` on tap. Currently `false` only for "Tagi SSF" (`611b904a-f262-4a25-9f6e-f4d64552cf62`).
+- `services` has `location_id` (→ `locations`) and `category_id` (→ `service_categories`) — both NOT NULL; `service_types` table no longer exists
+- `locations` and `service_categories` managed via `/api/locations` and `/api/service-categories`
+- Global location filter stored as cookie `ss_location_id`; dashboard filters stored in localStorage (`ss_top_sung_filters`, `ss_never_sung_filters`)
 - All FKs use ON DELETE CASCADE or SET NULL (see spec for details)
 - RLS is disabled (MVP) — no auth required
 
@@ -146,8 +156,12 @@ components/
   SongCard.tsx         — song tile used in search results
   BottomNav.tsx        — bottom navigation with Lucide icons
 lib/
-  supabase.ts    — Supabase client
-  types.ts       — TypeScript interfaces matching DB schema
+  supabase.ts          — Supabase client
+  types.ts             — TypeScript interfaces matching DB schema
+  useGlobalLocation.ts — cookie-based global location filter hook (client)
+  locationCookie.ts    — server-side cookie reader for location filter
+  useFilters.ts        — localStorage hooks for TopSung/NeverSung dashboard filters
+scripts/         — one-off data migration scripts (e.g. migrate_service_types.mjs)
 supabase/        — SQL migration files (run manually in Supabase Dashboard)
 backups/         — JSON database backups (gitignored)
 data/            — Raw import scripts and SongTreasures source data (gitignored)

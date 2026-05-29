@@ -1,6 +1,6 @@
 # Specyfikacja aplikacji: Song Steward
 
-> Ostatnia aktualizacja: maj 2026
+> Ostatnia aktualizacja: maj 2026 (v2 — lokalizacje + filtry globalne)
 
 ## 1. Cel i kontekst
 
@@ -97,11 +97,20 @@ CREATE TABLE song_tags (
 );
 ```
 
-### `service_types` — Typy nabożeństw
+### `locations` — Lokalizacje nabożeństw
 ```sql
-CREATE TABLE service_types (
+CREATE TABLE locations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL UNIQUE,  -- np. "Wrocław", "Ustroń", "Brunstad", "Ukraina"
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### `service_categories` — Kategorie nabożeństw
+```sql
+CREATE TABLE service_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,  -- np. "Ogólne", "Środowe", "Młodzieżowe"
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
@@ -119,7 +128,8 @@ CREATE TABLE worship_leaders (
 ```sql
 CREATE TABLE services (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_type_id UUID REFERENCES service_types(id) ON DELETE SET NULL,
+  location_id UUID NOT NULL REFERENCES locations(id) ON DELETE SET NULL,
+  category_id UUID NOT NULL REFERENCES service_categories(id) ON DELETE SET NULL,
   worship_leader_id UUID REFERENCES worship_leaders(id) ON DELETE SET NULL,
   date DATE NOT NULL,
   notes TEXT,
@@ -172,9 +182,12 @@ song-steward/
 │   ├── supabase.ts             # Klient Supabase
 │   ├── types.ts                # Definicje TypeScript
 │   └── authors.ts              # Statyczna lista 384 autorów do filtrowania
+├── scripts/                    # Jednorazowe skrypty migracji danych
 ├── supabase/                   # Migracje SQL (uruchamiane ręcznie w Supabase Dashboard)
 │   ├── add_song_tag_source.sql
-│   └── add_song_key.sql
+│   ├── add_song_key.sql
+│   ├── 01_locations_categories.sql
+│   └── 02_finalize_migration.sql
 ├── backups/                    # Backupy bazy (gitignore, JSON)
 ├── data/                       # Surowe dane z SongTreasures (gitignore)
 ├── .claude/
@@ -223,14 +236,18 @@ song-steward/
 
 - Liczba pieśni w bazie
 - Ostatnie/najbliższe nabożeństwo
-- Top 5 najczęściej śpiewanych (3 miesiące) i top 5 rzadko śpiewanych:
-  - Kafelki z opisowym tekstem pod wynikami — np. "Niepodawane przez Aksela na Wrocław - Ogólne · z tagami: Chwała"
-  - Ujednolicony `FilterModal` do filtrowania obu sekcji (lider, typ nabożeństwa, tagi)
+- Top 5 najczęściej śpiewanych i top 5 rzadko śpiewanych:
+  - Filtry konfigurowane w Ustawieniach → Filtry (lider, kategoria, tagi, zakres czasowy) — zapisywane w localStorage
+  - Globalny filtr lokalizacji (cookie `ss_location_id`) ogranicza obie sekcje
+  - Opis aktywnych filtrów w języku naturalnym nad/pod sekcjami
+  - "Nigdy nieśpiewana" = nieśpiewana w wybranej lokalizacji (nie globalnie)
 - Przycisk "+ Nowe nabożeństwo"
 
 ### 5.5 Ustawienia (`/settings`)
 
-Pełny CRUD dla: typy nabożeństw, liderzy muzyki, zbiory, kategorie tagów, tagi.
+Pełny CRUD dla: lokalizacje, kategorie nabożeństw, liderzy muzyki, zbiory, kategorie tagów, tagi.
+
+**Zakładka Filtry** — globalna lokalizacja (cookie) + domyślne filtry TopSungSection i NeverSungSection (localStorage). Logika: brak wyboru = wszystkie; wielu liderów / kategorii = OR; wiele tagów = AND.
 
 **Numer wersji** — 7-znakowy hash bieżącego commita git, wyświetlany na dole strony ustawień. Pochodzi ze zmiennej środowiskowej `NEXT_PUBLIC_COMMIT_SHA` ustawianej automatycznie przez Vercel podczas każdego buildu.
 
