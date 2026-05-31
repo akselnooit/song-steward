@@ -164,8 +164,7 @@ song-steward/
 │   │   ├── new/page.tsx        # Tworzenie nabożeństwa
 │   │   └── [id]/page.tsx       # Szczegóły: planowanie + prowadzenie na żywo
 │   ├── songs/
-│   │   ├── page.tsx            # Baza pieśni
-│   │   └── [id]/page.tsx       # Szczegóły pieśni (tagi, tonacja, historia)
+│   │   └── page.tsx            # Baza pieśni (szczegóły przez SongOverlay, nie osobna strona)
 │   ├── search/
 │   │   └── page.tsx            # Wyszukiwanie po tagach
 │   ├── settings/
@@ -175,19 +174,14 @@ song-steward/
 │   ├── TagFilter.tsx           # Filtrowanie po tagach (scroll-safe, long-press = wyklucz)
 │   ├── SongCard.tsx            # Karta pieśni
 │   ├── SongOverlay.tsx         # Slide-in overlay podglądu pieśni (nawigacja strzałkami, swipe)
-│   ├── FilterModal.tsx         # Współdzielony modal filtrów (dashboard, wyszukiwanie)
 │   ├── ServiceSongList.tsx     # Lista pieśni z drag-and-drop (long-press 400ms)
 │   └── BottomNav.tsx           # Nawigacja dolna z Lucide icons
 ├── lib/
 │   ├── supabase.ts             # Klient Supabase
 │   ├── types.ts                # Definicje TypeScript
 │   └── authors.ts              # Statyczna lista 384 autorów do filtrowania
-├── scripts/                    # Jednorazowe skrypty migracji danych
-├── supabase/                   # Migracje SQL (uruchamiane ręcznie w Supabase Dashboard)
-│   ├── add_song_tag_source.sql
-│   ├── add_song_key.sql
-│   ├── 01_locations_categories.sql
-│   └── 02_finalize_migration.sql
+├── supabase/
+│   └── 00_init.sql             # Kanoniczny schemat bazy (do odtworzenia od zera)
 ├── backups/                    # Backupy bazy (gitignore, JSON)
 ├── data/                       # Surowe dane z SongTreasures (gitignore)
 ├── .claude/
@@ -293,7 +287,7 @@ Dane pieśni z SongTreasures API. Pliki surowe w `data/` (gitignore).
 | KM  | Kwiat Migdałowy           | ~445 |
 | SOS | Sing Our Songs            | ~52  |
 | NKM | Kwiat Migdałowy - dodatek | ~10  |
-| NDP | Drogi Pańskie - dodatek   | ~55  |
+| NDP | Drogi Pańskie - dodatek   | ~6   |
 
 **Łącznie w bazie: 984 pieśni** (stan: maj 2026)
 

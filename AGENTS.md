@@ -161,8 +161,7 @@ lib/
   useGlobalLocation.ts — cookie-based global location filter hook (client)
   locationCookie.ts    — server-side cookie reader for location filter
   useFilters.ts        — localStorage hooks for TopSung/NeverSung dashboard filters
-scripts/         — one-off data migration scripts (e.g. migrate_service_types.mjs)
-supabase/        — SQL migration files (run manually in Supabase Dashboard)
+supabase/        — canonical DB schema (00_init.sql); run manually in Supabase Dashboard
 backups/         — JSON database backups (gitignored)
 data/            — Raw import scripts and SongTreasures source data (gitignored)
 ```

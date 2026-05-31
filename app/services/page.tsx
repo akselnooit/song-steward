@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useGlobalLocation } from '@/lib/useGlobalLocation'
@@ -19,20 +19,32 @@ export default function ServicesPage({
   const { locationId } = useGlobalLocation()
   const [services, setServices] = useState<ServiceListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [allParam, setAllParam] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     searchParams.then(({ all }) => setAllParam(all))
   }, [searchParams])
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true)
+    setError(false)
     fetch('/api/services')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((data) => {
         setServices(data || [])
         setLoading(false)
       })
+      .catch(() => {
+        setError(true)
+        setLoading(false)
+      })
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -56,6 +68,20 @@ export default function ServicesPage({
 
   if (loading) {
     return <div className="px-4 pt-6 pb-4 max-w-lg mx-auto text-gray-400 text-sm">Ładowanie...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 pt-6 pb-4 max-w-lg mx-auto text-center">
+        <p className="text-gray-500 mb-3">Nie udało się załadować nabożeństw</p>
+        <button
+          onClick={load}
+          className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-semibold active:scale-95 transition-all"
+        >
+          Spróbuj ponownie
+        </button>
+      </div>
+    )
   }
 
   return (

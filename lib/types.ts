@@ -49,12 +49,6 @@ export interface SongTag {
   pending_removal: boolean
 }
 
-export interface ServiceType {
-  id: string
-  name: string
-  created_at: string
-}
-
 export interface Location {
   id: string
   name: string
@@ -75,10 +69,6 @@ export interface WorshipLeader {
 
 export interface Service {
   id: string
-  // Legacy — kept for backward compat during migration
-  service_type_id?: string | null
-  service_type?: ServiceType
-  // New fields
   location_id: string | null
   category_id: string | null
   worship_leader_id: string | null
