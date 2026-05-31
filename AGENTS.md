@@ -167,11 +167,29 @@ backups/         — JSON database backups (gitignored)
 data/            — Raw import scripts and SongTreasures source data (gitignored)
 ```
 
+## Git workflow — feature branches + pull requests
+
+We work on **feature branches + pull requests** — no direct commits to `main`.
+
+```
+git checkout -b <type>/<short-desc>   # e.g. fix/dead-service-types, feat/auth
+# ... make changes, commit ...
+git push -u origin <branch>
+gh pr create                          # open a PR against main
+# review → merge PR → Vercel auto-deploys main (~1 min)
+```
+
+- **`main` is production** — merging a PR into `main` triggers the Vercel deploy. Never push straight to `main`.
+- **Branch naming:** `feat/…`, `fix/…`, `chore/…`, `docs/…` + a short kebab description.
+- **One PR = one logical change.** Keep PRs small and reviewable.
+- Vercel builds a **preview deployment** for every branch/PR — use it to verify before merging.
+- Use `gh` for PR operations. End PR bodies with the Claude Code attribution line.
+
 ## Deployment
 
 ```
-npm run dev          → localhost:3000
-git push origin main → Vercel auto-deploys (~1 min)
+npm run dev   → localhost:3000
+merge PR → main → Vercel auto-deploys (~1 min)
 ```
 
 Schema changes (new columns) must be run manually in Supabase Dashboard SQL editor — migrations in `supabase/*.sql` for reference.
