@@ -22,13 +22,19 @@ type PendingData = {
 export default function DeskPage() {
   const [data, setData] = useState<PendingData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [saving, setSaving] = useState<string | null>(null) // klucz "songId:tagId:action"
 
   const load = () => {
     setLoading(true)
+    setError(false)
     fetch('/api/pending-tags')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((d) => { setData(d); setLoading(false) })
+      .catch(() => { setError(true); setLoading(false) })
   }
 
   useEffect(() => { load() }, [])
@@ -106,7 +112,19 @@ export default function DeskPage() {
           </div>
         )}
 
-        {!loading && total === 0 && (
+        {!loading && error && (
+          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
+            <p className="text-gray-500 font-medium mb-3">Nie udało się załadować</p>
+            <button
+              onClick={load}
+              className="bg-blue-900 text-white rounded-xl px-4 py-2 text-sm font-semibold active:scale-95 transition-all"
+            >
+              Spróbuj ponownie
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && total === 0 && (
           <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
             <CheckCircle size={32} className="text-green-400 mx-auto mb-2" />
             <p className="text-gray-500 font-medium">Wszystko zatwierdzone</p>
