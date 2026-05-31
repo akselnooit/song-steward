@@ -8,7 +8,7 @@
 
 Nazwa nawiązuje do biblijnej koncepcji *stewardship* — odpowiedzialnego zarządzania tym, co zostało powierzone. Lider muzyczny jest stewardem repertuaru pieśni zboru.
 
-**Użytkownicy:** Aksel, Edwin, Ruben i kilka dodatkowych osób z Polski. Wszyscy korzystają z tej samej bazy podczas nabożeństw. Brak systemu logowania (celowo — prosta współpraca przez zaufanie).
+**Użytkownicy:** obecnie Aksel i Edwin, ale **wkrótce dołączają kolejni liderzy** (m.in. Ruben i kilka osób z Polski). Wszyscy korzystają z tej samej bazy podczas nabożeństw. Logowania jeszcze nie ma, ale **wraz z rosnącą liczbą użytkowników logowanie (Supabase Auth) + RLS stają się konieczne i są zaplanowane na najbliższy czas** — patrz §11.
 
 ---
 
@@ -337,11 +337,11 @@ Vercel buduje i publikuje automatycznie (~1 min)
 
 ## 11. Bezpieczeństwo (aktualny stan)
 
-- Brak logowania — dostęp przez URL (zaufani użytkownicy: Aksel, Edwin)
+- Brak logowania — dostęp przez URL (obecnie zaufani użytkownicy: Aksel, Edwin)
 - Supabase RLS wyłączone (MVP)
 - Klucz `PUBLISHABLE_KEY` jest publiczny — celowe uproszczenie
 
-W przyszłości: Supabase Auth + RLS.
+**Planowane wkrótce (rosnąca liczba użytkowników):** Supabase Auth (logowanie per lider) + włączenie RLS na wszystkich tabelach. To przestaje być „kiedyś w przyszłości" — gdy dostęp ma więcej osób, każda może bezpowrotnie skasować nabożeństwo lub pieśń (endpointy DELETE są publiczne), więc auth + RLS to najbliższy priorytet bezpieczeństwa.
 
 ---
 

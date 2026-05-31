@@ -12,7 +12,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## What this app is
 
-A PWA for worship song leaders at an evangelical church in Wrocław. Two users: **Aksel** (primary) and **Edwin**. No login — single shared database. Built with Next.js 16 (App Router), Tailwind CSS v4, Supabase (PostgreSQL), hosted on Vercel.
+A PWA for worship song leaders at an evangelical church in Wrocław. Currently used by **Aksel** (primary) and **Edwin** on a single shared database with no login. **More worship leaders are being onboarded soon — login (Supabase Auth) + RLS are planned and will be needed shortly.** Built with Next.js 16 (App Router), Tailwind CSS v4, Supabase (PostgreSQL), hosted on Vercel.
 
 ## Stack
 
@@ -141,7 +141,7 @@ New tags added via UI always get `source: 'user'`.
 - `locations` and `service_categories` managed via `/api/locations` and `/api/service-categories`
 - Global location filter stored as cookie `ss_location_id`; dashboard filters stored in localStorage (`ss_top_sung_filters`, `ss_never_sung_filters`)
 - All FKs use ON DELETE CASCADE or SET NULL (see spec for details)
-- RLS is disabled (MVP) — no auth required
+- RLS is disabled (MVP) — no auth required *yet*. Auth + RLS are planned (more users coming soon); design new tables/columns so RLS can be enabled later without rework.
 
 ## File structure highlights
 
@@ -178,8 +178,8 @@ Schema changes (new columns) must be run manually in Supabase Dashboard SQL edit
 
 ## What NOT to do
 
-- Do not add auth/login — deliberately absent (trusted users only)
-- Do not enable Supabase RLS — it's off intentionally for MVP
+- Do not add auth/login *unprompted* — it's planned (more users coming soon) but only build it when Aksel asks
+- Do not enable Supabase RLS yet — off intentionally until auth lands; don't flip it on without coordinating the auth work
 - Do not commit `.env.local`, files in `data/`, or files in `backups/`
 - Do not add heavy external libraries — keep dependencies minimal
 - Do not use emoji in navigation/component UI — use Lucide React icons
