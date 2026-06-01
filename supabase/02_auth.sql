@@ -29,8 +29,9 @@ BEGIN
     'songs','collections','tag_categories','tags','song_tags',
     'worship_leaders','locations','service_categories','services','service_songs'
   ] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "auth_full_access" ON %I', tbl);
     EXECUTE format(
-      'CREATE POLICY IF NOT EXISTS "auth_full_access" ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true)',
+      'CREATE POLICY "auth_full_access" ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true)',
       tbl
     );
   END LOOP;
