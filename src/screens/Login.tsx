@@ -22,9 +22,16 @@ export function Login() {
     setLoading(true)
     setError(null)
     const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirectTo } })
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+    })
     if (error) {
-      setError('Nie udało się wysłać linku. Spróbuj ponownie.')
+      const notInvited = error.message.toLowerCase().includes('signup') || error.message.toLowerCase().includes('not allowed')
+      setError(notInvited
+        ? 'Ten adres nie jest na liście zaproszonych. Skontaktuj się z administratorem.'
+        : 'Nie udało się wysłać linku. Spróbuj ponownie.'
+      )
     } else {
       setSent(true)
     }
