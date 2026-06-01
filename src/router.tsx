@@ -1,5 +1,6 @@
 import { createHashRouter } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import { Dashboard } from './screens/Dashboard'
 import { Songs } from './screens/Songs'
 import { Search } from './screens/Search'
@@ -10,30 +11,23 @@ import { Settings } from './screens/Settings'
 import { Moderation } from './screens/Moderation'
 
 export const router = createHashRouter([
+  { path: '/login', element: <Login /> },
   {
-    path: '/login',
-    element: <Login />,
-  },
-  {
-    path: '/',
-    element: <Layout />,
+    element: <ProtectedRoute />,
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: 'songs', element: <Songs /> },
-      { path: 'search', element: <Search /> },
-      { path: 'services', element: <Services /> },
+      {
+        path: '/',
+        element: <Layout />,
+        children: [
+          { index: true, element: <Dashboard /> },
+          { path: 'songs', element: <Songs /> },
+          { path: 'search', element: <Search /> },
+          { path: 'services', element: <Services /> },
+        ],
+      },
+      { path: '/live/:id', element: <Live /> },
+      { path: '/settings', element: <Settings /> },
+      { path: '/moderation', element: <Moderation /> },
     ],
-  },
-  {
-    path: '/live/:id',
-    element: <Live />,
-  },
-  {
-    path: '/settings',
-    element: <Settings />,
-  },
-  {
-    path: '/moderation',
-    element: <Moderation />,
   },
 ])
