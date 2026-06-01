@@ -21,6 +21,22 @@ export function useServices(locationId?: string) {
   })
 }
 
+export function useService(serviceId: string | null) {
+  return useQuery({
+    queryKey: ['service', serviceId],
+    enabled: !!serviceId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, date, notes, location_id, category_id, worship_leader_id, location:locations(id, name), category:service_categories(id, name), leader:worship_leaders(id, name)')
+        .eq('id', serviceId!)
+        .single()
+      if (error) throw error
+      return data as unknown as ServiceWithRefs
+    },
+  })
+}
+
 export function useServiceSongs(serviceId: string | null) {
   return useQuery({
     queryKey: qk.serviceSongs(serviceId ?? ''),
