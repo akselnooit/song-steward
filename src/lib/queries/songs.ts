@@ -4,6 +4,43 @@ import { qk } from './keys'
 import type { SongWithCollection, SongDetail } from '../types'
 import type { AddSongTagInput } from '../schemas'
 
+export interface SongForSearch extends SongWithCollection {
+  tagIds: string[]
+}
+
+export function useAllSongsForSearch() {
+  return useQuery({
+    queryKey: ['songs-for-search'],
+    queryFn: async () => {
+      const [songsRes, tagsRes] = await Promise.all([
+        supabase
+          .from('songs')
+          .select('id, collection_id, number, title, author, original_key, minor, collection:collections(id, name, short_name)')
+          .order('number'),
+        supabase
+          .from('song_tags')
+          .select('song_id, tag_id')
+          .eq('pending_removal', false),
+      ])
+      if (songsRes.error) throw songsRes.error
+      if (tagsRes.error) throw tagsRes.error
+
+      const tagMap = new Map<string, string[]>()
+      for (const { song_id, tag_id } of tagsRes.data) {
+        const arr = tagMap.get(song_id) ?? []
+        arr.push(tag_id)
+        tagMap.set(song_id, arr)
+      }
+
+      return (songsRes.data as unknown as SongWithCollection[]).map(s => ({
+        ...s,
+        tagIds: tagMap.get(s.id) ?? [],
+      })) as SongForSearch[]
+    },
+    staleTime: 1000 * 60 * 5,
+  })
+}
+
 export function useSongs(collectionId?: string) {
   return useQuery({
     queryKey: qk.songs(collectionId),
