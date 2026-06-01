@@ -1,0 +1,39 @@
+import { createHashRouter } from 'react-router-dom'
+import { Layout } from './components/Layout'
+import { Dashboard } from './screens/Dashboard'
+import { Songs } from './screens/Songs'
+import { Search } from './screens/Search'
+import { Services } from './screens/Services'
+import { Login } from './screens/Login'
+import { Live } from './screens/Live'
+import { Settings } from './screens/Settings'
+import { Moderation } from './screens/Moderation'
+
+export const router = createHashRouter([
+  {
+    path: '/login',
+    element: <Login />,
+  },
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: 'songs', element: <Songs /> },
+      { path: 'search', element: <Search /> },
+      { path: 'services', element: <Services /> },
+    ],
+  },
+  {
+    path: '/live/:id',
+    element: <Live />,
+  },
+  {
+    path: '/settings',
+    element: <Settings />,
+  },
+  {
+    path: '/moderation',
+    element: <Moderation />,
+  },
+])
