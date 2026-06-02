@@ -8,7 +8,7 @@ import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useStatsFilters } from '../hooks/useStatsFilters'
 import {
   useServices, useTopSung, useNeverSung, usePendingTags,
-  useLocations, useServiceCategories, useWorshipLeaders, useCreateService,
+  useLocations, useServiceCategories, useWorshipLeaders, useCreateService, useTags,
 } from '../lib/queries'
 import type { ServiceWithRefs } from '../lib/types'
 import type { CreateServiceInput } from '../lib/schemas'
@@ -169,6 +169,7 @@ export function Dashboard() {
   const { data: neverSung = [] } = useNeverSung(statsFilters)
   const { data: pendingTags = [] } = usePendingTags()
   const { data: locations = [] } = useLocations()
+  const { data: allTags = [] } = useTags()
 
   const today = todayStr()
   const upcoming = [...services].sort((a, b) => a.date.localeCompare(b.date)).filter(s => s.date >= today)
@@ -178,11 +179,14 @@ export function Dashboard() {
   const locationName = locations.find(l => l.id === locationId)?.name
   const locSuffix = locationName ? ` · ${locationName}` : ''
 
+  const incIds = statsPrefs.tagIdsInclude ?? []
+  const excIds = statsPrefs.tagIdsExclude ?? []
   const rangeText = statsPrefs.months ? `ostatnich ${statsPrefs.months} miesięcy` : 'całego okresu'
-  const sentence = (() => {
-    let s = `Pokazuję statystyki dla ${locationName ? `lokalizacji ${locationName}` : 'wszystkich lokalizacji'}, z ${rangeText}.`
-    return s
-  })()
+  const sentence = [
+    `Statystyki dla ${locationName ? locationName : 'wszystkich lokalizacji'}, z ${rangeText}.`,
+    incIds.length > 0 ? `Dołączone: ${allTags.filter(t => incIds.includes(t.id)).map(t => t.name).join(', ')}.` : '',
+    excIds.length > 0 ? `Wykluczone: ${allTags.filter(t => excIds.includes(t.id)).map(t => t.name).join(', ')}.` : '',
+  ].filter(Boolean).join(' ')
 
   const pendingCount = pendingTags.length
 

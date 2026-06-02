@@ -230,6 +230,7 @@ html, body, #root {
 .sheet-body::-webkit-scrollbar { width: 0; }
 
 .cat-block { border-top: 1px solid var(--border); padding: 14px 0; }
+.cat-block:first-child { border-top: none; }
 .cat-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
 .cat-head .name { font-weight: 600; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .chev { transition: transform .2s ease; color: var(--text-3); }

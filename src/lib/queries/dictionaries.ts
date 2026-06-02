@@ -59,7 +59,7 @@ export function useTagCategories() {
       if (error) throw error
       return data as TagCategory[]
     },
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 10,
   })
 }
 
