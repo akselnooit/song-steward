@@ -59,6 +59,7 @@ html, body, #root {
   height: 100%; overflow: hidden;
   overscroll-behavior: none;
   -webkit-user-select: none; user-select: none;
+  background: var(--bg);
 }
 
 .app {
