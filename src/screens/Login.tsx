@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Mail, Lock, Sparkles, KeyRound, Info } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -23,6 +24,7 @@ function WaveformIcon({ size = 34 }: { size?: number }) {
 }
 
 export function Login() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -30,6 +32,13 @@ export function Login() {
   const [code, setCode] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [codeError, setCodeError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      if (session) navigate('/', { replace: true })
+    })
+    return () => subscription.unsubscribe()
+  }, [navigate])
 
   const handleSend = async () => {
     if (!email.trim()) return
