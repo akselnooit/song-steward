@@ -57,6 +57,8 @@
 html, body, #root {
   margin: 0; padding: 0;
   height: 100%; overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none;
 }
 
 .app {
@@ -142,6 +144,8 @@ html, body, #root {
   padding: 12px 18px; min-height: 48px; white-space: nowrap;
 }
 .btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.btn:disabled:active { transform: none; }
 .btn-primary { background: var(--accent); color: var(--accent-contrast); }
 .btn-primary:active { background: var(--accent-press); }
 .btn-ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); }

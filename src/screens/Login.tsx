@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Lock, Sparkles } from 'lucide-react'
+import { Mail, Lock, Sparkles, KeyRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 function WaveformIcon({ size = 34 }: { size?: number }) {
@@ -16,6 +16,9 @@ export function Login() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
 
   const handleSend = async () => {
     if (!email.trim()) return
@@ -36,6 +39,21 @@ export function Login() {
       setSent(true)
     }
     setLoading(false)
+  }
+
+  const handleVerifyCode = async () => {
+    if (code.trim().length < 6) return
+    setVerifying(true)
+    setCodeError(null)
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: 'email',
+    })
+    if (error) {
+      setCodeError('Nieprawidłowy kod. Sprawdź email i spróbuj ponownie.')
+    }
+    setVerifying(false)
   }
 
   return (
@@ -76,17 +94,14 @@ export function Login() {
                   autoComplete="email"
                 />
               </div>
-              {error && (
-                <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</p>
-              )}
+              {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</p>}
               <button
                 className="btn btn-primary btn-block"
                 onClick={handleSend}
                 disabled={loading || !email.trim()}
-                style={{ opacity: loading ? 0.7 : undefined }}
               >
                 <Sparkles size={18} strokeWidth={1.7} />
-                {loading ? 'Wysyłanie…' : 'Wyślij link logujący'}
+                {loading ? 'Wysyłanie…' : 'Wyślij kod logowania'}
               </button>
               <div className="hint" style={{ marginTop: 18, justifyContent: 'center', textAlign: 'center', lineHeight: 1.5 }}>
                 <Lock size={13} strokeWidth={1.7} />
@@ -94,19 +109,55 @@ export function Login() {
               </div>
             </div>
           ) : (
-            <div className="fin card" style={{ padding: 22, textAlign: 'center' }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: '50%',
-                background: 'var(--accent-soft)', color: 'var(--accent)',
-                display: 'grid', placeItems: 'center', margin: '0 auto 14px',
-              }}>
-                <Mail size={24} strokeWidth={1.7} />
+            <div className="fin">
+              {/* confirmation card */}
+              <div className="card" style={{ padding: 18, textAlign: 'center', marginBottom: 20 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: '50%',
+                  background: 'var(--accent-soft)', color: 'var(--accent)',
+                  display: 'grid', placeItems: 'center', margin: '0 auto 12px',
+                }}>
+                  <Mail size={24} strokeWidth={1.7} />
+                </div>
+                <div className="t-title" style={{ fontSize: 17, marginBottom: 6 }}>Sprawdź skrzynkę</div>
+                <p style={{ color: 'var(--text-2)', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+                  Wysłaliśmy kod na <b style={{ color: 'var(--text)' }}>{email}</b>.
+                  Wpisz go poniżej lub kliknij link w emailu (używając Safari).
+                </p>
               </div>
-              <div className="t-title" style={{ fontSize: 19, marginBottom: 6 }}>Sprawdź skrzynkę</div>
-              <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>
-                Wysłaliśmy link logujący na{' '}
-                <b style={{ color: 'var(--text)' }}>{email}</b>. Kliknij go, aby wejść.
-              </p>
+
+              {/* OTP code input */}
+              <label className="t-label" style={{ display: 'block', marginBottom: 8 }}>Kod z emaila</label>
+              <div className="field-wrap" style={{ marginBottom: 14 }}>
+                <span className="field-ico"><KeyRound size={18} strokeWidth={1.7} /></span>
+                <input
+                  className="field"
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="123456"
+                  value={code}
+                  onChange={e => setCode(e.target.value.slice(0, 6))}
+                  onKeyDown={e => e.key === 'Enter' && handleVerifyCode()}
+                  autoComplete="one-time-code"
+                  style={{ letterSpacing: '0.2em', fontSize: 20 }}
+                />
+              </div>
+              {codeError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{codeError}</p>}
+              <button
+                className="btn btn-primary btn-block"
+                onClick={handleVerifyCode}
+                disabled={verifying || code.trim().length < 6}
+              >
+                {verifying ? 'Weryfikacja…' : 'Zaloguj się'}
+              </button>
+
+              <button
+                className="link-btn"
+                style={{ display: 'block', margin: '16px auto 0', fontSize: 13 }}
+                onClick={() => { setSent(false); setCode(''); setCodeError(null) }}
+              >
+                Zmień adres email
+              </button>
             </div>
           )}
         </div>

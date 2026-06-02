@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, User } from 'lucide-react'
+import { Plus, User, Trash2 } from 'lucide-react'
 import { LocationChip } from '../components/ui'
 import { NewServiceSheet } from '../components/NewServiceSheet'
-import { useServices, useLocations } from '../lib/queries'
+import { useServices, useLocations, useDeleteService } from '../lib/queries'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import type { ServiceWithRefs } from '../lib/types'
@@ -18,11 +18,19 @@ function formatDatePL(dateStr: string) {
   return d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function ServiceCard({ service, isToday, onClick }: {
-  service: ServiceWithRefs; isToday: boolean; onClick: () => void
+function ServiceCard({ service, isToday, onClick, onDelete }: {
+  service: ServiceWithRefs; isToday: boolean; onClick: () => void; onDelete: () => void
 }) {
+  const [confirming, setConfirming] = useState(false)
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (confirming) { onDelete(); setConfirming(false) }
+    else { setConfirming(true); setTimeout(() => setConfirming(false), 3000) }
+  }
+
   return (
-    <div className="card" style={{ padding: '14px 16px', cursor: 'pointer', marginBottom: 10 }} onClick={onClick}>
+    <div className="card" style={{ padding: '14px 16px', cursor: 'pointer', marginBottom: 10, position: 'relative' }} onClick={onClick}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         {isToday && (
           <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 'var(--r-pill)' }}>
@@ -30,6 +38,13 @@ function ServiceCard({ service, isToday, onClick }: {
           </span>
         )}
         <span className="count-line">{formatDatePL(service.date)}</span>
+        <button
+          style={{ marginLeft: 'auto', width: 34, height: 34, borderRadius: 'var(--r-sm)', border: '1px solid', display: 'grid', placeItems: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all .15s', background: confirming ? 'var(--danger-soft)' : 'var(--surface-2)', color: confirming ? 'var(--danger)' : 'var(--text-3)', borderColor: confirming ? 'var(--danger-bd)' : 'var(--border)' }}
+          onClick={handleDelete}
+          title={confirming ? 'Kliknij ponownie, aby potwierdzić' : 'Usuń nabożeństwo'}
+        >
+          <Trash2 size={15} strokeWidth={1.7} />
+        </button>
       </div>
       <div className="t-title" style={{ fontSize: 17, marginBottom: 6 }}>
         {service.category.name} · {service.location.name}
@@ -38,6 +53,11 @@ function ServiceCard({ service, isToday, onClick }: {
         <User size={13} strokeWidth={1.7} />
         {service.leader?.name ?? '—'}
       </div>
+      {confirming && (
+        <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 8 }}>
+          Kliknij kosz jeszcze raz, aby usunąć
+        </div>
+      )}
     </div>
   )
 }
@@ -50,6 +70,7 @@ export function Services() {
 
   const { data: services = [] } = useServices(locationId)
   const { data: locations = [] } = useLocations()
+  const deleteService = useDeleteService()
 
   const today = todayStr()
   const locationName = locations.find(l => l.id === locationId)?.name
@@ -78,6 +99,7 @@ export function Services() {
               service={s}
               isToday={s.date === today}
               onClick={() => navigate(`/live/${s.id}`)}
+              onDelete={() => deleteService.mutate(s.id)}
             />
           ))
         )}
