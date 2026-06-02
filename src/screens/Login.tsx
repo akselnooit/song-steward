@@ -35,10 +35,9 @@ export function Login() {
     if (!email.trim()) return
     setLoading(true)
     setError(null)
-    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+      options: { shouldCreateUser: false },
     })
     if (error) {
       const notInvited = error.message.toLowerCase().includes('signup') || error.message.toLowerCase().includes('not allowed')
@@ -53,7 +52,7 @@ export function Login() {
   }
 
   const handleVerifyCode = async () => {
-    if (code.trim().length < 6) return
+    if (!code.trim()) return
     setVerifying(true)
     setCodeError(null)
     const { error } = await supabase.auth.verifyOtp({
@@ -119,7 +118,9 @@ export function Login() {
                 Dostęp tylko na zaproszenie. Konta zakłada administrator.
               </div>
             </div>
-          ) : (
+          ) : (() => {
+            const emailApp = getEmailApp(email)
+            return (
             <div className="fin">
               {/* confirmation card */}
               <div className="card" style={{ padding: 18, textAlign: 'center', marginBottom: 20 }}>
@@ -132,17 +133,12 @@ export function Login() {
                 </div>
                 <div className="t-title" style={{ fontSize: 17, marginBottom: 6 }}>Sprawdź skrzynkę</div>
                 <p style={{ color: 'var(--text-2)', fontSize: 13, lineHeight: 1.5, margin: '0 0 14px' }}>
-                  Wysłaliśmy 6-cyfrowy kod na <b style={{ color: 'var(--text)' }}>{email}</b>. Wpisz go poniżej, aby zalogować się w aplikacji.
+                  Wysłaliśmy kod na <b style={{ color: 'var(--text)' }}>{email}</b>. Wpisz go poniżej, aby zalogować się w aplikacji.
                 </p>
-                {(() => {
-                  const app = getEmailApp(email)
-                  return (
-                    <a href={app.url} className="btn btn-ghost btn-block" style={{ textDecoration: 'none' }}>
-                      <Mail size={16} strokeWidth={1.7} />
-                      {app.label}
-                    </a>
-                  )
-                })()}
+                <a href={emailApp.url} className="btn btn-ghost btn-block" style={{ textDecoration: 'none' }}>
+                  <Mail size={16} strokeWidth={1.7} />
+                  {emailApp.label}
+                </a>
               </div>
 
               {/* OTP code input */}
@@ -151,11 +147,11 @@ export function Login() {
                 <span className="field-ico"><KeyRound size={18} strokeWidth={1.7} /></span>
                 <input
                   className="field"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  placeholder="123456"
+                  placeholder="12345678"
                   value={code}
-                  onChange={e => setCode(e.target.value.slice(0, 6))}
+                  onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
                   onKeyDown={e => e.key === 'Enter' && handleVerifyCode()}
                   autoComplete="one-time-code"
                   style={{ letterSpacing: '0.2em', fontSize: 20 }}
@@ -165,7 +161,7 @@ export function Login() {
               <button
                 className="btn btn-primary btn-block"
                 onClick={handleVerifyCode}
-                disabled={verifying || code.trim().length < 6}
+                disabled={verifying || !code.trim()}
               >
                 {verifying ? 'Weryfikacja…' : 'Zaloguj się'}
               </button>
@@ -183,7 +179,8 @@ export function Login() {
                 Zmień adres email
               </button>
             </div>
-          )}
+            )
+          })()}
         </div>
       </div>
     </div>
