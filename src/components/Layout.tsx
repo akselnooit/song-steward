@@ -4,9 +4,7 @@ import { TabBar } from './TabBar'
 export function Layout() {
   return (
     <>
-      <div className="screen">
-        <Outlet />
-      </div>
+      <Outlet />
       <TabBar />
     </>
   )

@@ -97,7 +97,7 @@ export function Search() {
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
       {/* sticky header */}
-      <div className="sticky-head" style={{ paddingTop: 56 }}>
+      <div className="sticky-head" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
           <h1 className="t-title" style={{ fontSize: 26, margin: 0 }}>Szukaj</h1>
           <span className="count-line">
