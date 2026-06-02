@@ -1,6 +1,17 @@
 import { useState } from 'react'
-import { Mail, Lock, Sparkles, KeyRound } from 'lucide-react'
+import { Mail, Lock, Sparkles, KeyRound, Info } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+
+function getEmailApp(email: string): { label: string; url: string } {
+  const domain = email.split('@')[1]?.toLowerCase() ?? ''
+  if (domain === 'gmail.com' || domain === 'googlemail.com')
+    return { label: 'Otwórz Gmaila', url: 'googlegmail://' }
+  if (['outlook.com', 'hotmail.com', 'live.com', 'msn.com'].includes(domain))
+    return { label: 'Otwórz Outlook', url: 'ms-outlook://' }
+  if (['icloud.com', 'me.com', 'mac.com'].includes(domain))
+    return { label: 'Otwórz pocztę', url: 'message://' }
+  return { label: 'Otwórz skrzynkę mailową', url: 'mailto:' }
+}
 
 function WaveformIcon({ size = 34 }: { size?: number }) {
   return (
@@ -120,10 +131,18 @@ export function Login() {
                   <Mail size={24} strokeWidth={1.7} />
                 </div>
                 <div className="t-title" style={{ fontSize: 17, marginBottom: 6 }}>Sprawdź skrzynkę</div>
-                <p style={{ color: 'var(--text-2)', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-                  Wysłaliśmy kod na <b style={{ color: 'var(--text)' }}>{email}</b>.
-                  Wpisz go poniżej lub kliknij link w emailu (używając Safari).
+                <p style={{ color: 'var(--text-2)', fontSize: 13, lineHeight: 1.5, margin: '0 0 14px' }}>
+                  Wysłaliśmy 6-cyfrowy kod na <b style={{ color: 'var(--text)' }}>{email}</b>. Wpisz go poniżej, aby zalogować się w aplikacji.
                 </p>
+                {(() => {
+                  const app = getEmailApp(email)
+                  return (
+                    <a href={app.url} className="btn btn-ghost btn-block" style={{ textDecoration: 'none' }}>
+                      <Mail size={16} strokeWidth={1.7} />
+                      {app.label}
+                    </a>
+                  )
+                })()}
               </div>
 
               {/* OTP code input */}
@@ -150,6 +169,11 @@ export function Login() {
               >
                 {verifying ? 'Weryfikacja…' : 'Zaloguj się'}
               </button>
+
+              <div className="hint" style={{ marginTop: 14, lineHeight: 1.5 }}>
+                <Info size={13} strokeWidth={1.7} style={{ flexShrink: 0, marginTop: 1 }} />
+                Link z maila otwiera logowanie w przeglądarce, nie w tej aplikacji. Żeby zostać zalogowanym tutaj, wpisz kod powyżej.
+              </div>
 
               <button
                 className="link-btn"
