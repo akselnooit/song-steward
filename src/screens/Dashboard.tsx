@@ -206,7 +206,7 @@ export function Dashboard() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <LocationChip
             value={locationName}
-            onClick={() => navigate('/settings', locationName ? undefined : { state: { tab: 'filters', highlight: 'location' } })}
+            onClick={() => navigate('/settings', { state: { tab: 'filters', highlight: 'location' } })}
           />
           <div className="icon-btn" onClick={() => navigate('/settings')}>
             <Settings size={20} strokeWidth={1.7} />
