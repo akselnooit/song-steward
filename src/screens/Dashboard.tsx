@@ -289,7 +289,7 @@ export function Dashboard() {
         </div>
 
         {/* filter summary */}
-        <button className="filter-summary" onClick={() => navigate('/settings')}>
+        <button className="filter-summary" onClick={() => navigate('/settings', { state: { tab: 'filters', highlight: 'stats-tags' } })}>
           <Filter size={15} strokeWidth={1.7} />
           <span>{sentence}</span>
           <span className="filter-summary-cta">

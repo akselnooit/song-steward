@@ -175,6 +175,8 @@ export function Settings() {
   const [tab, setTab] = useState<'dict' | 'filters'>(routerState?.tab === 'filters' ? 'filters' : 'dict')
   const [locHighlight, setLocHighlight] = useState(routerState?.highlight === 'location')
   const locSectionRef = useRef<HTMLDivElement>(null)
+  const [statsTagsHighlight, setStatsTagsHighlight] = useState(routerState?.highlight === 'stats-tags')
+  const statsTagsSectionRef = useRef<HTMLDivElement>(null)
   const [editor, setEditor] = useState<DictConfig | null>(null)
 
   useEffect(() => {
@@ -183,6 +185,13 @@ export function Settings() {
     const t = setTimeout(() => setLocHighlight(false), 2200)
     return () => clearTimeout(t)
   }, [locHighlight])
+
+  useEffect(() => {
+    if (!statsTagsHighlight) return
+    statsTagsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const t = setTimeout(() => setStatsTagsHighlight(false), 2200)
+    return () => clearTimeout(t)
+  }, [statsTagsHighlight])
   const [theme, setTheme] = useTheme()
   const [locationId, setLocationId] = useLocationFilter()
   const [statsPrefs, setStatsPrefs] = useStatsFilters()
@@ -330,6 +339,7 @@ export function Settings() {
             </div>
 
             {/* stats tag filters */}
+            <div ref={statsTagsSectionRef} className={statsTagsHighlight ? 'section-highlight' : ''} style={{ marginBottom: 0 }}>
             <div className="sec-h" style={{ marginTop: 0, marginBottom: 4 }}>
               <div className="t-label">Tagi statystyk</div>
               {(incIds.length > 0 || excIds.length > 0) && (
@@ -340,8 +350,9 @@ export function Settings() {
             <div className="card" style={{ padding: '2px 16px 8px', marginBottom: 22 }}>
               {tagCategories.map(cat => {
                 const catTags = allTags.filter(t => t.category_id === cat.id)
+                const selectedCount = catTags.filter(t => incIds.includes(t.id) || excIds.includes(t.id)).length
                 return (
-                  <CatBlock key={cat.id} name={cat.name} count={catTags.length} defaultOpen={false}>
+                  <CatBlock key={cat.id} name={cat.name} count={catTags.length} selectedCount={selectedCount} defaultOpen={false}>
                     {catTags.map(tag => (
                       <StatTag
                         key={tag.id}
@@ -355,6 +366,7 @@ export function Settings() {
                   </CatBlock>
                 )
               })}
+            </div>
             </div>
 
             <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
