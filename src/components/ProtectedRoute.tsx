@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SongOverlayProvider } from '../contexts/SongOverlayContext'
+import { SongOverlay } from './SongOverlay'
 
 export function ProtectedRoute() {
   const [authed, setAuthed] = useState<boolean | null>(null)
@@ -19,5 +21,10 @@ export function ProtectedRoute() {
 
   if (authed === null) return <div className="app" />
   if (!authed) return <Navigate to="/login" replace />
-  return <Outlet />
+  return (
+    <SongOverlayProvider>
+      <Outlet />
+      <SongOverlay />
+    </SongOverlayProvider>
+  )
 }

@@ -40,7 +40,20 @@ Implementuj UI **wiernie** (hi-fi). Zachowuj polskie copy dosłownie. Pliki w `r
 - Nie używaj danych z `reference/data.js` w produkcji — to przykład kształtu danych.
 - Nie dodawaj ról/uprawnień granularnych — model to „zalogowany = wszystko".
 
-## Komendy (uzupełnij po inicjalizacji)
+## Proces developerski — OBOWIĄZKOWE
+
+### Branching
+- **`staging`** — branch roboczy. Cały development odbywa się tutaj.
+- **`main`** — produkcja (GitHub Pages). **Nigdy nie commituj ani nie merguj do `main` bez jawnej zgody użytkownika.**
+- Nie tworzymy feature branchy — wszystko idzie prosto na `staging`.
+
+### Po każdej zmianie
+Po wprowadzeniu zmian na `staging` **zawsze pushuj od razu** (`git push origin staging`), żeby GitHub Actions wykonał build i deploy na środowisko stagingowe. Użytkownik chce widzieć zmiany na żywym URL bez ręcznego push.
+
+### Merge do produkcji
+Merge `staging → main` tylko wtedy, gdy użytkownik **wyraźnie** o to poprosi (np. „wypuść na produkcję", „merguj do maina"). Żadna inna sytuacja nie upoważnia do merge na `main`.
+
+## Komendy
 - `npm run dev` — serwer deweloperski
 - `npm run build` — build produkcyjny
 - `npm run preview` — podgląd buildu
