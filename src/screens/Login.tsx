@@ -46,7 +46,10 @@ export function Login() {
     setError(null)
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: false },
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
+      },
     })
     if (error) {
       const notInvited = error.message.toLowerCase().includes('signup') || error.message.toLowerCase().includes('not allowed')
