@@ -67,6 +67,7 @@ export function Songs() {
               number={s.number}
               title={s.title}
               author={s.author ?? ''}
+              authorImage={s.author_image}
               songKey={s.original_key ?? undefined}
               minor={s.minor ?? false}
               onClick={() => openSong(s.id, songIds)}
