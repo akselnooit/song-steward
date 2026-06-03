@@ -29,10 +29,27 @@ const queryClient = new QueryClient({
   },
 })
 
+const isStaging = import.meta.env.BASE_URL.includes('staging')
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <div className="app">
+        {isStaging && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+            background: 'oklch(0.75 0.18 55)',
+            color: 'oklch(0.2 0.05 55)',
+            textAlign: 'center',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            padding: '3px 0',
+            pointerEvents: 'none',
+          }}>
+            STAGING
+          </div>
+        )}
         <RouterProvider router={router} />
       </div>
     </QueryClientProvider>
