@@ -103,7 +103,10 @@ export function SongOverlay() {
       sheet.style.transition = ''
       if (body) body.style.touchAction = ''
     }
-  }, [songId, canGoPrev, canGoNext, goPrev, goNext, closeSong])
+    // goPrev/goNext/closeSong are stable (memoized in context) — rebind only when
+    // the song changes, NOT on every render, so a query-driven re-render can't
+    // reset gesture state mid-swipe.
+  }, [songId])
 
   if (!songId || !song) return null
 
