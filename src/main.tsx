@@ -38,8 +38,8 @@ createRoot(document.getElementById('root')!).render(
         {isStaging && (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-            background: 'oklch(0.75 0.18 55)',
-            color: 'oklch(0.2 0.05 55)',
+            background: 'oklch(0.75 0.18 55 / 0.55)',
+            color: 'oklch(0.15 0.05 55)',
             textAlign: 'center',
             fontSize: 11,
             fontWeight: 700,
