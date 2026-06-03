@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, User, Undo2, X } from 'lucide-react'
+import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, User, Undo2, X } from 'lucide-react'
 import { TagPill, CatBlock } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
@@ -51,48 +51,34 @@ export function SongOverlay() {
     return () => document.removeEventListener('keydown', onKey)
   }, [songId, closeSong, goPrev, goNext])
 
+  // Only vertical pull-down-to-close (horizontal song navigation is done with the
+  // on-screen prev/next buttons — see .sheet-nav). Swipe left/right was removed.
   useEffect(() => {
     const sheet = sheetRef.current
-    const body = sheetBodyRef.current
     if (!sheet || !songId) return
-    // Tell iOS to only handle vertical pan natively — horizontal touches go to our JS
-    if (body) body.style.touchAction = 'pan-y'
-    let startX = 0, startY = 0, startScrollTop = 0, decided = false, dir: 'h' | 'v' | null = null
+    let startY = 0, startScrollTop = 0, dragging = false
 
     const onStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX
       startY = e.touches[0].clientY
       startScrollTop = sheetBodyRef.current?.scrollTop ?? 0
-      decided = false; dir = null
+      dragging = false
       sheet.style.transition = 'none'
     }
     const onMove = (e: TouchEvent) => {
-      const dx = e.touches[0].clientX - startX
       const dy = e.touches[0].clientY - startY
-      if (!decided && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
-        decided = true
-        dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
-      }
-      if (dir === 'h') {
-        e.preventDefault()
-      } else if (dir === 'v' && dy > 0 && startScrollTop === 0) {
+      if (dy > 0 && startScrollTop === 0) {
+        dragging = true
         e.preventDefault()
         sheet.style.transform = `translateY(${dy}px)`
       }
     }
     const onEnd = (e: TouchEvent) => {
-      const dx = e.changedTouches[0].clientX - startX
       const dy = e.changedTouches[0].clientY - startY
       sheet.style.transition = ''
       sheet.style.transform = ''
-      if (dir === 'h') {
-        if (dx < -60) goNext()
-        else if (dx > 60) goPrev()
-      } else if (dir === 'v' && dy > 80 && startScrollTop === 0) {
-        closeSong()
-      }
+      if (dragging && dy > 80 && startScrollTop === 0) closeSong()
     }
-    sheet.addEventListener('touchstart', onStart, { passive: false })
+    sheet.addEventListener('touchstart', onStart, { passive: true })
     sheet.addEventListener('touchmove', onMove, { passive: false })
     sheet.addEventListener('touchend', onEnd, { passive: true })
     return () => {
@@ -101,11 +87,8 @@ export function SongOverlay() {
       sheet.removeEventListener('touchend', onEnd)
       sheet.style.transform = ''
       sheet.style.transition = ''
-      if (body) body.style.touchAction = ''
     }
-    // goPrev/goNext/closeSong are stable (memoized in context) — rebind only when
-    // the song changes, NOT on every render, so a query-driven re-render can't
-    // reset gesture state mid-swipe.
+    // closeSong is stable (memoized in context) — rebind only when the song changes.
   }, [songId])
 
   if (!songId || !song) return null
@@ -159,14 +142,14 @@ export function SongOverlay() {
         <div className="sheet-grab" />
 
         {canGoPrev && (
-          <div className="sheet-nav" style={{ left: 14 }} onClick={goPrev}>
-            <ArrowLeft size={18} strokeWidth={1.7} />
-          </div>
+          <button className="sheet-nav" style={{ left: 10 }} onClick={goPrev} aria-label="Poprzednia pieśń">
+            <ChevronLeft size={26} strokeWidth={2} />
+          </button>
         )}
         {canGoNext && (
-          <div className="sheet-nav" style={{ right: 14 }} onClick={goNext}>
-            <ArrowRight size={18} strokeWidth={1.7} />
-          </div>
+          <button className="sheet-nav" style={{ right: 10 }} onClick={goNext} aria-label="Następna pieśń">
+            <ChevronRight size={26} strokeWidth={2} />
+          </button>
         )}
 
         <div className="sheet-body" ref={sheetBodyRef}>
@@ -349,9 +332,6 @@ export function SongOverlay() {
                 </div>
               </div>
             )}
-            <div className="hint" style={{ marginTop: 10, justifyContent: 'center' }}>
-              ← → zmiana pieśni · przesuń ↓ aby zamknąć
-            </div>
           </div>
         </div>
       </div>
