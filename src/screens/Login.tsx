@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Mail, Lock, Sparkles, KeyRound, Info } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Mail, Lock, Sparkles, KeyRound, Info, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 function getEmailApp(email: string): { label: string; url: string } {
@@ -23,8 +23,16 @@ function WaveformIcon({ size = 34 }: { size?: number }) {
   )
 }
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  otp_expired: 'Link logowania wygasł. Wpisz swój adres e-mail i wyślij nowy.',
+  access_denied: 'Link logowania jest nieważny lub już został użyty. Wyślij nowy.',
+}
+
 export function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const authError = searchParams.get('auth_error')
+
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -100,6 +108,19 @@ export function Login() {
               Pieśni i nabożeństwa, zawsze pod ręką
             </p>
           </div>
+
+          {/* baner błędu auth (wygasły/użyty link) */}
+          {authError && (
+            <div style={{
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+              background: 'var(--danger-soft)', border: '1px solid var(--danger-bd)',
+              borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: 20,
+              color: 'var(--danger)', fontSize: 14, lineHeight: 1.5,
+            }}>
+              <AlertTriangle size={18} strokeWidth={1.7} style={{ flexShrink: 0, marginTop: 1 }} />
+              {AUTH_ERROR_MESSAGES[authError] ?? 'Coś poszło nie tak. Spróbuj zalogować się ponownie.'}
+            </div>
+          )}
 
           {!sent ? (
             <div className="fin">

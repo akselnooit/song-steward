@@ -8,6 +8,18 @@ import './index.css'
 const savedTheme = localStorage.getItem('ss-theme') ?? 'dark'
 document.documentElement.setAttribute('data-theme', savedTheme)
 
+// Supabase po kliknięciu w link wrzuca parametry prosto do hasha (#access_token=... lub #error=...)
+// zanim React Router zdąży cokolwiek zrobić. Przekieruj na właściwą trasę routera.
+const rawHash = window.location.hash
+if (rawHash && !rawHash.startsWith('#/')) {
+  const params = new URLSearchParams(rawHash.slice(1))
+  if (params.has('error_code')) {
+    const code = params.get('error_code') ?? 'unknown'
+    window.location.replace(window.location.pathname + `#/login?auth_error=${encodeURIComponent(code)}`)
+  }
+  // access_token — Supabase SDK obsłuży przez onAuthStateChange automatycznie
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
