@@ -47,7 +47,7 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
       <div className="t-title" style={{ fontSize: 20, marginBottom: 20 }}>Nowe nabożeństwo</div>
 
       <label className="t-label" style={{ display: 'block', marginBottom: 8 }}>Data</label>
-      <input type="date" className="field" style={{ paddingLeft: 14, marginBottom: 18 }}
+      <input type="date" className="field" style={{ padding: '13px 14px', marginBottom: 18 }}
         value={date} onChange={e => setDate(e.target.value)} />
 
       <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>

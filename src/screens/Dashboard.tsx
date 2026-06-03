@@ -111,7 +111,7 @@ function NewServiceSheet({ open, onClose, defaultLeaderId }: {
       <input
         type="date"
         className="field"
-        style={{ paddingLeft: 14, marginBottom: 18 }}
+        style={{ padding: '13px 14px', marginBottom: 18 }}
         value={date}
         onChange={e => setDate(e.target.value)}
       />
