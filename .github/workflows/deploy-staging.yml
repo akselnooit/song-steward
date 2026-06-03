@@ -38,9 +38,9 @@ jobs:
           # Zachowaj dist w miejscu tymczasowym
           cp -r dist /tmp/staging-dist
 
-          # Przełącz na gh-pages
+          # Przełącz na gh-pages (force — dist już bezpiecznie w /tmp)
           git fetch origin gh-pages
-          git checkout gh-pages
+          git checkout -f gh-pages
 
           # Zastąp tylko podfolder staging/
           rm -rf staging

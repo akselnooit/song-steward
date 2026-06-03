@@ -17,17 +17,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - run: rm -f package-lock.json && npm install
+
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_BASE: /song-steward/
-      - uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          keep_files: true
+
+      - name: Deploy do gh-pages/ (root, zachowaj staging/)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Zachowaj dist w miejscu tymczasowym
+          cp -r dist /tmp/prod-dist
+
+          # Przełącz na gh-pages (force — dist już bezpiecznie w /tmp)
+          git fetch origin gh-pages
+          git checkout -f gh-pages
+
+          # Zachowaj podfolder staging/ jeśli istnieje
+          if [ -d staging ]; then
+            cp -r staging /tmp/staging-backup
+          fi
+
+          # Wyczyść root (bez staging/)
+          find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name 'staging' -exec rm -rf {} +
+
+          # Przywróć staging/ jeśli był
+          if [ -d /tmp/staging-backup ]; then
+            cp -r /tmp/staging-backup staging
+          fi
+
+          # Skopiuj produkcję do roota
+          cp -r /tmp/prod-dist/. .
+
+          # Commituj i pushuj (jeśli są zmiany)
+          git add -A
+          git diff --staged --quiet || git commit -m "Deploy production [skip ci]"
+          git push origin gh-pages
