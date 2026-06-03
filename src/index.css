@@ -108,6 +108,8 @@ html, body, #root {
 
 @keyframes locpulse { 0%,100% { box-shadow: 0 0 0 0 transparent; } 30% { box-shadow: 0 0 0 4px var(--accent-soft); } }
 .loc-highlight { animation: locpulse 1.1s ease 2; border-radius: var(--r-md); }
+@keyframes sectionpulse { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+.section-highlight { animation: sectionpulse 2s ease-out forwards; border-radius: var(--r-md); padding: 6px; margin: -6px; }
 
 /* ---------- bottom nav ---------- */
 .tabbar {
@@ -226,7 +228,7 @@ html, body, #root {
 }
 @keyframes rise { from { transform: translateY(34px); } }
 .sheet-grab { width: 38px; height: 5px; border-radius: 99px; background: var(--border-strong); margin: 9px auto 0; flex-shrink: 0; }
-.sheet-body { overflow-y: auto; padding: 4px 20px 28px; }
+.sheet-body { overflow-y: auto; padding: 4px 20px calc(28px + env(safe-area-inset-bottom)); }
 .sheet-body::-webkit-scrollbar { width: 0; }
 
 .cat-block { border-top: 1px solid var(--border); padding: 14px 0; }

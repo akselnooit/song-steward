@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, ArrowRight, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, User } from 'lucide-react'
 import { TagPill, CatBlock } from './ui'
@@ -31,6 +31,8 @@ export function SongOverlay() {
 
   const [shakeTagId, setShakeTagId] = useState<string | null>(null)
   const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const sheetBodyRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setSvcStatus(null) }, [songId])
 
@@ -44,6 +46,55 @@ export function SongOverlay() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [songId, closeSong, goPrev, goNext])
+
+  useEffect(() => {
+    const sheet = sheetRef.current
+    if (!sheet || !songId) return
+    let startX = 0, startY = 0, decided = false, dir: 'h' | 'v' | null = null
+
+    const onStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+      decided = false; dir = null
+      sheet.style.transition = 'none'
+    }
+    const onMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - startX
+      const dy = e.touches[0].clientY - startY
+      if (!decided && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+        decided = true
+        dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+      }
+      if (dir === 'h') {
+        e.preventDefault()
+      } else if (dir === 'v' && dy > 0 && (sheetBodyRef.current?.scrollTop ?? 0) === 0) {
+        e.preventDefault()
+        sheet.style.transform = `translateY(${dy}px)`
+      }
+    }
+    const onEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX
+      const dy = e.changedTouches[0].clientY - startY
+      sheet.style.transition = ''
+      sheet.style.transform = ''
+      if (dir === 'h') {
+        if (dx < -60) goNext()
+        else if (dx > 60) goPrev()
+      } else if (dir === 'v' && dy > 80 && (sheetBodyRef.current?.scrollTop ?? 0) === 0) {
+        closeSong()
+      }
+    }
+    sheet.addEventListener('touchstart', onStart, { passive: true })
+    sheet.addEventListener('touchmove', onMove, { passive: false })
+    sheet.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      sheet.removeEventListener('touchstart', onStart)
+      sheet.removeEventListener('touchmove', onMove)
+      sheet.removeEventListener('touchend', onEnd)
+      sheet.style.transform = ''
+      sheet.style.transition = ''
+    }
+  }, [songId, canGoPrev, canGoNext, goPrev, goNext, closeSong])
 
   if (!songId || !song) return null
 
@@ -84,7 +135,7 @@ export function SongOverlay() {
   return createPortal(
     <>
       <div className="scrim" onClick={closeSong} />
-      <div className="sheet" role="dialog">
+      <div className="sheet" role="dialog" ref={sheetRef}>
         <div className="sheet-grab" />
 
         {canGoPrev && (
@@ -98,7 +149,7 @@ export function SongOverlay() {
           </div>
         )}
 
-        <div className="sheet-body">
+        <div className="sheet-body" ref={sheetBodyRef}>
           {/* header */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '14px 8px 4px' }}>
             <div className="photo-ph" style={{ width: 76, height: 76, borderRadius: '50%', border: '1px solid var(--border)', marginBottom: 12, display: 'grid', placeItems: 'center', color: 'var(--text-3)' }}>
@@ -227,7 +278,7 @@ export function SongOverlay() {
               </div>
             )}
             <div className="hint" style={{ marginTop: 10, justifyContent: 'center' }}>
-              ← → zmiana pieśni · Esc zamknięcie
+              ← → zmiana pieśni · przesuń ↓ aby zamknąć
             </div>
           </div>
         </div>

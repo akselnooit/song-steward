@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom'
 import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Sun, Moon, Check, Mail, Lock } from 'lucide-react'
 import { CatBlock, Sheet } from '../components/ui'
 import { useLongPress } from '../hooks/useLongPress'
@@ -170,8 +170,19 @@ function StatTag({ name, inc, exc, onInc, onExc }: { name: string; inc: boolean;
 
 export function Settings() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<'dict' | 'filters'>('dict')
+  const routerLoc = useRouterLocation()
+  const routerState = routerLoc.state as { tab?: string; highlight?: string } | null
+  const [tab, setTab] = useState<'dict' | 'filters'>(routerState?.tab === 'filters' ? 'filters' : 'dict')
+  const [locHighlight, setLocHighlight] = useState(routerState?.highlight === 'location')
+  const locSectionRef = useRef<HTMLDivElement>(null)
   const [editor, setEditor] = useState<DictConfig | null>(null)
+
+  useEffect(() => {
+    if (!locHighlight) return
+    locSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const t = setTimeout(() => setLocHighlight(false), 2200)
+    return () => clearTimeout(t)
+  }, [locHighlight])
   const [theme, setTheme] = useTheme()
   const [locationId, setLocationId] = useLocationFilter()
   const [statsPrefs, setStatsPrefs] = useStatsFilters()
@@ -275,18 +286,20 @@ export function Settings() {
             </div>
 
             {/* location filter */}
-            <div className="t-label" style={{ marginBottom: 9 }}>Globalny filtr lokalizacji</div>
-            <div className="pill-row" style={{ marginBottom: 6 }}>
-              <button className={`tag${!locationId ? ' include' : ''}`} onClick={() => setLocationId(undefined)}>
-                Wszystkie
-              </button>
-              {locations.map(l => (
-                <button key={l.id} className={`tag${locationId === l.id ? ' include' : ''}`} onClick={() => setLocationId(l.id)}>
-                  {l.name}
+            <div ref={locSectionRef} className={locHighlight ? 'section-highlight' : ''} style={{ marginBottom: 22 }}>
+              <div className="t-label" style={{ marginBottom: 9 }}>Globalny filtr lokalizacji</div>
+              <div className="pill-row" style={{ marginBottom: 6 }}>
+                <button className={`tag${!locationId ? ' include' : ''}`} onClick={() => setLocationId(undefined)}>
+                  Wszystkie
                 </button>
-              ))}
+                {locations.map(l => (
+                  <button key={l.id} className={`tag${locationId === l.id ? ' include' : ''}`} onClick={() => setLocationId(l.id)}>
+                    {l.name}
+                  </button>
+                ))}
+              </div>
+              <div className="hint">Wpływa na pulpit, listę nabożeństw i statystyki.</div>
             </div>
-            <div className="hint" style={{ marginBottom: 22 }}>Wpływa na pulpit, listę nabożeństw i statystyki.</div>
 
             {/* stats filters */}
             <div className="t-label" style={{ marginBottom: 9 }}>Domyślne filtry statystyk</div>

@@ -80,7 +80,7 @@ export function Services() {
       <div className="app-header">
         <h1>Nabożeństwa</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <LocationChip value={locationName} onClick={() => navigate('/settings')} />
+          <LocationChip value={locationName} onClick={() => navigate('/settings', locationName ? undefined : { state: { tab: 'filters', highlight: 'location' } })} />
           <button className="icon-btn" onClick={() => setNewOpen(true)}>
             <Plus size={20} strokeWidth={1.7} />
           </button>

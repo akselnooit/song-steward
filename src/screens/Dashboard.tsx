@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User } from 'lucide-react'
 import { LocationChip, Sheet } from '../components/ui'
+import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { WaveformIcon } from '../components/WaveformIcon'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
@@ -27,11 +28,11 @@ function formatDatePL(dateStr: string) {
 
 // ── sub-components ───────────────────────────────────────────────
 
-function TopRow({ rank, collectionShortName, number, title, count }: {
-  rank?: number; collectionShortName: string; number: number; title: string; count?: number
+function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
+  rank?: number; collectionShortName: string; number: number; title: string; count?: number; onClick?: () => void
 }) {
   return (
-    <div className="song-card" style={{ cursor: 'pointer', padding: '11px 4px' }}>
+    <div className="song-card" style={{ cursor: 'pointer', padding: '11px 4px' }} onClick={onClick}>
       {rank != null && <span className="rank">{rank}</span>}
       <div className="meta">
         <div className="title" style={{ fontSize: 15 }}>{title}</div>
@@ -158,6 +159,7 @@ function NewServiceSheet({ open, onClose, defaultLeaderId }: {
 export function Dashboard() {
   const navigate = useNavigate()
   const { leader } = useCurrentUser()
+  const { openSong } = useSongOverlay()
   const [locationId] = useLocationFilter()
   const [statsPrefs] = useStatsFilters()
   const [newServiceOpen, setNewServiceOpen] = useState(false)
@@ -178,6 +180,9 @@ export function Dashboard() {
 
   const locationName = locations.find(l => l.id === locationId)?.name
   const locSuffix = locationName ? ` · ${locationName}` : ''
+
+  const topSungIds = useMemo(() => topSung.map(r => r.id), [topSung])
+  const neverSungIds = useMemo(() => neverSung.map(r => r.id), [neverSung])
 
   const incIds = statsPrefs.tagIdsInclude ?? []
   const excIds = statsPrefs.tagIdsExclude ?? []
@@ -201,7 +206,7 @@ export function Dashboard() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <LocationChip
             value={locationName}
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate('/settings', locationName ? undefined : { state: { tab: 'filters', highlight: 'location' } })}
           />
           <div className="icon-btn" onClick={() => navigate('/settings')}>
             <Settings size={20} strokeWidth={1.7} />
@@ -259,7 +264,8 @@ export function Dashboard() {
             : topSung.map((r, i) => (
               <TopRow key={r.id} rank={i + 1}
                 collectionShortName={r.collection_short_name} number={r.number}
-                title={r.title} count={r.sung_count} />
+                title={r.title} count={r.sung_count}
+                onClick={() => openSong(r.id, topSungIds)} />
             ))}
         </div>
 
@@ -276,7 +282,8 @@ export function Dashboard() {
             : neverSung.map(r => (
               <TopRow key={r.id}
                 collectionShortName={r.collection_short_name} number={r.number}
-                title={r.title} />
+                title={r.title}
+                onClick={() => openSong(r.id, neverSungIds)} />
             ))}
         </div>
 
