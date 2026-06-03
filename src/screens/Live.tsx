@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bookmark, Check, X, Search, Tag, Pencil, GripVertical } from 'lucide-react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Bookmark, Check, X, Search, Tag, Pencil, GripVertical } from 'lucide-react'
 import {
   DndContext, DragEndEvent, PointerSensor, TouchSensor,
   useSensor, useSensors, closestCenter,
@@ -74,8 +74,55 @@ function SortableRow({ ss, rank, onOpen, onPromote, onRemove }: {
 export function Live() {
   const { id: serviceId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { openSong } = useSongOverlay()
   useWakeLock()
+
+  const navServiceIds: string[] = (location.state as any)?.navServiceIds ?? []
+  const navIdx = navServiceIds.indexOf(serviceId ?? '')
+  const canGoPrevSvc = navIdx > 0
+  const canGoNextSvc = navIdx >= 0 && navIdx < navServiceIds.length - 1
+
+  const screenRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const screen = screenRef.current
+    if (!screen || navServiceIds.length === 0) return
+    let startX = 0, startY = 0, decided = false, dir: 'h' | 'v' | null = null
+
+    const onStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+      decided = false; dir = null
+    }
+    const onMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - startX
+      const dy = e.touches[0].clientY - startY
+      if (!decided && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+        decided = true
+        dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+      }
+      if (dir === 'h') e.preventDefault()
+    }
+    const onEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX
+      if (dir !== 'h') return
+      if (dx < -60 && canGoNextSvc) {
+        navigate(`/live/${navServiceIds[navIdx + 1]}`, { state: location.state })
+      } else if (dx > 60 && canGoPrevSvc) {
+        navigate(`/live/${navServiceIds[navIdx - 1]}`, { state: location.state })
+      }
+    }
+
+    screen.addEventListener('touchstart', onStart, { passive: false })
+    screen.addEventListener('touchmove', onMove, { passive: false })
+    screen.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      screen.removeEventListener('touchstart', onStart)
+      screen.removeEventListener('touchmove', onMove)
+      screen.removeEventListener('touchend', onEnd)
+    }
+  }, [serviceId, navServiceIds, navIdx, canGoPrevSvc, canGoNextSvc, navigate, location.state])
 
   const { data: service } = useService(serviceId ?? null)
   const { data: serviceSongs = [] } = useServiceSongs(serviceId ?? null)
@@ -173,7 +220,7 @@ export function Live() {
   const allSongIds = [...planned, ...sung].map(ss => ss.song.id)
 
   return (
-    <div className="screen" style={{ paddingTop: 0 }}>
+    <div className="screen" style={{ paddingTop: 0 }} ref={screenRef}>
       {/* header */}
       <div style={{ padding: '52px 18px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -183,6 +230,20 @@ export function Live() {
           <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {isToday ? 'DZIŚ · NA ŻYWO' : 'NA ŻYWO'}
           </span>
+          {navServiceIds.length > 1 && (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <button className="icon-btn" disabled={!canGoPrevSvc}
+                style={{ opacity: canGoPrevSvc ? 1 : 0.3 }}
+                onClick={() => canGoPrevSvc && navigate(`/live/${navServiceIds[navIdx - 1]}`, { state: location.state })}>
+                <ArrowLeft size={17} strokeWidth={1.7} />
+              </button>
+              <button className="icon-btn" disabled={!canGoNextSvc}
+                style={{ opacity: canGoNextSvc ? 1 : 0.3 }}
+                onClick={() => canGoNextSvc && navigate(`/live/${navServiceIds[navIdx + 1]}`, { state: location.state })}>
+                <ArrowRight size={17} strokeWidth={1.7} />
+              </button>
+            </div>
+          )}
         </div>
         <h1 className="t-title" style={{ fontSize: 27, margin: '0 0 10px' }}>
           {service?.category.name ?? '…'}

@@ -114,6 +114,24 @@ export function useRemoveSongTag() {
   })
 }
 
+export function useRestoreSongTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ song_id, tag_id }: { song_id: string; tag_id: string }) => {
+      const { error } = await supabase
+        .from('song_tags')
+        .update({ pending_removal: false })
+        .eq('song_id', song_id)
+        .eq('tag_id', tag_id)
+      if (error) throw error
+    },
+    onSuccess: (_, { song_id }) => {
+      qc.invalidateQueries({ queryKey: qk.songDetail(song_id) })
+      qc.invalidateQueries({ queryKey: qk.pendingTags() })
+    },
+  })
+}
+
 export function useSongHistory(songId: string | null) {
   return useQuery({
     queryKey: ['song-history', songId],

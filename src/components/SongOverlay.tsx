@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, ArrowRight, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, User, Undo2, X } from 'lucide-react'
 import { TagPill, CatBlock } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
-import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag } from '../lib/queries'
+import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
 import { useTagCategories, useTags, useServices, useAddServiceSong } from '../lib/queries'
 import { keyLabel } from '../lib/utils'
 
@@ -19,6 +20,7 @@ function todayStr() {
 }
 
 export function SongOverlay() {
+  const navigate = useNavigate()
   const { songId, closeSong, goPrev, goNext, canGoPrev, canGoNext } = useSongOverlay()
   const { data: song } = useSongDetail(songId)
   const { data: history = [] } = useSongHistory(songId)
@@ -27,10 +29,12 @@ export function SongOverlay() {
   const { data: services = [] } = useServices()
   const addSongTag = useAddSongTag()
   const removeSongTag = useRemoveSongTag()
+  const restoreSongTag = useRestoreSongTag()
   const addServiceSong = useAddServiceSong()
 
   const [shakeTagId, setShakeTagId] = useState<string | null>(null)
   const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
+  const [photoFull, setPhotoFull] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
   const sheetBodyRef = useRef<HTMLDivElement>(null)
 
@@ -50,11 +54,12 @@ export function SongOverlay() {
   useEffect(() => {
     const sheet = sheetRef.current
     if (!sheet || !songId) return
-    let startX = 0, startY = 0, decided = false, dir: 'h' | 'v' | null = null
+    let startX = 0, startY = 0, startScrollTop = 0, decided = false, dir: 'h' | 'v' | null = null
 
     const onStart = (e: TouchEvent) => {
       startX = e.touches[0].clientX
       startY = e.touches[0].clientY
+      startScrollTop = sheetBodyRef.current?.scrollTop ?? 0
       decided = false; dir = null
       sheet.style.transition = 'none'
     }
@@ -67,7 +72,7 @@ export function SongOverlay() {
       }
       if (dir === 'h') {
         e.preventDefault()
-      } else if (dir === 'v' && dy > 0 && (sheetBodyRef.current?.scrollTop ?? 0) === 0) {
+      } else if (dir === 'v' && dy > 0 && startScrollTop === 0) {
         e.preventDefault()
         sheet.style.transform = `translateY(${dy}px)`
       }
@@ -80,11 +85,11 @@ export function SongOverlay() {
       if (dir === 'h') {
         if (dx < -60) goNext()
         else if (dx > 60) goPrev()
-      } else if (dir === 'v' && dy > 80 && (sheetBodyRef.current?.scrollTop ?? 0) === 0) {
+      } else if (dir === 'v' && dy > 80 && startScrollTop === 0) {
         closeSong()
       }
     }
-    sheet.addEventListener('touchstart', onStart, { passive: true })
+    sheet.addEventListener('touchstart', onStart, { passive: false })
     sheet.addEventListener('touchmove', onMove, { passive: false })
     sheet.addEventListener('touchend', onEnd, { passive: true })
     return () => {
@@ -117,7 +122,9 @@ export function SongOverlay() {
     const locked = !cat?.user_editable
     if (locked) { shake(tagId, true); return }
     const existing = currentTags.get(tagId)
-    if (existing) {
+    if (existing?.pending_removal) {
+      restoreSongTag.mutate({ song_id: song.id, tag_id: tagId })
+    } else if (existing) {
       removeSongTag.mutate({ song_id: song.id, tag_id: tagId, source: existing.source })
     } else {
       addSongTag.mutate({ song_id: song.id, tag_id: tagId })
@@ -128,6 +135,12 @@ export function SongOverlay() {
     if (!nearestService) return
     addServiceSong.mutate({ service_id: nearestService.id, song_id: song.id, status, song_order: null })
     setSvcStatus(status)
+  }
+
+  const handleHistoryClick = (serviceId: string) => {
+    const navServiceIds = (history as any[]).map(h => h.service?.id).filter(Boolean)
+    closeSong()
+    navigate(`/live/${serviceId}`, { state: { navServiceIds, fromSongId: song.id } })
   }
 
   const selectedTags = song.song_tags.filter(st => !st.pending_removal)
@@ -152,9 +165,24 @@ export function SongOverlay() {
         <div className="sheet-body" ref={sheetBodyRef}>
           {/* header */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '14px 8px 4px' }}>
-            <div className="photo-ph" style={{ width: 76, height: 76, borderRadius: '50%', border: '1px solid var(--border)', marginBottom: 12, display: 'grid', placeItems: 'center', color: 'var(--text-3)' }}>
-              <User size={32} strokeWidth={1.3} />
-            </div>
+            {/* author photo */}
+            {song.author_image ? (
+              <button
+                onClick={() => setPhotoFull(true)}
+                style={{ width: 76, height: 76, borderRadius: '50%', border: '1px solid var(--border)', marginBottom: 12, overflow: 'hidden', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
+              >
+                <img
+                  src={song.author_image}
+                  alt={song.author ?? ''}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none' }}
+                />
+              </button>
+            ) : (
+              <div className="photo-ph" style={{ width: 76, height: 76, borderRadius: '50%', border: '1px solid var(--border)', marginBottom: 12, display: 'grid', placeItems: 'center', color: 'var(--text-3)' }}>
+                <User size={32} strokeWidth={1.3} />
+              </div>
+            )}
             <span className="badge-col" style={{ marginBottom: 9 }}>
               {song.collection.short_name} {song.number}
             </span>
@@ -224,26 +252,59 @@ export function SongOverlay() {
             </div>
             {tagCategories.map(cat => {
               const catTags = allTags.filter(t => t.category_id === cat.id)
-              const onSong = new Set(song.song_tags.filter(st => !st.pending_removal).map(st => st.tag_id))
+              const activeTagIds = new Set(song.song_tags.filter(st => !st.pending_removal).map(st => st.tag_id))
               const locked = !cat.user_editable
-              const count = catTags.filter(t => onSong.has(t.id)).length
+              const count = catTags.filter(t => activeTagIds.has(t.id)).length
 
               return (
                 <CatBlock key={cat.id} name={cat.name} count={count} locked={locked}
                   defaultOpen={false}>
                   {catTags.map(tag => {
-                    const isOn = onSong.has(tag.id)
-                    const st = song.song_tags.find(st => st.tag_id === tag.id)
-                    const source = isOn ? (st?.source ?? 'user') : undefined
+                    const st = song.song_tags.find(s => s.tag_id === tag.id)
+                    const isPendingRemoval = st?.pending_removal ?? false
+                    const isActive = !!st && !isPendingRemoval
+                    const isUserAdded = isActive && st?.source === 'user'
+
+                    let pillStyle: React.CSSProperties | undefined
+                    if (isPendingRemoval) {
+                      pillStyle = { textDecoration: 'line-through', background: 'var(--danger-soft)', color: 'var(--danger)', borderColor: 'var(--danger-bd)' }
+                    } else if (!isActive) {
+                      pillStyle = { opacity: 0.55, borderStyle: 'dashed' }
+                    }
+
                     return (
-                      <span key={tag.id} className={shakeTagId === tag.id ? 'shake' : ''}>
+                      <span key={tag.id} className={shakeTagId === tag.id ? 'shake' : ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <TagPill
                           name={tag.name}
-                          source={isOn ? source : undefined}
+                          source={isActive ? (st?.source ?? 'user') : undefined}
                           locked={locked}
                           onClick={() => handleTagToggle(tag.id, cat.id)}
-                          style={!isOn ? { opacity: 0.55, borderStyle: 'dashed' } as React.CSSProperties : undefined}
+                          style={pillStyle}
                         />
+                        {(isUserAdded || isPendingRemoval) && (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              if (isPendingRemoval) {
+                                restoreSongTag.mutate({ song_id: song.id, tag_id: tag.id })
+                              } else {
+                                removeSongTag.mutate({ song_id: song.id, tag_id: tag.id, source: 'user' })
+                              }
+                            }}
+                            style={{
+                              width: 22, height: 22, borderRadius: '50%',
+                              border: '1px solid', cursor: 'pointer',
+                              display: 'grid', placeItems: 'center', flexShrink: 0,
+                              background: isPendingRemoval ? 'var(--danger-soft)' : 'var(--src-user-soft)',
+                              color: isPendingRemoval ? 'var(--danger)' : 'var(--src-user)',
+                              borderColor: isPendingRemoval ? 'var(--danger-bd)' : 'var(--src-user-bd)',
+                              padding: 0,
+                            }}
+                            title={isPendingRemoval ? 'Cofnij usunięcie' : 'Cofnij dodanie'}
+                          >
+                            <Undo2 size={11} strokeWidth={2} />
+                          </button>
+                        )}
                       </span>
                     )
                   })}
@@ -263,15 +324,19 @@ export function SongOverlay() {
               <div className="card" style={{ overflow: 'hidden' }}>
                 <div className="list-rows">
                   {(history as any[]).map((h, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
+                    <div
+                      key={i}
+                      onClick={() => h.service?.id && handleHistoryClick(h.service.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', cursor: h.service?.id ? 'pointer' : 'default' }}
+                    >
                       <Calendar size={16} strokeWidth={1.7} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>
+                      <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
                         {formatDatePL(h.service?.date ?? '')}
                       </span>
-                      <span style={{ color: 'var(--text-3)', fontSize: 13 }}>
+                      <span style={{ color: 'var(--text-2)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         · {h.service?.location?.name} · {h.service?.leader?.name}
                       </span>
-                      <ChevronRight size={15} strokeWidth={1.7} style={{ marginLeft: 'auto', color: 'var(--text-3)' }} />
+                      <ChevronRight size={15} strokeWidth={1.7} style={{ marginLeft: 'auto', color: 'var(--text-3)', flexShrink: 0 }} />
                     </div>
                   ))}
                 </div>
@@ -283,6 +348,30 @@ export function SongOverlay() {
           </div>
         </div>
       </div>
+
+      {/* fullscreen author photo */}
+      {photoFull && song.author_image && (
+        <div
+          onClick={() => setPhotoFull(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 60,
+            background: 'rgba(0,0,0,0.88)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <button
+            onClick={() => setPhotoFull(false)}
+            style={{ position: 'absolute', top: 18, right: 18, width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff' }}
+          >
+            <X size={20} strokeWidth={1.7} />
+          </button>
+          <img
+            src={song.author_image}
+            alt={song.author ?? ''}
+            style={{ maxWidth: '90vw', maxHeight: '80vh', borderRadius: 12, objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}
+          />
+        </div>
+      )}
     </>,
     document.getElementById('root')!,
   )
