@@ -1,15 +1,15 @@
-name: Deploy — Production (main)
+name: Deploy — Staging
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: deploy-production
+  group: deploy-staging
   cancel-in-progress: true
 
 jobs:
@@ -25,9 +25,10 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_BASE: /song-steward/
+          VITE_BASE: /song-steward/staging/
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          destination_dir: staging
           keep_files: true
