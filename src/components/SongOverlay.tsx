@@ -53,7 +53,10 @@ export function SongOverlay() {
 
   useEffect(() => {
     const sheet = sheetRef.current
+    const body = sheetBodyRef.current
     if (!sheet || !songId) return
+    // Tell iOS to only handle vertical pan natively — horizontal touches go to our JS
+    if (body) body.style.touchAction = 'pan-y'
     let startX = 0, startY = 0, startScrollTop = 0, decided = false, dir: 'h' | 'v' | null = null
 
     const onStart = (e: TouchEvent) => {
@@ -98,6 +101,7 @@ export function SongOverlay() {
       sheet.removeEventListener('touchend', onEnd)
       sheet.style.transform = ''
       sheet.style.transition = ''
+      if (body) body.style.touchAction = ''
     }
   }, [songId, canGoPrev, canGoNext, goPrev, goNext, closeSong])
 
