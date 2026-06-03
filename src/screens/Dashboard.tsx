@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User } from 'lucide-react'
+import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays } from 'lucide-react'
 import { LocationChip, Sheet } from '../components/ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { WaveformIcon } from '../components/WaveformIcon'
@@ -224,8 +224,9 @@ export function Dashboard() {
             onOpen={() => navigate(`/live/${featured.id}`)}
           />
         ) : (
-          <div className="card" style={{ padding: 18, color: 'var(--text-3)', fontSize: 14 }}>
-            Brak nadchodzących nabożeństw.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 4px', color: 'var(--text-3)', fontSize: 13.5 }}>
+            <CalendarDays size={16} strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.55 }} />
+            Brak nadchodzących nabożeństw
           </div>
         )}
 
