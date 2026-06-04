@@ -149,7 +149,19 @@ export function useUpdateServiceNotes() {
       const { error } = await supabase.from('services').update({ notes }).eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.services() }),
+    onMutate: async ({ id, notes }) => {
+      await qc.cancelQueries({ queryKey: ['service', id] })
+      const prev = qc.getQueryData<ServiceWithRefs>(['service', id])
+      qc.setQueryData<ServiceWithRefs>(['service', id], old => old ? { ...old, notes } : old)
+      return { prev }
+    },
+    onError: (_err, { id }, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['service', id], ctx.prev)
+    },
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['service', id] })
+      qc.invalidateQueries({ queryKey: qk.services() })
+    },
   })
 }
 
