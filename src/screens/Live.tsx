@@ -189,9 +189,14 @@ export function Live() {
 
   const handleSaveNotes = () => {
     setEditingNotes(false)
-    if (notes !== service?.notes) {
-      updateNotes.mutate({ id: serviceId!, notes })
-      showToast('Zapisano notatki')
+    if (notes !== (service?.notes ?? '')) {
+      updateNotes.mutate(
+        { id: serviceId!, notes },
+        {
+          onSuccess: () => showToast('Zapisano notatki'),
+          onError: () => showToast('Błąd zapisu — spróbuj ponownie'),
+        }
+      )
     }
   }
 
