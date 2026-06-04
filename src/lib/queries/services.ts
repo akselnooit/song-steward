@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
 import { qk } from './keys'
 import type { ServiceWithRefs, ServiceSongWithSong, StatsFilters, TopSungRow, NeverSungRow } from '../types'
-import type { CreateServiceInput, AddServiceSongInput, UpdateServiceSongInput } from '../schemas'
+import type { CreateServiceInput, UpdateServiceInput, AddServiceSongInput, UpdateServiceSongInput } from '../schemas'
+import type { Location, ServiceCategory, WorshipLeader } from '../types'
 
 export function useServices(locationId?: string) {
   return useQuery({
@@ -33,6 +34,39 @@ export function useService(serviceId: string | null) {
         .single()
       if (error) throw error
       return data as unknown as ServiceWithRefs
+    },
+  })
+}
+
+export function useUpdateService() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: UpdateServiceInput) => {
+      const { error } = await supabase.from('services').update(patch).eq('id', id)
+      if (error) throw error
+    },
+    onMutate: async ({ id, date, location_id, category_id, worship_leader_id }) => {
+      await qc.cancelQueries({ queryKey: ['service', id] })
+      const prev = qc.getQueryData<ServiceWithRefs>(['service', id])
+      const locations = qc.getQueryData<Location[]>(qk.locations())
+      const categories = qc.getQueryData<ServiceCategory[]>(qk.serviceCategories())
+      const leaders = qc.getQueryData<WorshipLeader[]>(qk.worshipLeaders())
+      const location = locations?.find(l => l.id === location_id)
+      const category = categories?.find(c => c.id === category_id)
+      const leader = worship_leader_id ? (leaders?.find(l => l.id === worship_leader_id) ?? null) : null
+      if (prev && location && category) {
+        qc.setQueryData<ServiceWithRefs>(['service', id], {
+          ...prev, date, location_id, category_id, worship_leader_id, location, category, leader,
+        })
+      }
+      return { prev }
+    },
+    onError: (_err, { id }, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['service', id], ctx.prev)
+    },
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['service', id] })
+      qc.invalidateQueries({ queryKey: qk.services() })
     },
   })
 }

@@ -3,6 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { SongOverlayProvider } from '../contexts/SongOverlayContext'
 import { SongOverlay } from './SongOverlay'
+import { SyncIndicator } from './SyncIndicator'
 
 export function ProtectedRoute() {
   const [authed, setAuthed] = useState<boolean | null>(null)
@@ -23,6 +24,7 @@ export function ProtectedRoute() {
   if (!authed) return <Navigate to="/login" replace />
   return (
     <SongOverlayProvider>
+      <SyncIndicator />
       <Outlet />
       <SongOverlay />
     </SongOverlayProvider>
