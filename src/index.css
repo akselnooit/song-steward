@@ -287,12 +287,26 @@ html, body, #root {
 .sticky-head { position: sticky; top: 0; z-index: 5; background: color-mix(in oklch, var(--bg) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 8px 18px 12px; border-bottom: 1px solid var(--border); }
 .pill-row { display: flex; gap: 7px; flex-wrap: wrap; }
 .fab {
-  position: absolute; right: 18px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 31;
+  position: fixed; right: 18px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 31;
   height: 52px; border-radius: var(--r-pill); padding: 0 20px; gap: 9px;
   background: var(--accent); color: var(--accent-contrast); border: none; cursor: pointer;
   display: inline-flex; align-items: center; font-weight: 600; font-size: 15px; font-family: var(--font-body);
   box-shadow: var(--shadow-pop); white-space: nowrap;
 }
+
+.sync-pill {
+  position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: 14px; z-index: 200;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--r-pill); font-size: 13px; font-weight: 600;
+  font-family: var(--font-body); border: 1px solid; white-space: nowrap;
+  box-shadow: var(--shadow-card);
+  animation: fin .2s ease;
+}
+.sync-pill.saving { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
+.sync-pill.saved  { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-bd); }
+.sync-pill.error  { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-bd); cursor: pointer; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin .8s linear infinite; display: flex; }
 
 .hrow { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 .hrow::-webkit-scrollbar { display: none; }

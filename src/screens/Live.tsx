@@ -7,15 +7,16 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { MetaChip } from '../components/ui'
+import { MetaChip, Sheet } from '../components/ui'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import {
   useService, useServiceSongs,
   useAddServiceSong, useUpdateServiceSong, useRemoveServiceSong, useUpdateServiceNotes,
+  useUpdateService, useLocations, useServiceCategories, useWorshipLeaders,
 } from '../lib/queries'
 import { useAllSongsForSearch } from '../lib/queries/songs'
-import type { ServiceSongWithSong } from '../lib/types'
+import type { ServiceSongWithSong, ServiceWithRefs } from '../lib/types'
 
 function formatDatePL(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -25,6 +26,86 @@ function formatDatePL(dateStr: string) {
 function todayStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// ── Edit service sheet ───────────────────────────────────────────
+
+function EditServiceSheet({ service, open, onClose }: {
+  service: ServiceWithRefs; open: boolean; onClose: () => void
+}) {
+  const { data: locations = [] } = useLocations()
+  const { data: categories = [] } = useServiceCategories()
+  const { data: leaders = [] } = useWorshipLeaders()
+  const updateService = useUpdateService()
+
+  const [date, setDate] = useState(service.date)
+  const [locationId, setLocationId] = useState(service.location_id)
+  const [categoryId, setCategoryId] = useState(service.category_id)
+  const [leaderId, setLeaderId] = useState(service.worship_leader_id ?? '')
+
+  useEffect(() => {
+    if (open) {
+      setDate(service.date)
+      setLocationId(service.location_id)
+      setCategoryId(service.category_id)
+      setLeaderId(service.worship_leader_id ?? '')
+    }
+  }, [open, service])
+
+  const canSave = date && locationId && categoryId
+
+  const handleSave = async () => {
+    if (!canSave) return
+    await updateService.mutateAsync({
+      id: service.id,
+      date,
+      location_id: locationId,
+      category_id: categoryId,
+      worship_leader_id: leaderId || null,
+    })
+    onClose()
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose}>
+      <div className="t-title" style={{ fontSize: 20, marginBottom: 20 }}>Edytuj nabożeństwo</div>
+
+      <label className="t-label" style={{ display: 'block', marginBottom: 8 }}>Data</label>
+      <input type="date" className="field"
+        style={{ padding: '13px 14px', marginBottom: 18 }}
+        value={date} onChange={e => setDate(e.target.value)} />
+
+      <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>
+      <div className="hrow" style={{ marginBottom: 18 }}>
+        {locations.map(l => (
+          <button key={l.id} className={`tag${locationId === l.id ? ' include' : ''}`}
+            onClick={() => setLocationId(l.id)}>{l.name}</button>
+        ))}
+      </div>
+
+      <div className="t-label" style={{ marginBottom: 8 }}>Kategoria</div>
+      <div className="hrow" style={{ marginBottom: 18 }}>
+        {categories.map(c => (
+          <button key={c.id} className={`tag${categoryId === c.id ? ' include' : ''}`}
+            onClick={() => setCategoryId(c.id)}>{c.name}</button>
+        ))}
+      </div>
+
+      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący</div>
+      <div className="hrow" style={{ marginBottom: 24 }}>
+        {leaders.map(l => (
+          <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`}
+            onClick={() => setLeaderId(id => id === l.id ? '' : l.id)}>{l.name}</button>
+        ))}
+      </div>
+
+      <button className="btn btn-primary btn-block"
+        disabled={!canSave || updateService.isPending}
+        onClick={handleSave}>
+        {updateService.isPending ? 'Zapisuję…' : 'Zapisz zmiany'}
+      </button>
+    </Sheet>
+  )
 }
 
 // ── Sortable service song row ────────────────────────────────────
@@ -135,6 +216,7 @@ export function Live() {
 
   const [searchQ, setSearchQ] = useState('')
   const [editingNotes, setEditingNotes] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [notes, setNotes] = useState(service?.notes ?? '')
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -190,13 +272,7 @@ export function Live() {
   const handleSaveNotes = () => {
     setEditingNotes(false)
     if (notes !== (service?.notes ?? '')) {
-      updateNotes.mutate(
-        { id: serviceId!, notes },
-        {
-          onSuccess: () => showToast('Zapisano notatki'),
-          onError: () => showToast('Błąd zapisu — spróbuj ponownie'),
-        }
-      )
+      updateNotes.mutate({ id: serviceId!, notes })
     }
   }
 
@@ -245,23 +321,30 @@ export function Live() {
           <button className="icon-btn" onClick={() => navigate(-1)}>
             <ArrowLeft size={19} strokeWidth={1.7} />
           </button>
-          <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {isToday ? 'DZIŚ · NA ŻYWO' : 'NA ŻYWO'}
-          </span>
-          {navServiceIds.length > 1 && (
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-              <button className="icon-btn" disabled={!canGoPrevSvc}
-                style={{ opacity: canGoPrevSvc ? 1 : 0.3 }}
-                onClick={() => canGoPrevSvc && navigate(`/live/${navServiceIds[navIdx - 1]}`, { state: location.state })}>
-                <ArrowLeft size={17} strokeWidth={1.7} />
-              </button>
-              <button className="icon-btn" disabled={!canGoNextSvc}
-                style={{ opacity: canGoNextSvc ? 1 : 0.3 }}
-                onClick={() => canGoNextSvc && navigate(`/live/${navServiceIds[navIdx + 1]}`, { state: location.state })}>
-                <ArrowRight size={17} strokeWidth={1.7} />
-              </button>
-            </div>
+          {isToday && (
+            <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              DZIŚ
+            </span>
           )}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <button className="icon-btn" onClick={() => setEditOpen(true)}>
+              <Pencil size={17} strokeWidth={1.7} />
+            </button>
+            {navServiceIds.length > 1 && (
+              <>
+                <button className="icon-btn" disabled={!canGoPrevSvc}
+                  style={{ opacity: canGoPrevSvc ? 1 : 0.3 }}
+                  onClick={() => canGoPrevSvc && navigate(`/live/${navServiceIds[navIdx - 1]}`, { state: location.state })}>
+                  <ArrowLeft size={17} strokeWidth={1.7} />
+                </button>
+                <button className="icon-btn" disabled={!canGoNextSvc}
+                  style={{ opacity: canGoNextSvc ? 1 : 0.3 }}
+                  onClick={() => canGoNextSvc && navigate(`/live/${navServiceIds[navIdx + 1]}`, { state: location.state })}>
+                  <ArrowRight size={17} strokeWidth={1.7} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
         <h1 className="t-title" style={{ fontSize: 27, margin: '0 0 10px' }}>
           {service?.category.name ?? '…'}
@@ -391,6 +474,10 @@ export function Live() {
         <div className="saved-toast fin">
           <Check size={15} strokeWidth={1.7} /> {toast}
         </div>
+      )}
+
+      {service && (
+        <EditServiceSheet service={service} open={editOpen} onClose={() => setEditOpen(false)} />
       )}
     </div>
   )
