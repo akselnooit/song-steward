@@ -14,7 +14,7 @@ The name comes from the biblical concept of *stewardship* — the worship leader
 
 ## Stack
 
-Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · Supabase (PostgreSQL) · Vercel
+Vite · React 19 · TypeScript · Tailwind CSS v4 · TanStack Query · Supabase (PostgreSQL) · GitHub Pages
 
 ## Documentation
 

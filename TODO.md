@@ -36,16 +36,6 @@
 
 ## Jakość kodu / techniczne
 
-> Pochodzi z audytu projektu (`AUDIT.md`, 2026-05-31).
+- **Testy** — Projekt nie ma testów. Przy małej liczbie użytkowników i szybkim deployu to świadomy wybór, ale logika filtrowania (statystyki, tagi AND/NOT) jest podatna na ciche regresje przy refaktorach. Jeśli kiedy warto zacząć: wyciągnąć czystą logikę do `lib/` i dodać Vitest — bez konieczności renderowania Reacta.
 
-- **Walidacja danych wejściowych w API** — Obecnie ŻADEN endpoint w `app/api/` nie sprawdza danych przychodzących od klienta. Dane z `request.json()` lecą prosto do Supabase, a gdy są błędne (brak wymaganego pola, zły typ, zła wartość enuma), Postgres zwraca surowy błąd jako HTTP 500. Trzeba dołożyć minimalną walidację. **Co konkretnie zrobić:**
-  1. Zacząć od najważniejszych mutacji: `POST /api/services` (sprawdzić, że `location_id`, `category_id`, `date` są obecne — w bazie są NOT NULL), `POST /api/service-songs` (sprawdzić, że `status` to dokładnie `'planned'` albo `'sung'`), `POST /api/song-tags` (sprawdzić obecność `song_id` i `tag_id`).
-  2. Jeśli brakuje wymaganego pola lub wartość jest niepoprawna → zwracać **HTTP 400** z czytelnym komunikatem (np. `{ error: 'Pole "date" jest wymagane' }`), a nie pozwolić, żeby poleciał 500 z Postgresa.
-  3. Nie trzeba instalować Zod ani innej biblioteki — wystarczą proste sprawdzenia `if (!body.date) return ... 400`. (Jeśli walidacji urośnie dużo, rozważyć dopiero wtedy lekką bibliotekę — ale domyślnie trzymać się zasady „minimum zależności".)
-  4. Powiązane (osobny, większy temat): obecnie PATCH/POST przekazują surowe `body` do `.update(body)`/`.insert(body)` — klient może ustawić dowolną kolumnę (np. `id`, `created_at`, `source`). Przy okazji walidacji warto dodać **whitelistę dozwolonych pól** per endpoint.
-
-- **Testy** — Projekt nie ma ANI JEDNEGO testu. Przy 2 użytkownikach i szybkim deployu to świadomy wybór, ale część logiki jest podatna na ciche regresje przy refaktorach. **Co konkretnie zrobić:**
-  1. Nie testować wszystkiego — skupić się na czystej logice biznesowej, która łatwo się psuje niezauważenie: filtrowanie „nigdy nieśpiewanych" pieśni (`unsungSongs` w `components/NeverSungSection.tsx`), dopasowywanie nabożeństw do filtrów (predykat lokalizacja/lider/kategoria powtórzony w `TopSungSection.tsx` i `NeverSungSection.tsx`), sortowanie pieśni po kolekcjach (DP → KM → NDP → NKM → SOS).
-  2. Najpierw wyciągnąć tę logikę z komponentów do czystych funkcji w `lib/` (np. `lib/songFiltering.ts`) — wtedy da się ją przetestować bez renderowania Reacta.
-  3. Dobrać lekki runner (np. Vitest) — uruchamiany lokalnie i ewentualnie jako krok przed `git push`. Trzymać liczbę zależności minimalną zgodnie z zasadami projektu.
-  4. Cel: nie pokrycie 100%, tylko siatka bezpieczeństwa pod kluczowe funkcje liczące, żeby refaktor (np. ujednolicenie cache) nie zepsuł po cichu dashboardu.
+- **Walidacja mutacji** — Zod jest w stacku (`schemas.ts`). Kluczowe mutacje (tworzenie nabożeństwa, dodawanie pieśni do nabożeństwa, tagi) mogą skorzystać z walidacji przed wysłaniem do Supabase — szczególnie pola NOT NULL i wartości enum `status`.

@@ -1,27 +1,21 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
-
----
-
 # Song Steward — Agent Context
 
 > Full human-readable spec: `song-steward-app-spec.md` — read relevant sections for full feature design, schema details, or UI conventions.
+> Project rules and workflow: `CLAUDE.md` — read this first.
 
 ## What this app is
 
-A PWA for worship song leaders at an evangelical church in Wrocław. Currently used by **Aksel** (primary) and **Edwin** on a single shared database with no login. **More worship leaders are being onboarded soon — login (Supabase Auth) + RLS are planned and will be needed shortly.** Built with Next.js 16 (App Router), Tailwind CSS v4, Supabase (PostgreSQL), hosted on Vercel.
+A PWA for worship song leaders at an evangelical church in Wrocław. Built with Vite + React 19 + TypeScript, TanStack Query, Supabase (PostgreSQL + Auth), hosted on GitHub Pages. Currently used by Aksel (primary), Edwin, and a few others. Login (Supabase Auth magic-link) + RLS are planned and will be needed soon as more users are added.
 
 ## Stack
 
-- **Frontend:** Next.js 16 App Router + React 19 + TypeScript
-- **Styles:** Tailwind CSS v4 (`@import "tailwindcss"` in globals.css — no `tailwind.config`)
-- **Backend:** Next.js API Routes in `app/api/`
+- **Frontend:** Vite + React 19 + TypeScript
+- **Routing:** react-router-dom with `createHashRouter` (required by GitHub Pages — no exceptions)
+- **Styles:** Tailwind CSS v4
+- **Cache / queries:** TanStack Query (optimistic UI for all mutations)
 - **DB:** Supabase at `https://nnwgazsjtvauweiqjgvk.supabase.co`
 - **Icons:** Lucide React only (no emoji in nav/UI components)
-- **Deploy:** `git push origin main` → Vercel auto-builds (~1 min)
+- **Deploy:** push to `staging` → GitHub Actions builds + deploys to `gh-pages/staging/` (~1 min); push to `main` → deploys to root of `gh-pages`
 
 ## Database constant IDs
 
@@ -116,8 +110,8 @@ Supabase pagination: max 1000 rows per query. For full table exports use `.range
 New tags added via UI always get `source: 'user'`.
 
 ### Long-press interactions
-- **Tag exclude** (TagFilter): 500ms hold → red strikethrough exclusion
-- **Drag-and-drop** (ServiceSongList): 400ms hold → activates drag, vibrates 30ms
+- **Tag exclude** (TagPill): 500ms hold → red strikethrough exclusion
+- **Drag-and-drop** (service song list in Live): 400ms hold → activates drag, vibrates 30ms
 - Scroll cancels both — tracked via 8px movement threshold on `touchStart`
 
 ### iOS / mobile
@@ -126,9 +120,9 @@ New tags added via UI always get `source: 'user'`.
 - Bottom nav has `pb-[env(safe-area-inset-bottom)]`
 - Main content has `pb-[calc(5rem+env(safe-area-inset-bottom))]`
 
-### Notes inline editing
+### Notes inline editing (Live screen)
 - Click static text → textarea opens (6 rows, autoFocus)
-- `onBlur` or Escape → saves via PATCH `/api/services/:id`
+- `onBlur` or Escape → saves via Supabase mutation
 
 ## Schema: key things to know
 
@@ -136,79 +130,20 @@ New tags added via UI always get `source: 'user'`.
 - `service_songs.status` CHECK: `'planned' | 'sung'`
 - `songs.minor`: `true` = minor key (mol), `false` = major key (dur)
 - `songs` has UNIQUE constraint on `(collection_id, number)`
-- `tag_categories.user_editable boolean DEFAULT true` — when `false`, tags in that category are read-only: UI blocks add/remove, shows shake animation + `navigator.vibrate(100)` on tap. Currently `false` only for "Tagi SSF" (`611b904a-f262-4a25-9f6e-f4d64552cf62`).
-- `services` has `location_id` (→ `locations`) and `category_id` (→ `service_categories`) — both NOT NULL; `service_types` table no longer exists
-- `locations` and `service_categories` managed via `/api/locations` and `/api/service-categories`
-- Global location filter stored as cookie `ss_location_id`; dashboard filters stored in localStorage (`ss_top_sung_filters`, `ss_never_sung_filters`)
-- All FKs use ON DELETE CASCADE or SET NULL (see spec for details)
-- RLS is disabled (MVP) — no auth required *yet*. Auth + RLS are planned (more users coming soon); design new tables/columns so RLS can be enabled later without rework.
-
-## File structure highlights
-
-```
-app/api/          — REST endpoints (songs, services, tags, service-songs, etc.)
-app/services/[id] — Service detail: live worship view, planned/sung lists, notes
-app/songs/[id]    — Song detail: key, tags by category (collapsible), sing history
-app/search/       — Tag-based search with active service integration
-components/
-  TagFilter.tsx        — scroll-safe tag buttons, long-press excludes
-  ServiceSongList.tsx  — drag-and-drop reorder (long-press 400ms)
-  SongCard.tsx         — song tile used in search results
-  BottomNav.tsx        — bottom navigation with Lucide icons
-lib/
-  supabase.ts          — Supabase client
-  types.ts             — TypeScript interfaces matching DB schema
-  useGlobalLocation.ts — cookie-based global location filter hook (client)
-  locationCookie.ts    — server-side cookie reader for location filter
-  useFilters.ts        — localStorage hooks for TopSung/NeverSung dashboard filters
-supabase/        — canonical DB schema (00_init.sql); run manually in Supabase Dashboard
-backups/         — JSON database backups (gitignored)
-data/            — Raw import scripts and SongTreasures source data (gitignored)
-```
-
-## Git workflow — feature branches + pull requests
-
-We work on **feature branches + pull requests** — no direct commits to `main`.
-
-```
-git checkout -b <type>/<short-desc>   # e.g. fix/dead-service-types, feat/auth
-# ... make changes, commit ...
-git push -u origin <branch>
-gh pr create                          # open a PR against main
-# review → merge PR → Vercel auto-deploys main (~1 min)
-```
-
-- **`main` is production** — merging a PR into `main` triggers the Vercel deploy. Never push straight to `main`.
-- **Branch naming:** `feat/…`, `fix/…`, `chore/…`, `docs/…` + a short kebab description.
-- **One PR = one logical change.** Keep PRs small and reviewable.
-- Vercel builds a **preview deployment** for every branch/PR — use it to verify before merging.
-- Use `gh` for PR operations. End PR bodies with the Claude Code attribution line.
-
-## Deployment
-
-```
-npm run dev   → localhost:3000
-merge PR → main → Vercel auto-deploys (~1 min)
-```
-
-Schema changes (new columns) must be run manually in Supabase Dashboard SQL editor — migrations in `supabase/*.sql` for reference.
-
-## What NOT to do
-
-- Do not add auth/login *unprompted* — it's planned (more users coming soon) but only build it when Aksel asks
-- Do not enable Supabase RLS yet — off intentionally until auth lands; don't flip it on without coordinating the auth work
-- Do not commit `.env.local`, files in `data/`, or files in `backups/`
-- Do not add heavy external libraries — keep dependencies minimal
-- Do not use emoji in navigation/component UI — use Lucide React icons
-
-## Performance
-
-App runs on low-end phones during live worship. Avoid unnecessary API calls on load. Data that rarely changes (e.g. author list) lives as a static file in `lib/`, not as an endpoint.
+- `tag_categories.user_editable boolean DEFAULT true` — when `false`, tags in that category are read-only: UI blocks add/remove, shows shake animation + `navigator.vibrate(100)` on tap. Currently `false` only for "Tagi SSF" (`611b904a`).
+- `services` has `location_id` (→ `locations`) and `category_id` (→ `service_categories`) — both NOT NULL
+- Global location filter stored in localStorage (`ss-location`); stats filters in localStorage (`ss-stats-filters`)
+- All FKs use ON DELETE CASCADE or SET NULL
 
 ## Song overlay
 
-Never navigate to `/songs/[id]`. Use `openSong()` from `SongOverlayContext`. Every song list passes `navSongIds` so arrow navigation works.
+Never navigate to `/songs/:id`. Use `openSong(id, navSongIds)` from `SongOverlayContext`. Every song list passes `navSongIds` so left/right button navigation works.
 
-## Before pushing
+## What NOT to do
 
-Run `npx tsc --noEmit` and fix all errors before pushing — TypeScript errors block the Vercel build.
+- Do not add auth/login *unprompted* — it's planned but only build it when Aksel asks
+- Do not enable Supabase RLS yet — off intentionally until auth lands
+- Do not commit `.env.local` or files in `data/` or `backups/`
+- Do not add heavy external libraries — keep dependencies minimal
+- Do not use emoji in navigation/component UI — use Lucide React icons
+- Do not use browser routing — always `createHashRouter` (GitHub Pages requirement)
