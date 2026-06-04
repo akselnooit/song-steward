@@ -196,7 +196,7 @@ export function Live() {
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 8 } }),
   )
 
@@ -208,6 +208,19 @@ export function Live() {
     const oldIdx = planned.findIndex(ss => ss.id === active.id)
     const newIdx = planned.findIndex(ss => ss.id === over.id)
     const reordered = arrayMove(planned, oldIdx, newIdx)
+    reordered.forEach((ss, i) => {
+      if (ss.song_order !== i) {
+        updateServiceSong.mutate({ id: ss.id, service_id: serviceId!, song_order: i })
+      }
+    })
+  }
+
+  const handleSungDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIdx = sung.findIndex(ss => ss.id === active.id)
+    const newIdx = sung.findIndex(ss => ss.id === over.id)
+    const reordered = arrayMove(sung, oldIdx, newIdx)
     reordered.forEach((ss, i) => {
       if (ss.song_order !== i) {
         updateServiceSong.mutate({ id: ss.id, service_id: serviceId!, song_order: i })
@@ -352,15 +365,20 @@ export function Live() {
         {sung.length === 0 ? (
           <div className="hint" style={{ padding: '4px 2px' }}>Jeszcze nic nie zaśpiewano</div>
         ) : (
-          sung.map((ss, i) => (
-            <SortableRow
-              key={ss.id}
-              ss={ss}
-              rank={i + 1}
-              onOpen={() => openSong(ss.song.id, allSongIds)}
-              onRemove={() => handleRemove(ss)}
-            />
-          ))
+          <DndContext sensors={sensors} collisionDetection={closestCenter}
+            onDragStart={handleDragStart} onDragEnd={handleSungDragEnd}>
+            <SortableContext items={sung.map(ss => ss.id)} strategy={verticalListSortingStrategy}>
+              {sung.map((ss, i) => (
+                <SortableRow
+                  key={ss.id}
+                  ss={ss}
+                  rank={i + 1}
+                  onOpen={() => openSong(ss.song.id, allSongIds)}
+                  onRemove={() => handleRemove(ss)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 

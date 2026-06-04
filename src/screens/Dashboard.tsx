@@ -1,18 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays } from 'lucide-react'
-import { LocationChip, Sheet } from '../components/ui'
+import { LocationChip } from '../components/ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { WaveformIcon } from '../components/WaveformIcon'
+import { NewServiceSheet } from '../components/NewServiceSheet'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useStatsFilters } from '../hooks/useStatsFilters'
 import {
-  useServices, useTopSung, useNeverSung, usePendingTags,
-  useLocations, useServiceCategories, useWorshipLeaders, useCreateService, useTags,
+  useServices, useTopSung, useNeverSung, usePendingTags, useLocations, useTags,
 } from '../lib/queries'
 import type { ServiceWithRefs } from '../lib/types'
-import type { CreateServiceInput } from '../lib/schemas'
 
 // ── helpers ─────────────────────────────────────────────────────
 
@@ -71,86 +70,6 @@ function TodayCard({ service, isToday, songCount, onOpen }: {
         <span><b style={{ color: 'var(--text-2)' }}>{songCount.planned}</b> zaplanowanych</span>
       </div>
     </div>
-  )
-}
-
-function NewServiceSheet({ open, onClose, defaultLeaderId }: {
-  open: boolean; onClose: () => void; defaultLeaderId?: string
-}) {
-  const navigate = useNavigate()
-  const { data: locations = [] } = useLocations()
-  const { data: categories = [] } = useServiceCategories()
-  const { data: leaders = [] } = useWorshipLeaders()
-  const createService = useCreateService()
-
-  const [date, setDate] = useState(todayStr())
-  const [locationId, setLocationId] = useState<string>('')
-  const [categoryId, setCategoryId] = useState<string>('')
-  const [leaderId, setLeaderId] = useState<string>(defaultLeaderId ?? '')
-
-  const canCreate = date && locationId && categoryId
-
-  const handleCreate = async () => {
-    if (!canCreate) return
-    const id = await createService.mutateAsync({
-      date,
-      location_id: locationId,
-      category_id: categoryId,
-      worship_leader_id: leaderId || null,
-      notes: null,
-    } as CreateServiceInput)
-    onClose()
-    navigate(`/live/${id}`)
-  }
-
-  return (
-    <Sheet open={open} onClose={onClose}>
-      <div className="t-title" style={{ fontSize: 20, marginBottom: 20 }}>Nowe nabożeństwo</div>
-
-      <label className="t-label" style={{ display: 'block', marginBottom: 8 }}>Data</label>
-      <input
-        type="date"
-        className="field"
-        style={{ padding: '13px 14px', marginBottom: 18 }}
-        value={date}
-        onChange={e => setDate(e.target.value)}
-      />
-
-      <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>
-      <div className="hrow" style={{ marginBottom: 18 }}>
-        {locations.map(l => (
-          <button key={l.id} className={`tag${locationId === l.id ? ' include' : ''}`} onClick={() => setLocationId(l.id)}>
-            {l.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="t-label" style={{ marginBottom: 8 }}>Kategoria</div>
-      <div className="hrow" style={{ marginBottom: 18 }}>
-        {categories.map(c => (
-          <button key={c.id} className={`tag${categoryId === c.id ? ' include' : ''}`} onClick={() => setCategoryId(c.id)}>
-            {c.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący</div>
-      <div className="hrow" style={{ marginBottom: 24 }}>
-        {leaders.map(l => (
-          <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`} onClick={() => setLeaderId(l.id)}>
-            {l.name}
-          </button>
-        ))}
-      </div>
-
-      <button
-        className="btn btn-primary btn-block"
-        disabled={!canCreate || createService.isPending}
-        onClick={handleCreate}
-      >
-        {createService.isPending ? 'Tworzenie…' : 'Utwórz i otwórz'}
-      </button>
-    </Sheet>
   )
 }
 

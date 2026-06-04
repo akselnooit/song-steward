@@ -16,11 +16,12 @@ Nazwa nawiązuje do biblijnej koncepcji *stewardship* — odpowiedzialnego zarz�
 
 | Warstwa | Technologia |
 |---|---|
-| Frontend | Next.js 16 (App Router) + React 19 |
+| Frontend | Vite + React 19 |
+| Routing | react-router-dom (`createHashRouter`) |
 | Styl | Tailwind CSS v4 |
-| Backend | Next.js API Routes (serverless) |
-| Baza danych | Supabase (PostgreSQL) |
-| Hosting | Vercel (auto-deploy z `main`) |
+| Cache / zapytania | TanStack Query |
+| Baza danych | Supabase (PostgreSQL + Auth) |
+| Hosting | GitHub Pages (auto-deploy z `main` przez GitHub Actions) |
 | Język | TypeScript |
 | Ikony | Lucide React |
 
@@ -28,6 +29,7 @@ Nazwa nawiązuje do biblijnej koncepcji *stewardship* — odpowiedzialnego zarz�
 - Prosta, płaska struktura folderów
 - Minimalna liczba zewnętrznych bibliotek
 - Każdy plik powinien mieć jeden, jasny cel
+- Hash routing (wymóg GitHub Pages — bez wyjątków)
 
 ---
 
