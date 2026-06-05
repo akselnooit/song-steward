@@ -157,7 +157,7 @@ export function Live() {
   const navigate = useNavigate()
   const location = useLocation()
   const { openSong } = useSongOverlay()
-  useWakeLock()
+  useWakeLock(true)
 
   const navServiceIds: string[] = (location.state as any)?.navServiceIds ?? []
   const navIdx = navServiceIds.indexOf(serviceId ?? '')

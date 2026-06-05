@@ -6,6 +6,8 @@ import { TagPill, CatBlock } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
 import { useTagCategories, useTags, useServices, useAddServiceSong } from '../lib/queries'
+import { useLocationFilter } from '../hooks/useLocationFilter'
+import { useWakeLock } from '../hooks/useWakeLock'
 import { keyLabel } from '../lib/utils'
 
 
@@ -22,12 +24,14 @@ function todayStr() {
 export function SongOverlay() {
   const navigate = useNavigate()
   const { songId, closeSong, goPrev, goNext, canGoPrev, canGoNext } = useSongOverlay()
+  const [locationId] = useLocationFilter()
   const { data: song } = useSongDetail(songId)
-  const { data: history = [] } = useSongHistory(songId)
+  const { data: history = [] } = useSongHistory(songId, locationId)
   const { data: tagCategories = [] } = useTagCategories()
   const { data: allTags = [] } = useTags()
-  const { data: services = [] } = useServices()
+  const { data: services = [] } = useServices(locationId)
   const addSongTag = useAddSongTag()
+  useWakeLock(!!songId)
   const removeSongTag = useRemoveSongTag()
   const restoreSongTag = useRestoreSongTag()
   const addServiceSong = useAddServiceSong()
