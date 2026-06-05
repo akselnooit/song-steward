@@ -1,5 +1,5 @@
 import { User } from 'lucide-react'
-import { keyLabel } from '../../lib/utils'
+import { keyLabel, collectionClass } from '../../lib/utils'
 
 interface SongCardProps {
   collection: string
@@ -17,7 +17,7 @@ interface SongCardProps {
 export function SongCard({ collection, number, title, author, authorImage, songKey, minor = false, showKey = true, right, onClick }: SongCardProps) {
   return (
     <div className="song-card" onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
-      <span className="badge-col">{collection} {number}</span>
+      <span className={`badge-col ${collectionClass(collection)}`}>{collection} {number}</span>
       <div className="meta">
         <div className="title" style={{ textWrap: 'pretty' } as React.CSSProperties}>{title}</div>
         <div className="author">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Sheet } from './ui'
 import { useLocations, useServiceCategories, useWorshipLeaders, useCreateService } from '../lib/queries'
 import type { CreateServiceInput } from '../lib/schemas'
+import { useLocationFilter } from '../hooks/useLocationFilter'
 
 function todayStr() {
   const d = new Date()
@@ -21,9 +22,10 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
   const { data: categories = [] } = useServiceCategories()
   const { data: leaders = [] } = useWorshipLeaders()
   const createService = useCreateService()
+  const [filterLocationId] = useLocationFilter()
 
   const [date, setDate] = useState(todayStr())
-  const [locationId, setLocationId] = useState('')
+  const [locationId, setLocationId] = useState(filterLocationId ?? '')
   const [categoryId, setCategoryId] = useState('')
   const [leaderId, setLeaderId] = useState(defaultLeaderId ?? '')
 
@@ -47,7 +49,7 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
       <div className="t-title" style={{ fontSize: 20, marginBottom: 20 }}>Nowe nabożeństwo</div>
 
       <label className="t-label" style={{ display: 'block', marginBottom: 8 }}>Data</label>
-      <input type="date" className="field" style={{ padding: '13px 14px', marginBottom: 18 }}
+      <input type="date" className="field" style={{ padding: '13px 14px', marginBottom: 18, WebkitAppearance: 'none' }}
         value={date} onChange={e => setDate(e.target.value)} />
 
       <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>
@@ -68,7 +70,7 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
         ))}
       </div>
 
-      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący</div>
+      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę</div>
       <div className="hrow" style={{ marginBottom: 24 }}>
         {leaders.map(l => (
           <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`} onClick={() => setLeaderId(l.id)}>

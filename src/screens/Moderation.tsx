@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Check, X, RotateCcw, ChevronRight } from 'lucide-react'
+import { collectionClass } from '../lib/utils'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import {
   usePendingTags,
@@ -84,7 +85,7 @@ export function Moderation() {
                   {/* song header */}
                   <div className="song-card" style={{ padding: '0 0 12px', cursor: 'pointer' }}
                     onClick={() => openSong(song.id, songIds)}>
-                    <span className="badge-col">{song.collection.short_name} {song.number}</span>
+                    <span className={`badge-col ${collectionClass(song.collection.short_name)}`}>{song.collection.short_name} {song.number}</span>
                     <div className="meta">
                       <div className="title" style={{ fontSize: 15 }}>{song.title}</div>
                     </div>

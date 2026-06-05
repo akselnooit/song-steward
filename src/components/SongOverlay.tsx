@@ -8,7 +8,7 @@ import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRest
 import { useTagCategories, useTags, useServices, useAddServiceSong } from '../lib/queries'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useWakeLock } from '../hooks/useWakeLock'
-import { keyLabel } from '../lib/utils'
+import { keyLabel, collectionClass } from '../lib/utils'
 
 
 function formatDatePL(dateStr: string) {
@@ -177,7 +177,7 @@ export function SongOverlay() {
                 <User size={32} strokeWidth={1.3} />
               </div>
             )}
-            <span className="badge-col" style={{ marginBottom: 9 }}>
+            <span className={`badge-col ${collectionClass(song.collection.short_name)}`} style={{ marginBottom: 9 }}>
               {song.collection.short_name} {song.number}
             </span>
             <h2 className="t-title" style={{ fontSize: 23, margin: '0 0 10px', lineHeight: 1.15 }}>
