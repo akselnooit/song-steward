@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sheet } from './ui'
 import { useLocations, useServiceCategories, useWorshipLeaders, useCreateService } from '../lib/queries'
@@ -28,6 +28,17 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
   const [locationId, setLocationId] = useState(filterLocationId ?? '')
   const [categoryId, setCategoryId] = useState('')
   const [leaderId, setLeaderId] = useState(defaultLeaderId ?? '')
+
+  // Zasiej domyślne wartości za każdym razem, gdy arkusz się otwiera —
+  // leader i filtr lokalizacji ładują się asynchronicznie, więc inicjalizator
+  // useState (uruchamiany tylko raz przy montażu) nie zawsze je złapie.
+  useEffect(() => {
+    if (!open) return
+    setDate(todayStr())
+    setCategoryId('')
+    setLocationId(filterLocationId ?? '')
+    setLeaderId(defaultLeaderId ?? '')
+  }, [open, filterLocationId, defaultLeaderId])
 
   const canCreate = date && locationId && categoryId
 
