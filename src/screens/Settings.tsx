@@ -179,6 +179,17 @@ export function Settings() {
   const statsTagsSectionRef = useRef<HTMLDivElement>(null)
   const [editor, setEditor] = useState<DictConfig | null>(null)
 
+  // Ponów intencję nawigacji przy KAŻDYM wejściu na ekran (routerLoc.key jest
+  // unikatowy dla wpisu w historii). Inicjalizator useState czyta routerState
+  // tylko raz, więc gdy komponent jest odtwarzany bez pełnego montażu, kolejne
+  // wejście z chipa lokalizacji nie przełączało zakładki na „Preferencje".
+  useEffect(() => {
+    if (routerState?.tab) setTab(routerState.tab === 'filters' ? 'filters' : 'dict')
+    if (routerState?.highlight === 'location') setLocHighlight(true)
+    if (routerState?.highlight === 'stats-tags') setStatsTagsHighlight(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routerLoc.key])
+
   useEffect(() => {
     if (!locHighlight) return
     locSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
