@@ -17,6 +17,7 @@ import {
 } from '../lib/queries'
 import { useAllSongsForSearch } from '../lib/queries/songs'
 import type { ServiceSongWithSong, ServiceWithRefs } from '../lib/types'
+import { collectionClass } from '../lib/utils'
 
 function formatDatePL(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -91,7 +92,7 @@ function EditServiceSheet({ service, open, onClose }: {
         ))}
       </div>
 
-      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący</div>
+      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę</div>
       <div className="hrow" style={{ marginBottom: 24 }}>
         {leaders.map(l => (
           <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`}
@@ -130,7 +131,7 @@ function SortableRow({ ss, rank, onOpen, onPromote, onRemove }: {
         </span>
         {rank != null && <span className="rank">{rank}</span>}
         <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onOpen}>
-          <span className="badge-col" style={{ fontSize: 10 }}>
+          <span className={`badge-col ${collectionClass(ss.song.collection.short_name)}`} style={{ fontSize: 10 }}>
             {ss.song.collection.short_name} {ss.song.number}
           </span>
           <div className="t-title" style={{ fontSize: 15, marginTop: 4, lineHeight: 1.15 }}>
@@ -157,7 +158,7 @@ export function Live() {
   const navigate = useNavigate()
   const location = useLocation()
   const { openSong } = useSongOverlay()
-  useWakeLock()
+  useWakeLock(true)
 
   const navServiceIds: string[] = (location.state as any)?.navServiceIds ?? []
   const navIdx = navServiceIds.indexOf(serviceId ?? '')
@@ -396,7 +397,7 @@ export function Live() {
             <div className="card list-rows fin" style={{ marginTop: 8 }}>
               {searchResults.map(s => (
                 <div key={s.id} className="song-card" style={{ padding: '10px 12px' }}>
-                  <span className="badge-col" style={{ fontSize: 10 }}>{s.collection.short_name} {s.number}</span>
+                  <span className={`badge-col ${collectionClass(s.collection.short_name)}`} style={{ fontSize: 10 }}>{s.collection.short_name} {s.number}</span>
                   <div className="meta">
                     <div className="title" style={{ fontSize: 14 }}>{s.title}</div>
                   </div>

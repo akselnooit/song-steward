@@ -6,7 +6,9 @@ import { TagPill, CatBlock } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
 import { useTagCategories, useTags, useServices, useAddServiceSong } from '../lib/queries'
-import { keyLabel } from '../lib/utils'
+import { useLocationFilter } from '../hooks/useLocationFilter'
+import { useWakeLock } from '../hooks/useWakeLock'
+import { keyLabel, collectionClass } from '../lib/utils'
 
 
 function formatDatePL(dateStr: string) {
@@ -22,12 +24,14 @@ function todayStr() {
 export function SongOverlay() {
   const navigate = useNavigate()
   const { songId, closeSong, goPrev, goNext, canGoPrev, canGoNext } = useSongOverlay()
+  const [locationId] = useLocationFilter()
   const { data: song } = useSongDetail(songId)
-  const { data: history = [] } = useSongHistory(songId)
+  const { data: history = [] } = useSongHistory(songId, locationId)
   const { data: tagCategories = [] } = useTagCategories()
   const { data: allTags = [] } = useTags()
-  const { data: services = [] } = useServices()
+  const { data: services = [] } = useServices(locationId)
   const addSongTag = useAddSongTag()
+  useWakeLock(!!songId)
   const removeSongTag = useRemoveSongTag()
   const restoreSongTag = useRestoreSongTag()
   const addServiceSong = useAddServiceSong()
@@ -173,7 +177,7 @@ export function SongOverlay() {
                 <User size={32} strokeWidth={1.3} />
               </div>
             )}
-            <span className="badge-col" style={{ marginBottom: 9 }}>
+            <span className={`badge-col ${collectionClass(song.collection.short_name)}`} style={{ marginBottom: 9 }}>
               {song.collection.short_name} {song.number}
             </span>
             <h2 className="t-title" style={{ fontSize: 23, margin: '0 0 10px', lineHeight: 1.15 }}>

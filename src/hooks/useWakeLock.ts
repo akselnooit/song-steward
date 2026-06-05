@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 
-export function useWakeLock() {
+export function useWakeLock(enabled: boolean) {
   useEffect(() => {
+    if (!enabled) return
     let lock: WakeLockSentinel | null = null
 
     const request = async () => {
@@ -21,5 +22,5 @@ export function useWakeLock() {
       lock?.release()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [])
+  }, [enabled])
 }

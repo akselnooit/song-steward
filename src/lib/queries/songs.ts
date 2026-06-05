@@ -132,18 +132,20 @@ export function useRestoreSongTag() {
   })
 }
 
-export function useSongHistory(songId: string | null) {
+export function useSongHistory(songId: string | null, locationId?: string) {
   return useQuery({
-    queryKey: ['song-history', songId],
+    queryKey: ['song-history', songId, locationId],
     enabled: !!songId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('service_songs')
-        .select('id, status, added_at, service:services(id, date, location:locations(name), leader:worship_leaders(name))')
+        .select('id, status, added_at, service:services!inner(id, date, location:locations(name), leader:worship_leaders(name))')
         .eq('song_id', songId!)
         .eq('status', 'sung')
         .order('added_at', { ascending: false })
         .limit(20)
+      if (locationId) q = q.eq('service.location_id', locationId)
+      const { data, error } = await q
       if (error) throw error
       return data
     },

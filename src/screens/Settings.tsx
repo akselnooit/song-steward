@@ -31,7 +31,7 @@ interface DictConfig {
 const DICTS: DictConfig[] = [
   { key: 'locations',         label: 'Lokalizacje',          icon: <MapPin size={17} strokeWidth={1.7} />,  sub: 'Miejsca nabożeństw' },
   { key: 'service_categories',label: 'Kategorie nabożeństw', icon: <Layers size={17} strokeWidth={1.7} />,  sub: 'Typy wydarzeń' },
-  { key: 'worship_leaders',   label: 'Prowadzący',           icon: <User size={17} strokeWidth={1.7} />,    sub: 'Powiązani z kontami' },
+  { key: 'worship_leaders',   label: 'Prowadzący muzykę',    icon: <User size={17} strokeWidth={1.7} />,    sub: 'Powiązani z kontami' },
   { key: 'collections',       label: 'Zbiory pieśni',        icon: <Music size={17} strokeWidth={1.7} />,   sub: 'Śpiewniki i skróty', readonly: true },
   { key: 'tag_categories',    label: 'Kategorie tagów',      icon: <Tag size={17} strokeWidth={1.7} />,     sub: 'Z flagą edytowalności', readonly: true },
   { key: 'tags',              label: 'Tagi',                 icon: <Bookmark size={17} strokeWidth={1.7} />,sub: 'Wszystkie etykiety' },
@@ -314,7 +314,7 @@ export function Settings() {
             <div className="t-label" style={{ marginBottom: 9 }}>Domyślne filtry statystyk</div>
             <div className="card" style={{ padding: 16, marginBottom: 16 }}>
               <div style={{ marginBottom: 14 }}>
-                <div className="count-line" style={{ marginBottom: 8 }}>Prowadzący</div>
+                <div className="count-line" style={{ marginBottom: 8 }}>Prowadzący muzykę</div>
                 <div className="pill-row">
                   <button className={`tag${!statsPrefs.leaderId ? ' include' : ''}`} onClick={() => setStatsPrefs({ ...statsPrefs, leaderId: undefined })}>
                     Wszyscy

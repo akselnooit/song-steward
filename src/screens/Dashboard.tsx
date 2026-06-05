@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays } from 'lucide-react'
+import { collectionClass } from '../lib/utils'
 import { LocationChip } from '../components/ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { WaveformIcon } from '../components/WaveformIcon'
@@ -36,7 +37,7 @@ function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
       <div className="meta">
         <div className="title" style={{ fontSize: 15 }}>{title}</div>
         <div className="author">
-          <span className="badge-col" style={{ fontSize: 10 }}>{collectionShortName} {number}</span>
+          <span className={`badge-col ${collectionClass(collectionShortName)}`} style={{ fontSize: 10 }}>{collectionShortName} {number}</span>
         </div>
       </div>
       {count != null && <span className="count-x">{count}×</span>}
