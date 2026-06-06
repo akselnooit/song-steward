@@ -44,6 +44,7 @@ export function Search() {
   const [inc, setInc] = useState<Set<string>>(new Set())
   const [exc, setExc] = useState<Set<string>>(new Set())
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [openCatId, setOpenCatId] = useState<string | null>(null)
 
   const toggleInc = (id: string) => {
     setExc(e => { const n = new Set(e); n.delete(id); return n })
@@ -171,7 +172,7 @@ export function Search() {
       </button>
 
       {/* all tags sheet */}
-      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
+      <Sheet open={sheetOpen} onClose={() => { setSheetOpen(false); setOpenCatId(null) }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 className="t-title" style={{ fontSize: 20, margin: 0 }}>Wszystkie tagi</h2>
           <span className="count-line">{results.length} {plural(results.length)}</span>
@@ -182,7 +183,9 @@ export function Search() {
           const catSelectedCount = catTags.filter(t => inc.has(t.id) || exc.has(t.id)).length
           return (
             <CatBlock key={cat.id} name={cat.name} selectedCount={catSelectedCount}
-              locked={!cat.user_editable} defaultOpen={false}>
+              locked={!cat.user_editable}
+              open={openCatId === cat.id}
+              onToggle={() => setOpenCatId(id => id === cat.id ? null : cat.id)}>
               {catTags.map(tag => (
                 <FilterTag
                   key={tag.id}

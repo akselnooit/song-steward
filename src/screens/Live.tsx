@@ -218,7 +218,12 @@ export function Live() {
   const [searchQ, setSearchQ] = useState('')
   const [editingNotes, setEditingNotes] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [confirmDupSungId, setConfirmDupSungId] = useState<string | null>(null)
+  const [pendingSung, setPendingSung] = useState<
+    | { kind: 'add'; songId: string }
+    | { kind: 'promote'; ss: ServiceSongWithSong }
+    | null
+  >(null)
+  const [shakePlannedId, setShakePlannedId] = useState<string | null>(null)
   const [notes, setNotes] = useState(service?.notes ?? '')
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -265,20 +270,34 @@ export function Live() {
 
   const handleAddSong = async (songId: string, status: 'planned' | 'sung') => {
     if (status === 'planned') {
-      if (planned.some(ss => ss.song.id === songId)) return
+      if (planned.some(ss => ss.song.id === songId)) {
+        setShakePlannedId(songId)
+        navigator.vibrate?.(100)
+        setTimeout(() => setShakePlannedId(null), 320)
+        showToast('Ta pieśń jest już zaplanowana')
+        return
+      }
       await doAddSong(songId, 'planned')
     } else {
       if (sung.some(ss => ss.song.id === songId)) {
-        setConfirmDupSungId(songId)
+        setPendingSung({ kind: 'add', songId })
         return
       }
       await doAddSong(songId, 'sung')
     }
   }
 
-  const handlePromote = async (ss: ServiceSongWithSong) => {
+  const doPromote = async (ss: ServiceSongWithSong) => {
     await updateServiceSong.mutateAsync({ id: ss.id, service_id: serviceId!, status: 'sung', song_order: sung.length })
     showToast('Oznaczono jako zaśpiewaną')
+  }
+
+  const handlePromote = async (ss: ServiceSongWithSong) => {
+    if (sung.some(s => s.song.id === ss.song.id)) {
+      setPendingSung({ kind: 'promote', ss })
+      return
+    }
+    await doPromote(ss)
   }
 
   const handleRemove = (ss: ServiceSongWithSong) => {
@@ -389,7 +408,7 @@ export function Live() {
             onFocus={e => {
               const el = e.currentTarget
               el.selectionStart = el.selectionEnd = el.value.length
-              el.scrollIntoView({ block: 'end', behavior: 'smooth' })
+              el.scrollTop = el.scrollHeight
             }}
           />
         ) : (
@@ -423,7 +442,7 @@ export function Live() {
                   <div className="meta">
                     <div className="title" style={{ fontSize: 14 }}>{s.title}</div>
                   </div>
-                  <button className="mini-btn" onClick={() => handleAddSong(s.id, 'planned')}>
+                  <button className={`mini-btn${shakePlannedId === s.id ? ' shake' : ''}`} onClick={() => handleAddSong(s.id, 'planned')}>
                     <Bookmark size={15} strokeWidth={1.7} />
                   </button>
                   <button className="mini-btn good" onClick={() => handleAddSong(s.id, 'sung')}>
@@ -503,18 +522,20 @@ export function Live() {
         <EditServiceSheet service={service} open={editOpen} onClose={() => setEditOpen(false)} />
       )}
 
-      <Sheet open={confirmDupSungId !== null} onClose={() => setConfirmDupSungId(null)}>
+      <Sheet open={pendingSung !== null} onClose={() => setPendingSung(null)}>
         <div className="t-title" style={{ fontSize: 18, marginBottom: 12 }}>Pieśń już zaśpiewana</div>
         <div style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 24 }}>
           Ta pieśń była już zaśpiewana podczas tego nabożeństwa. Czy dodać po raz drugi?
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-ghost btn-block" onClick={() => setConfirmDupSungId(null)}>
+          <button className="btn btn-ghost btn-block" onClick={() => setPendingSung(null)}>
             Anuluj
           </button>
           <button className="btn btn-primary btn-block" onClick={async () => {
-            if (confirmDupSungId) await doAddSong(confirmDupSungId, 'sung')
-            setConfirmDupSungId(null)
+            const p = pendingSung
+            setPendingSung(null)
+            if (p?.kind === 'add') await doAddSong(p.songId, 'sung')
+            else if (p?.kind === 'promote') await doPromote(p.ss)
           }}>
             Dodaj mimo to
           </button>

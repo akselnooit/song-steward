@@ -67,6 +67,7 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
   }
 
   return (
+    <>
     <Sheet open={open} onClose={onClose}>
       <div className="t-title" style={{ fontSize: 20, marginBottom: 20 }}>Nowe nabożeństwo</div>
 
@@ -105,23 +106,24 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
         disabled={!canCreate || createService.isPending} onClick={handleCreate}>
         {createService.isPending ? 'Tworzenie…' : 'Utwórz i otwórz'}
       </button>
-
-      <Sheet open={showDupWarning} onClose={() => setShowDupWarning(false)}>
-        <div className="t-title" style={{ fontSize: 18, marginBottom: 12 }}>Nabożeństwo już istnieje</div>
-        <div style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 24 }}>
-          Nabożeństwo w tej lokalizacji zostało już dodane na ten dzień. Czy na pewno dodać kolejne?
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-ghost btn-block" onClick={() => setShowDupWarning(false)}>
-            Anuluj
-          </button>
-          <button className="btn btn-primary btn-block"
-            disabled={createService.isPending}
-            onClick={async () => { setShowDupWarning(false); await doCreate() }}>
-            {createService.isPending ? 'Tworzenie…' : 'Dodaj mimo to'}
-          </button>
-        </div>
-      </Sheet>
     </Sheet>
+
+    <Sheet open={showDupWarning} onClose={() => setShowDupWarning(false)}>
+      <div className="t-title" style={{ fontSize: 18, marginBottom: 12 }}>Nabożeństwo już istnieje</div>
+      <div style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 24 }}>
+        Nabożeństwo w tej lokalizacji zostało już dodane na ten dzień. Czy na pewno dodać kolejne?
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="btn btn-ghost btn-block" onClick={() => setShowDupWarning(false)}>
+          Anuluj
+        </button>
+        <button className="btn btn-primary btn-block"
+          disabled={createService.isPending}
+          onClick={async () => { setShowDupWarning(false); await doCreate() }}>
+          {createService.isPending ? 'Tworzenie…' : 'Dodaj mimo to'}
+        </button>
+      </div>
+    </Sheet>
+    </>
   )
 }

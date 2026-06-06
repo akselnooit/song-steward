@@ -6,15 +6,21 @@ interface CatBlockProps {
   selectedCount?: number
   defaultOpen?: boolean
   locked?: boolean
+  /** Controlled open state. When provided (with onToggle), the parent owns open/close — used for single-open accordions. */
+  open?: boolean
+  onToggle?: () => void
   children: React.ReactNode
 }
 
-export function CatBlock({ name, selectedCount, defaultOpen = false, locked, children }: CatBlockProps) {
-  const [open, setOpen] = useState(defaultOpen)
+export function CatBlock({ name, selectedCount, defaultOpen = false, locked, open: openProp, onToggle, children }: CatBlockProps) {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp : internalOpen
+  const toggle = () => { if (isControlled) onToggle?.(); else setInternalOpen(o => !o) }
 
   return (
     <div className="cat-block">
-      <div className="cat-head" onClick={() => setOpen(o => !o)}>
+      <div className="cat-head" onClick={toggle}>
         <span className="name">
           {name}
           {locked && <Lock size={13} />}
