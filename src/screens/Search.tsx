@@ -179,8 +179,9 @@ export function Search() {
         {tagCategories.map(cat => {
           const catTags = allTags.filter(t => t.category_id === cat.id && presentTagIds.has(t.id))
           if (catTags.length === 0) return null
+          const catSelectedCount = catTags.filter(t => inc.has(t.id) || exc.has(t.id)).length
           return (
-            <CatBlock key={cat.id} name={cat.name} count={catTags.length}
+            <CatBlock key={cat.id} name={cat.name} selectedCount={catSelectedCount}
               locked={!cat.user_editable} defaultOpen={false}>
               {catTags.map(tag => (
                 <FilterTag

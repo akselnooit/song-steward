@@ -3,16 +3,14 @@ import { ChevronRight, Lock } from 'lucide-react'
 
 interface CatBlockProps {
   name: string
-  count?: number
   selectedCount?: number
   defaultOpen?: boolean
   locked?: boolean
   children: React.ReactNode
 }
 
-export function CatBlock({ name, count, selectedCount, defaultOpen = false, locked, children }: CatBlockProps) {
+export function CatBlock({ name, selectedCount, defaultOpen = false, locked, children }: CatBlockProps) {
   const [open, setOpen] = useState(defaultOpen)
-  const showSelected = !open && selectedCount != null && selectedCount > 0
 
   return (
     <div className="cat-block">
@@ -22,10 +20,9 @@ export function CatBlock({ name, count, selectedCount, defaultOpen = false, lock
           {locked && <Lock size={13} />}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {showSelected
-            ? <span className="badge-col">{selectedCount}</span>
-            : (count != null && <span className="count-line">{count}</span>)
-          }
+          {selectedCount != null && selectedCount > 0 && (
+            <span className="badge-col">{selectedCount}</span>
+          )}
           <ChevronRight size={16} strokeWidth={1.7} className={`chev${open ? ' open' : ''}`} />
         </span>
       </div>

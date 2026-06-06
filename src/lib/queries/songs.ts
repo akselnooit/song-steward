@@ -8,25 +8,39 @@ export interface SongForSearch extends SongWithCollection {
   tagIds: string[]
 }
 
+async function fetchAllSongTags() {
+  const PAGE = 1000
+  let from = 0
+  const rows: { song_id: string; tag_id: string }[] = []
+  while (true) {
+    const { data, error } = await supabase
+      .from('song_tags')
+      .select('song_id, tag_id')
+      .eq('pending_removal', false)
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...data)
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  return rows
+}
+
 export function useAllSongsForSearch() {
   return useQuery({
     queryKey: ['songs-for-search'],
     queryFn: async () => {
-      const [songsRes, tagsRes] = await Promise.all([
+      const [songsRes, tagRows] = await Promise.all([
         supabase
           .from('songs')
-          .select('id, collection_id, number, title, author, original_key, minor, collection:collections(id, name, short_name)')
+          .select('id, collection_id, number, title, author, author_image, original_key, minor, collection:collections(id, name, short_name)')
           .order('number'),
-        supabase
-          .from('song_tags')
-          .select('song_id, tag_id')
-          .eq('pending_removal', false),
+        fetchAllSongTags(),
       ])
       if (songsRes.error) throw songsRes.error
-      if (tagsRes.error) throw tagsRes.error
 
       const tagMap = new Map<string, string[]>()
-      for (const { song_id, tag_id } of tagsRes.data) {
+      for (const { song_id, tag_id } of tagRows) {
         const arr = tagMap.get(song_id) ?? []
         arr.push(tag_id)
         tagMap.set(song_id, arr)

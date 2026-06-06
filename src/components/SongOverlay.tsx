@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, User, Undo2, X } from 'lucide-react'
-import { TagPill, CatBlock } from './ui'
+import { TagPill, CatBlock, Sheet } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
 import { useTagCategories, useTags, useServices, useAddServiceSong } from '../lib/queries'
@@ -39,10 +39,11 @@ export function SongOverlay() {
   const [shakeTagId, setShakeTagId] = useState<string | null>(null)
   const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
   const [photoFull, setPhotoFull] = useState(false)
+  const [tagSheetOpen, setTagSheetOpen] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
   const sheetBodyRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { setSvcStatus(null) }, [songId])
+  useEffect(() => { setSvcStatus(null); setTagSheetOpen(false) }, [songId])
 
   useEffect(() => {
     if (!songId) return
@@ -92,8 +93,9 @@ export function SongOverlay() {
       sheet.style.transform = ''
       sheet.style.transition = ''
     }
-    // closeSong is stable (memoized in context) — rebind only when the song changes.
-  }, [songId])
+    // closeSong is stable (memoized in context) — rebind when song changes or when
+    // song first loads (sheet may not exist yet on first render if data was not cached).
+  }, [songId, !!song])
 
   if (!songId || !song) return null
 
@@ -239,19 +241,30 @@ export function SongOverlay() {
             </div>
           )}
 
-          {/* tag categories */}
-          <div style={{ marginTop: 20 }}>
-            <div className="t-label" style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-              <Pencil size={13} strokeWidth={1.7} /> Edytuj tagi wg kategorii
+          {/* tag editor button */}
+          <div style={{ marginTop: selectedTags.length > 0 ? 14 : 20 }}>
+            <button
+              className="btn btn-ghost btn-block"
+              style={{ justifyContent: 'flex-start', gap: 8 }}
+              onClick={() => setTagSheetOpen(true)}
+            >
+              <Pencil size={15} strokeWidth={1.7} /> Edytuj tagi
+            </button>
+          </div>
+
+          {/* tag editor sheet */}
+          <Sheet open={tagSheetOpen} onClose={() => setTagSheetOpen(false)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <h2 className="t-title" style={{ fontSize: 20, margin: 0, flex: 1 }}>{song.title}</h2>
             </div>
             {tagCategories.map(cat => {
               const catTags = allTags.filter(t => t.category_id === cat.id)
               const activeTagIds = new Set(song.song_tags.filter(st => !st.pending_removal).map(st => st.tag_id))
               const locked = !cat.user_editable
-              const count = catTags.filter(t => activeTagIds.has(t.id)).length
+              const selectedCount = catTags.filter(t => activeTagIds.has(t.id)).length
 
               return (
-                <CatBlock key={cat.id} name={cat.name} count={count} locked={locked}
+                <CatBlock key={cat.id} name={cat.name} selectedCount={selectedCount} locked={locked}
                   defaultOpen={false}>
                   {catTags.map(tag => {
                     const st = song.song_tags.find(s => s.tag_id === tag.id)
@@ -305,7 +318,7 @@ export function SongOverlay() {
                 </CatBlock>
               )
             })}
-          </div>
+          </Sheet>
 
           {/* singing history */}
           <div style={{ marginTop: 22 }}>

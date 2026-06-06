@@ -13,6 +13,7 @@ export function useServices(locationId?: string) {
         .from('services')
         .select('id, date, notes, location_id, category_id, worship_leader_id, location:locations(id, name), category:service_categories(id, name), leader:worship_leaders(id, name)')
         .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
       if (locationId) q = q.eq('location_id', locationId)
       const { data, error } = await q
       if (error) throw error
