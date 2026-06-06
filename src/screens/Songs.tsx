@@ -5,6 +5,7 @@ import { useLongPress } from '../hooks/useLongPress'
 import { useAllSongsForSearch } from '../lib/queries/songs'
 import { useCollections, useTags, useTagCategories } from '../lib/queries'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
+import { collectionClass } from '../lib/utils'
 
 const LS_COLS = 'ss-songs-cols'
 const LS_INC  = 'ss-songs-inc'
@@ -186,7 +187,7 @@ export function Songs() {
             {collections.map(c => (
               <button
                 key={c.id}
-                className={`tag${selColIds.has(c.id) ? ' include' : ''}`}
+                className={`tag ${collectionClass(c.short_name)}${selColIds.has(c.id) ? ' on' : ''}`}
                 onClick={() => toggleCol(c.id)}
               >
                 {c.short_name}
