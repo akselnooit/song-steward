@@ -51,8 +51,8 @@
   --text: oklch(0.26 0.012 70); --text-2: oklch(0.47 0.011 70); --text-3: oklch(0.63 0.009 70);
   --accent: oklch(0.55 0.072 156); --accent-press: oklch(0.48 0.072 156);
   --accent-soft: oklch(0.93 0.035 156); --accent-bd: oklch(0.83 0.05 156); --accent-contrast: oklch(0.99 0.01 156);
-  --glass-bg: color-mix(in oklch, var(--surface) 66%, transparent);
-  --glass-capsule: color-mix(in oklch, var(--surface) 94%, transparent);
+  --glass-bg: color-mix(in oklch, var(--surface) 52%, transparent);
+  --glass-capsule: color-mix(in oklch, var(--surface) 90%, transparent);
   --glass-rim: rgba(255, 255, 255, 0.65);
   --glass-sheen: rgba(255, 255, 255, 0.5);
 }
@@ -63,8 +63,8 @@
   --text: oklch(0.95 0.006 95); --text-2: oklch(0.75 0.008 95); --text-3: oklch(0.58 0.008 95);
   --accent: oklch(0.74 0.08 156); --accent-press: oklch(0.68 0.08 156);
   --accent-soft: oklch(0.32 0.04 156); --accent-bd: oklch(0.42 0.05 156); --accent-contrast: oklch(0.17 0.02 156);
-  --glass-bg: color-mix(in oklch, var(--surface) 55%, transparent);
-  --glass-capsule: color-mix(in oklch, var(--surface) 92%, transparent);
+  --glass-bg: color-mix(in oklch, var(--surface) 42%, transparent);
+  --glass-capsule: color-mix(in oklch, var(--surface) 88%, transparent);
   --glass-rim: rgba(255, 255, 255, 0.14);
   --glass-sheen: rgba(255, 255, 255, 0.13);
 }
@@ -175,8 +175,6 @@ html, body, #root {
 }
 .tab span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em; }
 .tab.active { color: var(--accent); }
-.tab.active .tab-dot { opacity: 1; }
-.tab-dot { position: absolute; top: 7px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .tab-capsule { transition: none; }

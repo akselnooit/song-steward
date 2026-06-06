@@ -23,7 +23,6 @@ export function TabBar() {
           end={end}
           className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
         >
-          <div className="tab-dot" />
           <Icon size={22} strokeWidth={1.7} />
           <span>{label}</span>
         </NavLink>
