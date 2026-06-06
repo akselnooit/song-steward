@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Music, Search, CalendarDays } from 'lucide-react'
+import { Home, Music, CalendarDays } from 'lucide-react'
 
 const tabs = [
   { to: '/', label: 'Pulpit', Icon: Home },
   { to: '/songs', label: 'Pieśni', Icon: Music },
-  { to: '/search', label: 'Szukaj', Icon: Search },
   { to: '/services', label: 'Nabożeństwa', Icon: CalendarDays },
 ]
 

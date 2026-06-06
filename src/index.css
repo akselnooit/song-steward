@@ -173,6 +173,8 @@ html, body, #root {
 .field:focus { border-color: var(--accent-bd); background: var(--surface); }
 .field-wrap { position: relative; }
 .field-wrap .field-ico { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+.field-ico-right { position: absolute; right: 0; top: 0; bottom: 0; width: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-3); background: none; border: none; cursor: pointer; }
+.field-has-right { padding-right: 44px; }
 
 .badge-col {
   font-family: var(--font-mono); font-weight: 600; font-size: 11px; letter-spacing: 0.02em;
@@ -213,12 +215,10 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 }
 .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-card); }
 
-.song-card { display: flex; align-items: center; gap: 13px; padding: 13px 14px; }
+.song-card { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
 .song-card .meta { flex: 1; min-width: 0; }
 .song-card .title { font-family: var(--font-title); font-weight: var(--title-weight); font-size: 16px; color: var(--text); line-height: 1.2; }
-.song-card .author { color: var(--text-3); font-size: 13px; margin-top: 3px; display: flex; align-items: center; gap: 6px; }
-.avatar { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; overflow: hidden; }
-.avatar svg { opacity: 0.5; }
+.song-card .author { color: var(--text-3); font-size: 13px; margin-top: 2px; }
 .song-card .key { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
 
 .list-rows > * + * { border-top: 1px solid var(--border); }

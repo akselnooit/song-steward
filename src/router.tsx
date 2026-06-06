@@ -1,9 +1,8 @@
-import { createHashRouter } from 'react-router-dom'
+import { createHashRouter, Navigate } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Dashboard } from './screens/Dashboard'
 import { Songs } from './screens/Songs'
-import { Search } from './screens/Search'
 import { Services } from './screens/Services'
 import { Login } from './screens/Login'
 import { Live } from './screens/Live'
@@ -21,7 +20,7 @@ export const router = createHashRouter([
         children: [
           { index: true, element: <Dashboard /> },
           { path: 'songs', element: <Songs /> },
-          { path: 'search', element: <Search /> },
+          { path: 'search', element: <Navigate to="/songs" replace /> },
           { path: 'services', element: <Services /> },
         ],
       },
