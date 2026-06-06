@@ -51,6 +51,10 @@
   --text: oklch(0.26 0.012 70); --text-2: oklch(0.47 0.011 70); --text-3: oklch(0.63 0.009 70);
   --accent: oklch(0.55 0.072 156); --accent-press: oklch(0.48 0.072 156);
   --accent-soft: oklch(0.93 0.035 156); --accent-bd: oklch(0.83 0.05 156); --accent-contrast: oklch(0.99 0.01 156);
+  --glass-bg: color-mix(in oklch, var(--surface) 52%, transparent);
+  --glass-capsule: color-mix(in oklch, var(--surface) 90%, transparent);
+  --glass-rim: rgba(255, 255, 255, 0.65);
+  --glass-sheen: rgba(255, 255, 255, 0.5);
 }
 [data-style="reverent"][data-theme="dark"] {
   --bg: oklch(0.185 0.008 150); --bg-2: oklch(0.155 0.008 150);
@@ -59,6 +63,10 @@
   --text: oklch(0.95 0.006 95); --text-2: oklch(0.75 0.008 95); --text-3: oklch(0.58 0.008 95);
   --accent: oklch(0.74 0.08 156); --accent-press: oklch(0.68 0.08 156);
   --accent-soft: oklch(0.32 0.04 156); --accent-bd: oklch(0.42 0.05 156); --accent-contrast: oklch(0.17 0.02 156);
+  --glass-bg: color-mix(in oklch, var(--surface) 42%, transparent);
+  --glass-capsule: color-mix(in oklch, var(--surface) 88%, transparent);
+  --glass-rim: rgba(255, 255, 255, 0.14);
+  --glass-sheen: rgba(255, 255, 255, 0.13);
 }
 
 /* ============================================================
@@ -122,27 +130,62 @@ html, body, #root {
 @keyframes sectionpulse { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
 .section-highlight { animation: sectionpulse 2s ease-out forwards; border-radius: var(--r-md); padding: 6px; margin: -6px; }
 
-/* ---------- bottom nav ---------- */
+/* ---------- bottom nav — liquid glass ---------- */
 .tabbar {
   position: absolute; left: 10px; right: 10px; bottom: 8px;
-  height: 62px; border-radius: var(--r-lg);
-  background: color-mix(in oklch, var(--surface) 94%, transparent);
-  backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+  height: 62px; border-radius: var(--r-lg); padding: 6px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 var(--glass-rim),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
   display: flex; align-items: stretch; justify-content: space-around;
   z-index: 30;
   text-decoration: none;
+  overflow: hidden; isolation: isolate;
+}
+/* one-time sheen sweep on appearance; static specular (rim) remains */
+.tabbar::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(100deg, transparent 35%, var(--glass-sheen) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: tabbar-sheen 1100ms cubic-bezier(0.3, 0.6, 0.3, 1) 250ms 1 forwards;
+}
+@keyframes tabbar-sheen {
+  from { transform: translateX(-130%); }
+  to   { transform: translateX(130%); }
+}
+/* floating glass capsule behind the active tab */
+.tab-capsule {
+  position: absolute; top: 6px; bottom: 6px; left: 6px; z-index: 0;
+  width: calc((100% - 12px) / 3);
+  border-radius: var(--r-md);
+  background: var(--glass-capsule);
+  box-shadow: inset 0 1px 0 var(--glass-rim), inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+  transform: translateX(calc(var(--active, 0) * 100%));
+  transition: transform 320ms cubic-bezier(0.4, 0.8, 0.3, 1);
 }
 .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  cursor: pointer; color: var(--text-3); position: relative;
+  cursor: pointer; color: var(--text-3); position: relative; z-index: 1;
   text-decoration: none;
 }
 .tab span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em; }
 .tab.active { color: var(--accent); }
-.tab.active .tab-dot { opacity: 1; }
-.tab-dot { position: absolute; top: 7px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-capsule { transition: none; }
+  .tabbar::after { animation: none; opacity: 0; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tabbar { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar { background: var(--surface); }
+}
 
 /* ============================================================
    PRIMITIVES
