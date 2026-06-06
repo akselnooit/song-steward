@@ -32,14 +32,10 @@ function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
   rank?: number; collectionShortName: string; number: number; title: string; count?: number; onClick?: () => void
 }) {
   return (
-    <div className="song-card" style={{ cursor: 'pointer', padding: '11px 4px' }} onClick={onClick}>
+    <div className="song-card" style={{ cursor: 'pointer', padding: '13px 4px' }} onClick={onClick}>
       {rank != null && <span className="rank">{rank}</span>}
-      <div className="meta">
-        <div className="title" style={{ fontSize: 15 }}>{title}</div>
-        <div className="author">
-          <span className={`badge-col ${collectionClass(collectionShortName)}`} style={{ fontSize: 10 }}>{collectionShortName} {number}</span>
-        </div>
-      </div>
+      <span className={`badge-col ${collectionClass(collectionShortName)}`} style={{ fontSize: 10, flexShrink: 0 }}>{collectionShortName} {number}</span>
+      <div className="title" style={{ fontSize: 15, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
       {count != null && <span className="count-x">{count}×</span>}
     </div>
   )
