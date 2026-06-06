@@ -57,6 +57,18 @@ export function Songs() {
   const [openCatId, setOpenCatId] = useState<string | null>(null)
 
   const screenRef = useRef<HTMLDivElement>(null)
+  const headRef = useRef<HTMLDivElement>(null)
+  const [headBottom, setHeadBottom] = useState(0)
+
+  useEffect(() => {
+    const el = headRef.current
+    if (!el) return
+    const update = () => setHeadBottom(el.getBoundingClientRect().bottom)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(LS_COLS, JSON.stringify([...selColIds]))
@@ -143,7 +155,7 @@ export function Songs() {
   return (
     <>
       <div className="screen" style={{ paddingTop: 0 }} ref={screenRef}>
-        <div className="sticky-head" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="sticky-head" ref={headRef} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
             <h1 className="t-title" style={{ fontSize: 26, margin: 0 }}>Pieśni</h1>
             <span className="count-line">
@@ -223,7 +235,7 @@ export function Songs() {
         </div>
 
         {filtered.length > SCRUBBER_THRESHOLD && (
-          <Scrubber songs={filtered} scrollRef={screenRef} />
+          <Scrubber songs={filtered} scrollRef={screenRef} topOffset={headBottom} />
         )}
       </div>
 
