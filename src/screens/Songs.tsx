@@ -10,8 +10,10 @@ export function Songs() {
   const [selectedColId, setSelectedColId] = useState('')
   const [q, setQ] = useState('')
 
-  const colId = selectedColId || collections[0]?.id || ''
-  const { data: songs = [] } = useSongs(colId)
+  const effectiveColId = selectedColId === 'all'
+    ? undefined
+    : (selectedColId || collections[0]?.id)
+  const { data: songs = [] } = useSongs(effectiveColId)
 
   const filtered = useMemo(() => {
     if (!q.trim()) return songs
@@ -46,12 +48,18 @@ export function Songs() {
           {collections.map(c => (
             <button
               key={c.id}
-              className={`tag${colId === c.id ? ' include' : ''}`}
-              onClick={() => { setSelectedColId(c.id); setQ('') }}
+              className={`tag${effectiveColId === c.id ? ' include' : ''}`}
+              onClick={() => setSelectedColId(c.id)}
             >
               {c.short_name}
             </button>
           ))}
+          <button
+            className={`tag${selectedColId === 'all' ? ' include' : ''}`}
+            onClick={() => setSelectedColId('all')}
+          >
+            Wszystkie
+          </button>
         </div>
       </div>
 
