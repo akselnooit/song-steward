@@ -363,7 +363,7 @@ export function Settings() {
                 const catTags = allTags.filter(t => t.category_id === cat.id)
                 const selectedCount = catTags.filter(t => incIds.includes(t.id) || excIds.includes(t.id)).length
                 return (
-                  <CatBlock key={cat.id} name={cat.name} count={catTags.length} selectedCount={selectedCount} defaultOpen={false}>
+                  <CatBlock key={cat.id} name={cat.name} selectedCount={selectedCount} defaultOpen={false}>
                     {catTags.map(tag => (
                       <StatTag
                         key={tag.id}

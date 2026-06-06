@@ -218,6 +218,7 @@ export function Live() {
   const [searchQ, setSearchQ] = useState('')
   const [editingNotes, setEditingNotes] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [confirmDupSungId, setConfirmDupSungId] = useState<string | null>(null)
   const [notes, setNotes] = useState(service?.notes ?? '')
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -238,6 +239,7 @@ export function Live() {
     () => serviceSongs.filter(ss => ss.status === 'sung').sort((a, b) => (a.song_order ?? 999) - (b.song_order ?? 999)),
     [serviceSongs]
   )
+  const sungReversed = useMemo(() => [...sung].reverse(), [sung])
 
   const searchResults = useMemo(() => {
     if (!searchQ.trim()) return []
@@ -249,16 +251,29 @@ export function Live() {
     ).slice(0, 4)
   }, [allSongs, searchQ])
 
-  const handleAddSong = async (songId: string, status: 'planned' | 'sung') => {
-    const maxOrder = planned.reduce((m, ss) => Math.max(m, ss.song_order ?? 0), -1)
+  const doAddSong = async (songId: string, status: 'planned' | 'sung') => {
+    const maxPlannedOrder = planned.reduce((m, ss) => Math.max(m, ss.song_order ?? 0), -1)
     await addServiceSong.mutateAsync({
       service_id: serviceId!,
       song_id: songId,
       status,
-      song_order: status === 'planned' ? maxOrder + 1 : null,
+      song_order: status === 'planned' ? maxPlannedOrder + 1 : sung.length,
     })
     setSearchQ('')
     showToast(status === 'sung' ? 'Dodano do zaśpiewanych' : 'Dodano do zaplanowanych')
+  }
+
+  const handleAddSong = async (songId: string, status: 'planned' | 'sung') => {
+    if (status === 'planned') {
+      if (planned.some(ss => ss.song.id === songId)) return
+      await doAddSong(songId, 'planned')
+    } else {
+      if (sung.some(ss => ss.song.id === songId)) {
+        setConfirmDupSungId(songId)
+        return
+      }
+      await doAddSong(songId, 'sung')
+    }
   }
 
   const handlePromote = async (ss: ServiceSongWithSong) => {
@@ -300,12 +315,14 @@ export function Live() {
   const handleSungDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIdx = sung.findIndex(ss => ss.id === active.id)
-    const newIdx = sung.findIndex(ss => ss.id === over.id)
-    const reordered = arrayMove(sung, oldIdx, newIdx)
+    const oldIdx = sungReversed.findIndex(ss => ss.id === active.id)
+    const newIdx = sungReversed.findIndex(ss => ss.id === over.id)
+    const reordered = arrayMove(sungReversed, oldIdx, newIdx)
+    // Visual bottom (highest index in reversed array) = song_order 0 = rank 1
     reordered.forEach((ss, i) => {
-      if (ss.song_order !== i) {
-        updateServiceSong.mutate({ id: ss.id, service_id: serviceId!, song_order: i })
+      const newOrder = reordered.length - 1 - i
+      if (ss.song_order !== newOrder) {
+        updateServiceSong.mutate({ id: ss.id, service_id: serviceId!, song_order: newOrder })
       }
     })
   }
@@ -369,6 +386,11 @@ export function Live() {
             onChange={e => setNotes(e.target.value)}
             onBlur={handleSaveNotes}
             onKeyDown={e => { if (e.key === 'Escape') handleSaveNotes() }}
+            onFocus={e => {
+              const el = e.currentTarget
+              el.selectionStart = el.selectionEnd = el.value.length
+              el.scrollIntoView({ block: 'end', behavior: 'smooth' })
+            }}
           />
         ) : (
           <div
@@ -456,12 +478,12 @@ export function Live() {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter}
             onDragStart={handleDragStart} onDragEnd={handleSungDragEnd}>
-            <SortableContext items={sung.map(ss => ss.id)} strategy={verticalListSortingStrategy}>
-              {sung.map((ss, i) => (
+            <SortableContext items={sungReversed.map(ss => ss.id)} strategy={verticalListSortingStrategy}>
+              {sungReversed.map((ss, i) => (
                 <SortableRow
                   key={ss.id}
                   ss={ss}
-                  rank={i + 1}
+                  rank={sung.length - i}
                   onOpen={() => openSong(ss.song.id, allSongIds)}
                   onRemove={() => handleRemove(ss)}
                 />
@@ -480,6 +502,24 @@ export function Live() {
       {service && (
         <EditServiceSheet service={service} open={editOpen} onClose={() => setEditOpen(false)} />
       )}
+
+      <Sheet open={confirmDupSungId !== null} onClose={() => setConfirmDupSungId(null)}>
+        <div className="t-title" style={{ fontSize: 18, marginBottom: 12 }}>Pieśń już zaśpiewana</div>
+        <div style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 24 }}>
+          Ta pieśń była już zaśpiewana podczas tego nabożeństwa. Czy dodać po raz drugi?
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-ghost btn-block" onClick={() => setConfirmDupSungId(null)}>
+            Anuluj
+          </button>
+          <button className="btn btn-primary btn-block" onClick={async () => {
+            if (confirmDupSungId) await doAddSong(confirmDupSungId, 'sung')
+            setConfirmDupSungId(null)
+          }}>
+            Dodaj mimo to
+          </button>
+        </div>
+      </Sheet>
     </div>
   )
 }
