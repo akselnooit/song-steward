@@ -40,10 +40,11 @@ export function SongOverlay() {
   const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
   const [photoFull, setPhotoFull] = useState(false)
   const [tagSheetOpen, setTagSheetOpen] = useState(false)
+  const [openTagCatId, setOpenTagCatId] = useState<string | null>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
   const sheetBodyRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { setSvcStatus(null); setTagSheetOpen(false) }, [songId])
+  useEffect(() => { setSvcStatus(null); setTagSheetOpen(false); setOpenTagCatId(null) }, [songId])
 
   useEffect(() => {
     if (!songId) return
@@ -253,7 +254,7 @@ export function SongOverlay() {
           </div>
 
           {/* tag editor sheet */}
-          <Sheet open={tagSheetOpen} onClose={() => setTagSheetOpen(false)}>
+          <Sheet open={tagSheetOpen} onClose={() => { setTagSheetOpen(false); setOpenTagCatId(null) }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <h2 className="t-title" style={{ fontSize: 20, margin: 0, flex: 1 }}>{song.title}</h2>
             </div>
@@ -265,7 +266,8 @@ export function SongOverlay() {
 
               return (
                 <CatBlock key={cat.id} name={cat.name} selectedCount={selectedCount} locked={locked}
-                  defaultOpen={false}>
+                  open={openTagCatId === cat.id}
+                  onToggle={() => setOpenTagCatId(id => id === cat.id ? null : cat.id)}>
                   {catTags.map(tag => {
                     const st = song.song_tags.find(s => s.tag_id === tag.id)
                     const isPendingRemoval = st?.pending_removal ?? false
