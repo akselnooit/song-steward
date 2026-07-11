@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays } from 'lucide-react'
+import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays, Dices } from 'lucide-react'
 import { collectionClass } from '../lib/utils'
 import { LocationChip } from '../components/ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
@@ -9,10 +9,21 @@ import { NewServiceSheet } from '../components/NewServiceSheet'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useStatsFilters } from '../hooks/useStatsFilters'
+import { useShake } from '../hooks/useShake'
 import {
   useServices, useServiceSongCounts, useTopSung, useNeverSung, usePendingTags, useLocations, useTags,
 } from '../lib/queries'
-import type { ServiceWithRefs } from '../lib/types'
+import type { ServiceWithRefs, NeverSungRow } from '../lib/types'
+
+// Losowa próbka n elementów (Fisher–Yates + slice). Math.random dozwolony w kodzie aplikacji.
+function sample<T>(arr: readonly T[], n: number): T[] {
+  const a = arr.slice()
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a.slice(0, n)
+}
 
 // ── helpers ─────────────────────────────────────────────────────
 
@@ -92,7 +103,20 @@ export function Dashboard() {
 
   const { data: services = [] } = useServices(locationId)
   const { data: topSung = [] } = useTopSung(statsFilters)
-  const { data: neverSung = [] } = useNeverSung(statsFilters)
+  // „Nigdy nieśpiewane": pobieramy większą pulę (kryteria/filtr bez zmian), a 5 pieśni
+  // losujemy po stronie klienta — nowa próbka przy każdym wejściu i przy potrząśnięciu.
+  const { data: neverSungPool } = useNeverSung(statsFilters, 1000)
+  const [neverSung, setNeverSung] = useState<NeverSungRow[]>([])
+  const rollNeverSung = useCallback(() => {
+    if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); navigator.vibrate?.(30) }
+  }, [neverSungPool])
+  // Nowa próbka gdy pula się załaduje/zmieni (np. po zmianie filtra) oraz przy każdym montażu.
+  useEffect(() => { if (neverSungPool) setNeverSung(sample(neverSungPool, 5)) }, [neverSungPool])
+  const shake = useShake(rollNeverSung)
+  const onDiceTap = () => {
+    rollNeverSung()                 // ręczne „wylosuj ponownie" — działa zawsze (fallback)
+    if (!shake.enabled) shake.enable() // pierwszy tap włącza też wykrywanie potrząśnięcia (zgoda iOS z gestu)
+  }
   const { data: pendingTags = [] } = usePendingTags()
   const { data: locations = [] } = useLocations()
   const { data: allTags = [] } = useTags()
@@ -234,6 +258,14 @@ export function Dashboard() {
             <Clock size={14} strokeWidth={1.7} />
             {'Nigdy nieśpiewane' + locSuffix}
           </div>
+          <button
+            className="link-btn"
+            onClick={onDiceTap}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            title={shake.enabled ? 'Losuj ponownie (lub potrząśnij telefonem)' : 'Losuj ponownie — dotknij, by włączyć potrząsanie'}
+          >
+            <Dices size={16} strokeWidth={1.7} /> Losuj
+          </button>
         </div>
         <div className="card list-rows" style={{ padding: '4px 14px' }}>
           {neverSung.length === 0
