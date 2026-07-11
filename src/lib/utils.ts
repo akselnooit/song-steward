@@ -36,7 +36,7 @@ export function collectionClass(shortName: string): string {
 
 // Stała kolejność kolekcji dla sortowania (tabela `collections` nie ma pola
 // porządkowego). DP pierwsze, KM drugie, potem pozostałe. Nieznane kolekcje na końcu.
-const COLLECTION_ORDER = ['DP', 'KM', 'SOS', 'NKM', 'NDP']
+const COLLECTION_ORDER = ['DP', 'KM', 'SOS', 'NDP', 'NKM']
 
 export function collectionRank(shortName: string): number {
   const i = COLLECTION_ORDER.indexOf(shortName.toUpperCase())
