@@ -259,6 +259,8 @@ export function SongOverlay() {
             <a
               className="btn btn-treasures btn-block"
               href={songTreasuresUrl(song.collection.short_name, song.number)}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{ justifyContent: 'flex-start', gap: 10 }}
             >
               <img
