@@ -334,7 +334,9 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 .mini-btn { width: 34px; height: 34px; border-radius: var(--r-sm); display: grid; place-items: center; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; flex-shrink: 0; }
 .mini-btn.good { color: var(--accent); border-color: var(--accent-bd); background: var(--accent-soft); }
 .mini-btn.bad:active { color: var(--danger); border-color: var(--danger-bd); }
-.saved-toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: var(--r-pill); z-index: 35; box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 7px; }
+/* position: fixed + wysoki z-index → toast nigdy nie chowa się pod arkuszem/overlayem
+   ani nie jest przycinany przez scroll-kontener .screen. */
+.saved-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: var(--r-pill); z-index: 50; box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 7px; }
 
 /* Baner „nowa wersja" — dyskretna pastylka na dole, nad TabBarem; pod sheetami (z<40). */
 .update-banner {
@@ -438,3 +440,20 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 
 .fin { animation: fin .3s ease; }
 @keyframes fin { from { transform: translateY(6px); } }
+
+/* Oznaczenie „zaśpiewane dziś" — subtelny akcentowy tint + pasek z lewej. Czytelne w obu motywach.
+   (.mark-planned zarezerwowane na przyszłe, subtelniejsze oznaczenie zaplanowanych.) */
+.song-card.mark-sung { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); border-radius: var(--r-md); }
+
+/* Pill „Zaśpiewana dziś" w overlayu pieśni. */
+.today-mark { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-bd); }
+
+/* Animacja awansu zaplanowana → zaśpiewana. Wiersz zaplanowanej „odlatuje", nowa
+   zaśpiewana „wskakuje" na szczyt. Respektuje prefers-reduced-motion. */
+.svc-song.leaving { animation: promoteOut .26s ease forwards; }
+.svc-song.drop-in { animation: dropIn .42s cubic-bezier(0.2, 0.7, 0.3, 1); }
+@keyframes promoteOut { to { opacity: 0; transform: translateY(10px) scale(0.98); } }
+@keyframes dropIn { 0% { opacity: 0; transform: translateY(-14px); } 60% { opacity: 1; } 100% { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .svc-song.leaving, .svc-song.drop-in { animation: none; }
+}

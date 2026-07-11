@@ -3,7 +3,7 @@ import { Search, Filter, X } from 'lucide-react'
 import { TagPill, SongCard, CatBlock, Sheet, Scrubber } from '../components/ui'
 import { useLongPress } from '../hooks/useLongPress'
 import { useAllSongsForSearch } from '../lib/queries/songs'
-import { useCollections, useTags, useTagCategories } from '../lib/queries'
+import { useCollections, useTags, useTagCategories, useTodayServiceSongIds } from '../lib/queries'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { collectionClass, compareSongs } from '../lib/utils'
 
@@ -49,6 +49,7 @@ export function Songs() {
   const { data: collections = [] } = useCollections()
   const { data: allTags = [] } = useTags()
   const { data: tagCategories = [] } = useTagCategories()
+  const todaySongs = useTodayServiceSongIds()
 
   const [q, setQ] = useState('')
   const [selColIds, setSelColIds] = useState<Set<string>>(() => readSet(LS_COLS))
@@ -227,6 +228,7 @@ export function Songs() {
                 author={s.author ?? ''}
                 songKey={s.original_key ?? undefined}
                 minor={s.minor ?? false}
+                mark={todaySongs.sung.has(s.id) ? 'sung' : undefined}
                 onClick={() => openSong(s.id, songIds)}
               />
             ))}

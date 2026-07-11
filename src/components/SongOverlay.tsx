@@ -5,7 +5,7 @@ import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRi
 import { TagPill, CatBlock, Sheet } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
-import { useTagCategories, useTags, useServices, useAddServiceSong, useServiceSongs } from '../lib/queries'
+import { useTagCategories, useTags, useServices, useAddServiceSong, useServiceSongs, useTodayServiceSongIds } from '../lib/queries'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { keyLabel, collectionClass, songTreasuresUrl } from '../lib/utils'
@@ -42,6 +42,7 @@ export function SongOverlay() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .find(s => s.date >= today)
   const { data: nearestServiceSongs = [] } = useServiceSongs(nearestService?.id ?? null)
+  const todaySongs = useTodayServiceSongIds()
 
   const [shakeTagId, setShakeTagId] = useState<string | null>(null)
   const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
@@ -112,6 +113,7 @@ export function SongOverlay() {
 
   const alreadyPlanned = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'planned')
   const alreadySung = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'sung')
+  const sungToday = todaySongs.sung.has(song.id)
 
   const currentTags = new Map(song.song_tags.map(st => [st.tag_id, st]))
 
@@ -138,7 +140,13 @@ export function SongOverlay() {
 
   const doAddToService = (status: 'planned' | 'sung') => {
     if (!nearestService) return
-    addServiceSong.mutate({ service_id: nearestService.id, song_id: song.id, status, song_order: null })
+    // Zaśpiewane: nadaj najwyższy song_order (max+1), żeby nowo zaśpiewana trafiła
+    // na szczyt listy. Nigdy null — null psuł kolejność (sortował się jako „na górze").
+    const maxSungOrder = nearestServiceSongs.reduce(
+      (m, ss) => ss.status === 'sung' ? Math.max(m, ss.song_order ?? -1) : m, -1,
+    )
+    const song_order = status === 'sung' ? maxSungOrder + 1 : null
+    addServiceSong.mutate({ service_id: nearestService.id, song_id: song.id, status, song_order })
     setSvcStatus(status)
   }
 
@@ -218,6 +226,11 @@ export function SongOverlay() {
             {song.original_key && (
               <div className="t-mono" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
                 {keyLabel(song.original_key, song.minor ?? false)}
+              </div>
+            )}
+            {sungToday && (
+              <div className="today-mark" style={{ marginTop: 10 }}>
+                <Check size={13} strokeWidth={2.2} /> Zaśpiewana dziś
               </div>
             )}
           </div>

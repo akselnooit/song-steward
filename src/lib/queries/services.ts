@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
+import { useLocationFilter } from '../../hooks/useLocationFilter'
 import { qk } from './keys'
 import type { ServiceWithRefs, ServiceSongWithSong, StatsFilters, TopSungRow, NeverSungRow } from '../types'
 import type { CreateServiceInput, UpdateServiceInput, AddServiceSongInput, UpdateServiceSongInput } from '../schemas'
@@ -127,6 +128,42 @@ export function useServiceSongCounts(serviceIds: string[]) {
   })
 }
 
+function todayStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Zbiory song_id zaśpiewanych/zaplanowanych w DZISIEJSZYCH nabożeństwach (wg globalnego
+// filtra lokalizacji) — do wizualnego oznaczania na liście i w overlayu. Gdy brak
+// nabożeństwa dziś → puste zbiory (żadnego oznaczenia). Zwracamy oba statusy, żeby
+// dołożenie oznaczenia dla ZAPLANOWANYCH było później trywialne (na razie używamy tylko sung).
+export function useTodayServiceSongIds() {
+  const [locationId] = useLocationFilter()
+  const { data: services = [] } = useServices(locationId)
+  const today = todayStr()
+  const todayIds = services.filter(s => s.date === today).map(s => s.id)
+  const query = useQuery({
+    queryKey: ['today-service-songs', [...todayIds].sort()],
+    enabled: todayIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('service_songs')
+        .select('song_id, status')
+        .in('service_id', todayIds)
+      if (error) throw error
+      const sung = new Set<string>()
+      const planned = new Set<string>()
+      for (const r of data as { song_id: string; status: 'planned' | 'sung' }[]) {
+        if (r.status === 'sung') sung.add(r.song_id)
+        else planned.add(r.song_id)
+      }
+      return { sung, planned }
+    },
+    staleTime: 0,
+  })
+  return query.data ?? { sung: new Set<string>(), planned: new Set<string>() }
+}
+
 export function useCreateService() {
   const qc = useQueryClient()
   return useMutation({
@@ -153,6 +190,7 @@ export function useAddServiceSong() {
     onSuccess: (_, { service_id }) => {
       qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
       qc.invalidateQueries({ queryKey: ['service-song-counts'] })
+      qc.invalidateQueries({ queryKey: ['today-service-songs'] })
     },
   })
 }
@@ -178,6 +216,7 @@ export function useUpdateServiceSong() {
     onSettled: (_, __, { service_id }) => {
       qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
       qc.invalidateQueries({ queryKey: ['service-song-counts'] })
+      qc.invalidateQueries({ queryKey: ['today-service-songs'] })
     },
   })
 }
@@ -203,6 +242,7 @@ export function useRemoveServiceSong() {
     onSettled: (_, __, { service_id }) => {
       qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
       qc.invalidateQueries({ queryKey: ['service-song-counts'] })
+      qc.invalidateQueries({ queryKey: ['today-service-songs'] })
     },
   })
 }
