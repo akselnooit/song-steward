@@ -182,7 +182,7 @@ export function SongOverlay() {
   return createPortal(
     <>
       <div className="scrim" onClick={closeSong} />
-      <div className="sheet" role="dialog" ref={sheetRef}>
+      <div className={`sheet${sungToday ? ' mark-sung' : plannedToday ? ' mark-planned' : ''}`} role="dialog" ref={sheetRef}>
         <div className="sheet-grab" />
 
         {canGoPrev && (
@@ -229,16 +229,6 @@ export function SongOverlay() {
                 {keyLabel(song.original_key, song.minor ?? false)}
               </div>
             )}
-            {sungToday && (
-              <div className="today-mark" style={{ marginTop: 10 }}>
-                <Check size={13} strokeWidth={2.2} /> Zaśpiewana dziś
-              </div>
-            )}
-            {plannedToday && (
-              <div className="today-mark planned" style={{ marginTop: 10 }}>
-                <Bookmark size={13} strokeWidth={2} /> Zaplanowana dziś
-              </div>
-            )}
           </div>
 
           {/* add to nearest service */}
@@ -261,8 +251,10 @@ export function SongOverlay() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn btn-ghost btn-block" onClick={() => handleAddToService('planned')}>
-                    <Bookmark size={18} strokeWidth={1.7} /> Zaplanuj
+                  {/* „Zaplanuj" zależy WYŁĄCZNIE od tego, czy pieśń jest już zaplanowana —
+                      zaśpiewanie NIE blokuje planowania. Zaplanować można maks. raz. */}
+                  <button className="btn btn-ghost btn-block" disabled={alreadyPlanned} onClick={() => handleAddToService('planned')}>
+                    <Bookmark size={18} strokeWidth={1.7} /> {alreadyPlanned ? 'Zaplanowana' : 'Zaplanuj'}
                   </button>
                   <button className="btn btn-primary btn-block" onClick={() => handleAddToService('sung')}>
                     <Check size={18} strokeWidth={1.7} /> Zaśpiewana
