@@ -8,7 +8,8 @@ import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRest
 import { useTagCategories, useTags, useServices, useAddServiceSong } from '../lib/queries'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useWakeLock } from '../hooks/useWakeLock'
-import { keyLabel, collectionClass } from '../lib/utils'
+import { keyLabel, collectionClass, songTreasuresUrl } from '../lib/utils'
+import songTreasuresIcon from '../assets/song-treasures-icon.png'
 
 
 function formatDatePL(dateStr: string) {
@@ -251,6 +252,27 @@ export function SongOverlay() {
             >
               <Pencil size={15} strokeWidth={1.7} /> Edytuj tagi
             </button>
+          </div>
+
+          {/* open in Song Treasures — universal/app link otwiera natywną apkę na telefonie */}
+          <div style={{ marginTop: 10 }}>
+            <a
+              className="btn btn-treasures btn-block"
+              href={songTreasuresUrl(song.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ justifyContent: 'flex-start', gap: 10 }}
+            >
+              <img
+                src={songTreasuresIcon}
+                alt=""
+                aria-hidden="true"
+                width={22}
+                height={22}
+                style={{ borderRadius: 5, flexShrink: 0 }}
+              />
+              Otwórz w Song Treasures
+            </a>
           </div>
 
           {/* tag editor sheet */}
