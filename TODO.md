@@ -11,10 +11,13 @@
 - **Link do SongTreasures** — W SongOverlay dodać przycisk/link otwierający daną pieśń bezpośrednio w aplikacji SongTreasures. Sprawdzić czy ST obsługuje deep linki lub stabilne URL-e oparte na `author_id`/numerze pieśni.
 - **Tempo i styl gry** — Dwa nowe pola na pieśni: `bpm INTEGER` (tempo metronomu) oraz `play_style TEXT` z dwiema wartościami: "swing" lub "straight". Wprowadzane ręcznie, wyświetlane w SongOverlay obok tonacji. Cel: lider widzi jednym rzutem oka charakter wykonania i może dbać o spójność zestawu.
 - **Detekcja tempa na żywo** — Aplikacja nasłuchuje przez mikrofon i wykrywa aktualne BPM granej pieśni w czasie rzeczywistym. Porównuje je z docelowym BPM zapisanym dla pieśni i pokazuje czy gramy za szybko, za wolno czy w dobrym tempie. Wymaga Web Audio API + algorytmu detekcji rytmu (np. beat detection przez analizę energii częstotliwości).
+- **Tryb wykonania (śpiewania) pieśni** — Osobny, pełnoekranowy tryb prezentacji pojedynczej pieśni do faktycznego śpiewania/prowadzenia na scenie: duży, czytelny tekst pieśni z przewijaniem, dobrze widoczny w półmroku. Wymaga tekstów pieśni w bazie (nowe pole `lyrics TEXT` w `songs` lub osobna tabela wersów). Powiązane z „Tekst z akordami" — najpierw trzeba pozyskać teksty. Cel: prowadzący i zespół widzą słowa w trakcie wykonania bez sięgania po inne źródło.
 
 ## Wyszukiwanie
 
 - **Zapamiętywanie ostatnio wybranych tagów** — Zapisywać (np. w `localStorage`) ostatnio używane tagi w wyszukiwarce, żeby po powrocie do widoku wyszukiwania domyślnie podpowiadać te tagi lub łatwo je przywrócić jednym kliknięciem.
+- **Opisy tagów** — Wyświetlać (i umożliwić edycję) opis znaczenia każdego tagu, żeby było jasne, co dany tag oznacza i kiedy go użyć. Tabela `tags` ma już pole `description` — wystarczy pokazać je w UI (np. w edytorze tagów w Ustawieniach oraz przy pieśni) i pozwolić edytować. Cel: spójne tagowanie między liderami.
+- **Oznaczenie na liście pieśni: śpiewana kiedykolwiek w tej lokalizacji** — Na liście wszystkich pieśni pokazywać, które pieśni były już kiedykolwiek zaśpiewane w wybranej lokalizacji (wg globalnego filtra lokalizacji), a które nigdy. Cel: szybkie wybieranie pieśni jeszcze nieśpiewanych w danym zborze. Uwaga: różni się od dzisiejszego oznaczenia „zaśpiewane dziś" — tu chodzi o całą historię lokalizacji, nie o bieżące nabożeństwo.
 ## Nabożeństwa
 
 - **Oznaczenie, że pieśń już jest w nabożeństwie** — Gdy pieśń jest już dodana do aktywnego nabożeństwa i otworzymy ją w SongOverlay, przyciski "Zaplanuj" i "Zaśpiewana" są widoczne, ale nie ma żadnej informacji, że pieśń już figuruje na liście. Dodać wyraźny komunikat lub zmienić wygląd przycisków, żeby wskazywały aktualny status pieśni w nabożeństwie.
