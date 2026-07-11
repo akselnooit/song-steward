@@ -336,6 +336,29 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 .mini-btn.bad:active { color: var(--danger); border-color: var(--danger-bd); }
 .saved-toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: var(--r-pill); z-index: 35; box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 7px; }
 
+/* Baner „nowa wersja" — dyskretna pastylka na dole, nad TabBarem; pod sheetami (z<40). */
+.update-banner {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 39;
+  display: flex; align-items: center; gap: 9px;
+  max-width: calc(100vw - 32px);
+  padding: 6px 6px 6px 15px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); box-shadow: var(--shadow-pop);
+  font-size: 13.5px; font-weight: 600;
+  animation: banner-in 0.28s ease both;
+}
+.update-banner > svg { color: var(--accent); flex-shrink: 0; }
+.update-banner button {
+  background: var(--accent); color: var(--accent-contrast); border: none;
+  border-radius: var(--r-pill); padding: 0 18px; min-height: 48px;
+  font-family: var(--font-body); font-weight: 700; font-size: 13.5px;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.update-banner button:active { transform: scale(0.97); }
+@keyframes banner-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .update-banner { animation: none; } }
+
 .hint { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
 
 .theme-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
