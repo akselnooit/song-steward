@@ -228,7 +228,7 @@ export function Songs() {
                 author={s.author ?? ''}
                 songKey={s.original_key ?? undefined}
                 minor={s.minor ?? false}
-                mark={todaySongs.sung.has(s.id) ? 'sung' : undefined}
+                mark={todaySongs.sung.has(s.id) ? 'sung' : todaySongs.planned.has(s.id) ? 'planned' : undefined}
                 onClick={() => openSong(s.id, songIds)}
               />
             ))}
