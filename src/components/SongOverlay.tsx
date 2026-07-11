@@ -114,6 +114,7 @@ export function SongOverlay() {
   const alreadyPlanned = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'planned')
   const alreadySung = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'sung')
   const sungToday = todaySongs.sung.has(song.id)
+  const plannedToday = !sungToday && todaySongs.planned.has(song.id) // sung ma priorytet
 
   const currentTags = new Map(song.song_tags.map(st => [st.tag_id, st]))
 
@@ -231,6 +232,11 @@ export function SongOverlay() {
             {sungToday && (
               <div className="today-mark" style={{ marginTop: 10 }}>
                 <Check size={13} strokeWidth={2.2} /> Zaśpiewana dziś
+              </div>
+            )}
+            {plannedToday && (
+              <div className="today-mark planned" style={{ marginTop: 10 }}>
+                <Bookmark size={13} strokeWidth={2} /> Zaplanowana dziś
               </div>
             )}
           </div>
