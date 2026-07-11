@@ -10,7 +10,7 @@ import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useStatsFilters } from '../hooks/useStatsFilters'
 import {
-  useServices, useTopSung, useNeverSung, usePendingTags, useLocations, useTags,
+  useServices, useServiceSongCounts, useTopSung, useNeverSung, usePendingTags, useLocations, useTags,
 } from '../lib/queries'
 import type { ServiceWithRefs } from '../lib/types'
 
@@ -102,6 +102,10 @@ export function Dashboard() {
   const featured = upcoming[0]
   const isToday = featured?.date === today
 
+  const upcomingIds = useMemo(() => upcoming.map(s => s.id), [upcoming])
+  const { data: songCounts = {} } = useServiceSongCounts(upcomingIds)
+  const countFor = (id: string) => songCounts[id] ?? { sung: 0, planned: 0 }
+
   // Karuzel nadchodzących nabożeństw (gdy ≥2). Kropki pokazują aktywną kartę.
   const carouselRef = useRef<HTMLDivElement>(null)
   const [activeIdx, setActiveIdx] = useState(0)
@@ -159,7 +163,7 @@ export function Dashboard() {
                   key={s.id}
                   service={s}
                   isToday={s.date === today}
-                  songCount={{ sung: 0, planned: 0 }}
+                  songCount={countFor(s.id)}
                   onOpen={() => navigate(`/live/${s.id}`, { state: { navServiceIds: upcoming.map(u => u.id) } })}
                 />
               ))}
@@ -174,7 +178,7 @@ export function Dashboard() {
           <TodayCard
             service={featured}
             isToday={isToday}
-            songCount={{ sung: 0, planned: 0 }}
+            songCount={countFor(featured.id)}
             onOpen={() => navigate(`/live/${featured.id}`)}
           />
         ) : (

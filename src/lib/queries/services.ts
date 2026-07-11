@@ -100,6 +100,33 @@ export function useServiceSongs(serviceId: string | null) {
   })
 }
 
+// Liczniki pieśni (zaśpiewane/zaplanowane) dla zestawu nabożeństw — na kafelki
+// strony głównej. staleTime 0 + inwalidacja w mutacjach service_songs zapewniają,
+// że po dodaniu pieśni z dowolnego miejsca liczby są aktualne po powrocie.
+export function useServiceSongCounts(serviceIds: string[]) {
+  return useQuery({
+    queryKey: qk.serviceSongCounts(serviceIds),
+    enabled: serviceIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('service_songs')
+        .select('service_id, status')
+        .in('service_id', serviceIds)
+      if (error) throw error
+      const counts: Record<string, { sung: number; planned: number }> = {}
+      for (const id of serviceIds) counts[id] = { sung: 0, planned: 0 }
+      for (const r of data as { service_id: string; status: 'planned' | 'sung' }[]) {
+        const c = counts[r.service_id]
+        if (!c) continue
+        if (r.status === 'sung') c.sung++
+        else c.planned++
+      }
+      return counts
+    },
+    staleTime: 0,
+  })
+}
+
 export function useCreateService() {
   const qc = useQueryClient()
   return useMutation({
@@ -125,6 +152,7 @@ export function useAddServiceSong() {
     },
     onSuccess: (_, { service_id }) => {
       qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
+      qc.invalidateQueries({ queryKey: ['service-song-counts'] })
     },
   })
 }
@@ -149,6 +177,7 @@ export function useUpdateServiceSong() {
     },
     onSettled: (_, __, { service_id }) => {
       qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
+      qc.invalidateQueries({ queryKey: ['service-song-counts'] })
     },
   })
 }
@@ -173,6 +202,7 @@ export function useRemoveServiceSong() {
     },
     onSettled: (_, __, { service_id }) => {
       qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
+      qc.invalidateQueries({ queryKey: ['service-song-counts'] })
     },
   })
 }
