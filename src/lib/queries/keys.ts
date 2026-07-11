@@ -11,6 +11,7 @@ export const qk = {
   songDetail: (songId: string) => ['song', songId] as const,
   services: (locationId?: string) => ['services', locationId ?? 'all'] as const,
   serviceSongs: (serviceId: string) => ['service-songs', serviceId] as const,
+  serviceSongCounts: (ids: string[]) => ['service-song-counts', [...ids].sort()] as const,
   topSung: (f: StatsFilters) => ['top-sung', f] as const,
   neverSung: (f: StatsFilters) => ['never-sung', f] as const,
   pendingTags: () => ['pending-tags'] as const,
