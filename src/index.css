@@ -206,6 +206,9 @@ html, body, #root {
 .btn-primary { background: var(--accent); color: var(--accent-contrast); }
 .btn-primary:active { background: var(--accent-press); }
 .btn-ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+/* Song Treasures — kolor marki #CAA970 (złoto). Tint + złota ramka, tekst czytelny w obu motywach. */
+.btn-treasures { background: rgba(202, 169, 112, 0.12); color: var(--text); border-color: rgba(202, 169, 112, 0.55); }
+.btn-treasures:active { background: rgba(202, 169, 112, 0.20); }
 .btn-block { width: 100%; }
 
 .field {

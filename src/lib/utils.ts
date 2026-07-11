@@ -2,6 +2,13 @@ export function keyLabel(key: string, minor: boolean): string {
   return minor ? `${key.toLowerCase()}-moll` : `${key} dur`
 }
 
+// Song Steward song.id == SongTreasures song id (import zachowuje oryginalne id —
+// patrz data/import-songs.mjs). /songs/* to zarejestrowany universal/app link,
+// więc na telefonie otwiera natywną apkę SongTreasures (fallback: przeglądarka).
+export function songTreasuresUrl(songId: string): string {
+  return `https://songtreasures.app/songs/${songId}`
+}
+
 // "Jan Paweł Nowak" → "J. P. Nowak"; "Anonim" → "Anonim".
 // Skraca wszystkie człony prócz ostatniego (nazwiska) do inicjału z kropką.
 export function shortAuthor(author: string): string {
