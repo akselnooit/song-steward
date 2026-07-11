@@ -2,11 +2,13 @@ export function keyLabel(key: string, minor: boolean): string {
   return minor ? `${key.toLowerCase()}-moll` : `${key} dur`
 }
 
-// Song Steward song.id == SongTreasures song id (import zachowuje oryginalne id —
-// patrz data/import-songs.mjs). /songs/* to zarejestrowany universal/app link,
-// więc na telefonie otwiera natywną apkę SongTreasures (fallback: przeglądarka).
-export function songTreasuresUrl(songId: string): string {
-  return `https://songtreasures.app/songs/${songId}`
+// Kanoniczna trasa pieśni w SongTreasures to /songs/{KLUCZ_ZBIORU}/{NUMER}
+// (np. /songs/DP/1), a NIE /songs/{uuid} — uuid renderuje pustą stronę i apka
+// się zamyka. Klucz = collections.short_name (DP/KM/SOS/NKM/NDP), numer =
+// songs.number. /songs/* jest w AASA, więc link otwiera natywną apkę na telefonie
+// (fallback: przeglądarka).
+export function songTreasuresUrl(collectionKey: string, number: number): string {
+  return `https://songtreasures.app/songs/${collectionKey}/${number}`
 }
 
 // "Jan Paweł Nowak" → "J. P. Nowak"; "Anonim" → "Anonim".
