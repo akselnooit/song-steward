@@ -473,13 +473,6 @@ export function Live() {
               ))}
             </div>
           )}
-          <button
-            className="btn btn-ghost btn-block"
-            style={{ marginTop: 10 }}
-            onClick={() => navigate('/search')}
-          >
-            <Tag size={17} strokeWidth={1.7} /> Szukaj po tagach
-          </button>
         </div>
 
         {/* planned */}

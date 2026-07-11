@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, User, Undo2, X } from 'lucide-react'
+import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, ChevronDown, User, Undo2, X } from 'lucide-react'
 import { TagPill, CatBlock, Sheet } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
@@ -36,14 +36,10 @@ export function SongOverlay() {
   const removeSongTag = useRemoveSongTag()
   const restoreSongTag = useRestoreSongTag()
   const addServiceSong = useAddServiceSong()
-
-  const today = todayStr()
-  const nearestService = [...services]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .find(s => s.date >= today)
-  const { data: nearestServiceSongs = [] } = useServiceSongs(nearestService?.id ?? null)
   const todaySongs = useTodayServiceSongIds()
 
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+  const [serviceSheetOpen, setServiceSheetOpen] = useState(false)
   const [shakeTagId, setShakeTagId] = useState<string | null>(null)
   const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
   const [confirmSung, setConfirmSung] = useState(false)
@@ -55,7 +51,18 @@ export function SongOverlay() {
   const sheetBodyRef = useRef<HTMLDivElement>(null)
   const dupTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => { setSvcStatus(null); setConfirmSung(false); setDupMsg(null); setTagSheetOpen(false); setOpenTagCatId(null) }, [songId])
+  // Kandydujące nabożeństwa = nadchodzące (wg globalnego filtra lokalizacji: useServices
+  // już filtruje). Domyślny cel = najbliższe; przy >1 użytkownik może wybrać inne.
+  const today = todayStr()
+  const upcomingServices = [...services]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter(s => s.date >= today)
+  const selectedService = upcomingServices.find(s => s.id === selectedServiceId) ?? upcomingServices[0]
+  const { data: selectedServiceSongs = [] } = useServiceSongs(selectedService?.id ?? null)
+
+  // Nowa pieśń → reset do najbliższego; zmiana celu → reset potwierdzeń/komunikatów.
+  useEffect(() => { setSelectedServiceId(null); setSvcStatus(null); setConfirmSung(false); setDupMsg(null); setTagSheetOpen(false); setOpenTagCatId(null); setServiceSheetOpen(false) }, [songId])
+  useEffect(() => { setSvcStatus(null); setDupMsg(null) }, [selectedServiceId])
 
   useEffect(() => {
     if (!songId) return
@@ -111,8 +118,8 @@ export function SongOverlay() {
 
   if (!songId || !song) return null
 
-  const alreadyPlanned = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'planned')
-  const alreadySung = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'sung')
+  const alreadyPlanned = selectedServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'planned')
+  const alreadySung = selectedServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'sung')
   const sungToday = todaySongs.sung.has(song.id)
   const plannedToday = !sungToday && todaySongs.planned.has(song.id) // sung ma priorytet
 
@@ -140,14 +147,14 @@ export function SongOverlay() {
   }
 
   const doAddToService = (status: 'planned' | 'sung') => {
-    if (!nearestService) return
+    if (!selectedService) return
     // Zaśpiewane: nadaj najwyższy song_order (max+1), żeby nowo zaśpiewana trafiła
     // na szczyt listy. Nigdy null — null psuł kolejność (sortował się jako „na górze").
-    const maxSungOrder = nearestServiceSongs.reduce(
+    const maxSungOrder = selectedServiceSongs.reduce(
       (m, ss) => ss.status === 'sung' ? Math.max(m, ss.song_order ?? -1) : m, -1,
     )
     const song_order = status === 'sung' ? maxSungOrder + 1 : null
-    addServiceSong.mutate({ service_id: nearestService.id, song_id: song.id, status, song_order })
+    addServiceSong.mutate({ service_id: selectedService.id, song_id: song.id, status, song_order })
     setSvcStatus(status)
   }
 
@@ -159,7 +166,7 @@ export function SongOverlay() {
   }
 
   const handleAddToService = (status: 'planned' | 'sung') => {
-    if (!nearestService) return
+    if (!selectedService) return
     if (status === 'planned') {
       // Zaplanowane: całkowicie blokuj duplikat (bez pytania).
       if (alreadyPlanned) { showDup('Ta pieśń jest już zaplanowana'); return }
@@ -231,19 +238,35 @@ export function SongOverlay() {
             )}
           </div>
 
-          {/* add to nearest service */}
-          {nearestService && (
+          {/* add to a chosen upcoming service (default: nearest) */}
+          {selectedService && (
             <div className="card" style={{ padding: 14, marginTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 11 }}>
-                <span className="t-label" style={{ flex: 1 }}>Najbliższe nabożeństwo</span>
-                {nearestService.date === today && (
+                <span className="t-label" style={{ flex: 1 }}>
+                  {upcomingServices.length > 1 ? 'Nabożeństwo' : 'Najbliższe nabożeństwo'}
+                </span>
+                {selectedService.date === today && (
                   <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--r-pill)' }}>DZIŚ</span>
                 )}
               </div>
-              <div style={{ fontSize: 13.5, color: 'var(--text-2)', marginBottom: 13 }}>
-                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{nearestService.category.name}</span>
-                <span style={{ color: 'var(--text-3)' }}> · {formatDatePL(nearestService.date)} · {nearestService.location.name}</span>
-              </div>
+              {upcomingServices.length > 1 ? (
+                // >1 kandydat → wybór celu dodania (rozwijana lista)
+                <button
+                  onClick={() => setServiceSheetOpen(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '10px 12px', marginBottom: 13, cursor: 'pointer', color: 'var(--text)' }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{selectedService.category.name}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{formatDatePL(selectedService.date)} · {selectedService.location.name}</div>
+                  </div>
+                  <ChevronDown size={18} strokeWidth={1.7} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+                </button>
+              ) : (
+                <div style={{ fontSize: 13.5, color: 'var(--text-2)', marginBottom: 13 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text)' }}>{selectedService.category.name}</span>
+                  <span style={{ color: 'var(--text-3)' }}> · {formatDatePL(selectedService.date)} · {selectedService.location.name}</span>
+                </div>
+              )}
               {svcStatus ? (
                 <div className="fin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', color: 'var(--accent)', fontWeight: 600, fontSize: 14 }}>
                   <Check size={18} strokeWidth={1.7} />
@@ -443,6 +466,33 @@ export function SongOverlay() {
           />
         </div>
       )}
+
+      {/* wybór nabożeństwa docelowego (gdy >1 nadchodzące) */}
+      <Sheet open={serviceSheetOpen} onClose={() => setServiceSheetOpen(false)}>
+        <div className="t-title" style={{ fontSize: 18, marginBottom: 14 }}>Wybierz nabożeństwo</div>
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <div className="list-rows">
+            {upcomingServices.map(s => (
+              <div
+                key={s.id}
+                onClick={() => { setSelectedServiceId(s.id); setServiceSheetOpen(false) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', cursor: 'pointer' }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{s.category.name}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{formatDatePL(s.date)} · {s.location.name}</div>
+                </div>
+                {s.date === today && (
+                  <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--r-pill)' }}>DZIŚ</span>
+                )}
+                {selectedService && s.id === selectedService.id && (
+                  <Check size={16} strokeWidth={2} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Sheet>
 
       {/* potwierdzenie dodania pieśni po raz drugi do zaśpiewanych */}
       <Sheet open={confirmSung} onClose={() => setConfirmSung(false)}>
