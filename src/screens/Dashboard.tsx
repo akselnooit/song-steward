@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays } from 'lucide-react'
 import { collectionClass } from '../lib/utils'
@@ -59,9 +59,17 @@ function TodayCard({ service, isToday, songCount, onOpen }: {
         <User size={14} strokeWidth={1.7} />
         {service.leader?.name ?? '—'}
       </div>
-      <button className="btn btn-primary btn-block" onClick={onOpen}>
-        <WaveformIcon size={17} /> Otwórz na żywo
-      </button>
+      {isToday ? (
+        // Dzisiejsze: zielony (akcent) przycisk ze wskaźnikiem „na żywo".
+        <button className="btn btn-primary btn-block" onClick={onOpen}>
+          <WaveformIcon size={17} /> Otwórz
+        </button>
+      ) : (
+        // Przyszłe: neutralny „Otwórz", bez wskaźnika „na żywo".
+        <button className="btn btn-ghost btn-block" onClick={onOpen}>
+          Otwórz
+        </button>
+      )}
       <div style={{ display: 'flex', gap: 14, marginTop: 13, color: 'var(--text-3)', fontSize: 12.5 }}>
         <span><b style={{ color: 'var(--text-2)' }}>{songCount.sung}</b> zaśpiewanych</span>
         <span><b style={{ color: 'var(--text-2)' }}>{songCount.planned}</b> zaplanowanych</span>
@@ -93,6 +101,17 @@ export function Dashboard() {
   const upcoming = [...services].sort((a, b) => a.date.localeCompare(b.date)).filter(s => s.date >= today)
   const featured = upcoming[0]
   const isToday = featured?.date === today
+
+  // Karuzel nadchodzących nabożeństw (gdy ≥2). Kropki pokazują aktywną kartę.
+  const carouselRef = useRef<HTMLDivElement>(null)
+  const [activeIdx, setActiveIdx] = useState(0)
+  const onCarouselScroll = () => {
+    const el = carouselRef.current
+    if (!el) return
+    const first = el.firstElementChild as HTMLElement | null
+    const step = first ? first.offsetWidth + 12 : el.clientWidth
+    setActiveIdx(Math.max(0, Math.min(upcoming.length - 1, Math.round(el.scrollLeft / step))))
+  }
 
   const locationName = locations.find(l => l.id === locationId)?.name
   const locSuffix = locationName ? ` · ${locationName}` : ''
@@ -131,8 +150,27 @@ export function Dashboard() {
       </div>
 
       <div className="screen-pad">
-        {/* today card */}
-        {featured ? (
+        {/* upcoming services: karuzel gdy ≥2, pojedyncza karta gdy 1 */}
+        {upcoming.length >= 2 ? (
+          <>
+            <div className="svc-carousel" ref={carouselRef} onScroll={onCarouselScroll}>
+              {upcoming.map(s => (
+                <TodayCard
+                  key={s.id}
+                  service={s}
+                  isToday={s.date === today}
+                  songCount={{ sung: 0, planned: 0 }}
+                  onOpen={() => navigate(`/live/${s.id}`, { state: { navServiceIds: upcoming.map(u => u.id) } })}
+                />
+              ))}
+            </div>
+            <div className="svc-dots">
+              {upcoming.map((_, i) => (
+                <span key={i} className={`svc-dot${i === activeIdx ? ' on' : ''}`} />
+              ))}
+            </div>
+          </>
+        ) : featured ? (
           <TodayCard
             service={featured}
             isToday={isToday}

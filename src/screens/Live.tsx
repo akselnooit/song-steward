@@ -17,7 +17,7 @@ import {
 } from '../lib/queries'
 import { useAllSongsForSearch } from '../lib/queries/songs'
 import type { ServiceSongWithSong, ServiceWithRefs } from '../lib/types'
-import { collectionClass } from '../lib/utils'
+import { collectionClass, compareSongs } from '../lib/utils'
 
 function formatDatePL(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -253,6 +253,8 @@ export function Live() {
       s.title.toLowerCase().includes(q) ||
       String(s.number).includes(q) ||
       (s.author ?? '').toLowerCase().includes(q)
+    ).sort((a, b) =>
+      compareSongs({ number: a.number, short: a.collection.short_name }, { number: b.number, short: b.collection.short_name })
     ).slice(0, 4)
   }, [allSongs, searchQ])
 
