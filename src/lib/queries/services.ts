@@ -289,9 +289,11 @@ export function useTopSung(filters: StatsFilters) {
   })
 }
 
-export function useNeverSung(filters: StatsFilters) {
+// limit domyślnie 5. Dashboard pobiera większą pulę (kryteria bez zmian) i losuje z niej
+// próbkę po stronie klienta — patrz sekcja „Nigdy nieśpiewane".
+export function useNeverSung(filters: StatsFilters, limit = 5) {
   return useQuery({
-    queryKey: qk.neverSung(filters),
+    queryKey: [...qk.neverSung(filters), limit],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_never_sung', {
         p_location_id: filters.locationId ?? null,
@@ -299,7 +301,7 @@ export function useNeverSung(filters: StatsFilters) {
         p_months: filters.months ?? null,
         p_tag_ids_include: filters.tagIdsInclude ?? [],
         p_tag_ids_exclude: filters.tagIdsExclude ?? [],
-        p_limit: 5,
+        p_limit: limit,
       })
       if (error) throw error
       return data as NeverSungRow[]
