@@ -11,12 +11,15 @@ interface SongCardProps {
   showKey?: boolean
   right?: React.ReactNode
   onClick?: () => void
+  // Wizualne oznaczenie statusu w dzisiejszym nabożeństwie. Na razie używamy tylko
+  // 'sung'; 'planned' zarezerwowane na przyszłe, subtelniejsze oznaczenie.
+  mark?: 'sung' | 'planned'
 }
 
-export function SongCard({ collection, number, title, author, songKey, minor = false, showKey = true, right, onClick }: SongCardProps) {
+export function SongCard({ collection, number, title, author, songKey, minor = false, showKey = true, right, onClick, mark }: SongCardProps) {
   const showCol3 = author || (showKey && songKey)
   return (
-    <div className="song-card" onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
+    <div className={`song-card${mark ? ` mark-${mark}` : ''}`} onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
       <span className={`badge-col ${collectionClass(collection)}`}>{collection} {number}</span>
       <div className="meta">
         <div className="title" style={{ textWrap: 'pretty' } as React.CSSProperties}>{title}</div>

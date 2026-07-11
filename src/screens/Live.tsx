@@ -111,9 +111,10 @@ function EditServiceSheet({ service, open, onClose }: {
 
 // ── Sortable service song row ────────────────────────────────────
 
-function SortableRow({ ss, rank, onOpen, onPromote, onRemove }: {
+function SortableRow({ ss, rank, onOpen, onPromote, onRemove, flash, leaving }: {
   ss: ServiceSongWithSong; rank?: number
   onOpen: () => void; onPromote?: () => void; onRemove: () => void
+  flash?: boolean; leaving?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ss.id })
   const style: React.CSSProperties = {
@@ -125,7 +126,7 @@ function SortableRow({ ss, rank, onOpen, onPromote, onRemove }: {
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div className="svc-song">
+      <div className={`svc-song${flash ? ' drop-in' : ''}${leaving ? ' leaving' : ''}`}>
         <span className="drag-h" {...attributes} {...listeners} style={{ touchAction: 'none' }}>
           <GripVertical size={18} strokeWidth={1.7} />
         </span>
@@ -224,6 +225,8 @@ export function Live() {
     | null
   >(null)
   const [shakePlannedId, setShakePlannedId] = useState<string | null>(null)
+  const [justSungId, setJustSungId] = useState<string | null>(null)   // pieśń, która ma zagrać „drop-in" w zaśpiewanych
+  const [leavingId, setLeavingId] = useState<string | null>(null)      // wiersz zaplanowanej „odlatujący" przy awansie
   const [notes, setNotes] = useState(service?.notes ?? '')
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -240,8 +243,10 @@ export function Live() {
     () => serviceSongs.filter(ss => ss.status === 'planned').sort((a, b) => (a.song_order ?? 999) - (b.song_order ?? 999)),
     [serviceSongs]
   )
+  // null → -1 (najniższy), żeby ewentualne stare wpisy z null trafiały na DÓŁ (rank 1),
+  // a nie „przyklejały się" na górze i nie spychały świeżo zaśpiewanych.
   const sung = useMemo(
-    () => serviceSongs.filter(ss => ss.status === 'sung').sort((a, b) => (a.song_order ?? 999) - (b.song_order ?? 999)),
+    () => serviceSongs.filter(ss => ss.status === 'sung').sort((a, b) => (a.song_order ?? -1) - (b.song_order ?? -1)),
     [serviceSongs]
   )
   const sungReversed = useMemo(() => [...sung].reverse(), [sung])
@@ -258,16 +263,24 @@ export function Live() {
     ).slice(0, 4)
   }, [allSongs, searchQ])
 
+  // Najwyższy song_order wśród zaśpiewanych + 1 — nowo zaśpiewana zawsze na szczycie.
+  // Oparte o max istniejącego porządku (nie o liczbę wierszy — to psuło się przy
+  // usunięciach/lukach) i tylko o pieśni ZAŚPIEWANE (nie o moment zaplanowania).
+  const nextSungOrder = () => sung.reduce((m, ss) => Math.max(m, ss.song_order ?? -1), -1) + 1
+  const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
   const doAddSong = async (songId: string, status: 'planned' | 'sung') => {
     const maxPlannedOrder = planned.reduce((m, ss) => Math.max(m, ss.song_order ?? 0), -1)
+    if (status === 'sung') setJustSungId(songId)
     await addServiceSong.mutateAsync({
       service_id: serviceId!,
       song_id: songId,
       status,
-      song_order: status === 'planned' ? maxPlannedOrder + 1 : sung.length,
+      song_order: status === 'planned' ? maxPlannedOrder + 1 : nextSungOrder(),
     })
     setSearchQ('')
     showToast(status === 'sung' ? 'Dodano do zaśpiewanych' : 'Dodano do zaplanowanych')
+    if (status === 'sung') setTimeout(() => setJustSungId(null), 500)
   }
 
   const handleAddSong = async (songId: string, status: 'planned' | 'sung') => {
@@ -290,8 +303,10 @@ export function Live() {
   }
 
   const doPromote = async (ss: ServiceSongWithSong) => {
-    await updateServiceSong.mutateAsync({ id: ss.id, service_id: serviceId!, status: 'sung', song_order: sung.length })
+    setJustSungId(ss.song.id)
+    await updateServiceSong.mutateAsync({ id: ss.id, service_id: serviceId!, status: 'sung', song_order: nextSungOrder() })
     showToast('Oznaczono jako zaśpiewaną')
+    setTimeout(() => setJustSungId(null), 500)
   }
 
   const handlePromote = async (ss: ServiceSongWithSong) => {
@@ -299,7 +314,11 @@ export function Live() {
       setPendingSung({ kind: 'promote', ss })
       return
     }
-    await doPromote(ss)
+    if (leavingId) return // jeden awans na raz
+    if (reduceMotion()) { await doPromote(ss); return }
+    // Wiersz „odlatuje" z zaplanowanych, po czym trafia do zaśpiewanych z animacją „drop-in".
+    setLeavingId(ss.id)
+    setTimeout(() => { setLeavingId(null); doPromote(ss) }, 260)
   }
 
   const handleRemove = (ss: ServiceSongWithSong) => {
@@ -479,6 +498,7 @@ export function Live() {
                 <SortableRow
                   key={ss.id}
                   ss={ss}
+                  leaving={leavingId === ss.id}
                   onOpen={() => openSong(ss.song.id, allSongIds)}
                   onPromote={() => handlePromote(ss)}
                   onRemove={() => handleRemove(ss)}
@@ -505,6 +525,7 @@ export function Live() {
                   key={ss.id}
                   ss={ss}
                   rank={sung.length - i}
+                  flash={justSungId === ss.song.id}
                   onOpen={() => openSong(ss.song.id, allSongIds)}
                   onRemove={() => handleRemove(ss)}
                 />
