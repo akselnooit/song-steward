@@ -33,3 +33,21 @@ export function collectionClass(shortName: string): string {
   for (let i = 0; i < shortName.length; i++) h = (h * 31 + shortName.charCodeAt(i)) >>> 0
   return FALLBACK_CLASSES[h % FALLBACK_CLASSES.length]
 }
+
+// Stała kolejność kolekcji dla sortowania (tabela `collections` nie ma pola
+// porządkowego). DP pierwsze, KM drugie, potem pozostałe. Nieznane kolekcje na końcu.
+const COLLECTION_ORDER = ['DP', 'KM', 'SOS', 'NKM', 'NDP']
+
+export function collectionRank(shortName: string): number {
+  const i = COLLECTION_ORDER.indexOf(shortName.toUpperCase())
+  return i === -1 ? COLLECTION_ORDER.length : i
+}
+
+// Wspólny porządek pieśni wszędzie: numer rosnąco, a przy remisie numeru — wg
+// kolejności kolekcji (DP, KM, potem inne). Deterministyczny i spójny.
+export function compareSongs(
+  a: { number: number; short: string },
+  b: { number: number; short: string },
+): number {
+  return a.number - b.number || collectionRank(a.short) - collectionRank(b.short)
+}

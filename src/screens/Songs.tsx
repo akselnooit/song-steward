@@ -5,7 +5,7 @@ import { useLongPress } from '../hooks/useLongPress'
 import { useAllSongsForSearch } from '../lib/queries/songs'
 import { useCollections, useTags, useTagCategories } from '../lib/queries'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
-import { collectionClass } from '../lib/utils'
+import { collectionClass, compareSongs } from '../lib/utils'
 
 const LS_COLS = 'ss-songs-cols'
 const LS_INC  = 'ss-songs-inc'
@@ -121,14 +121,17 @@ export function Songs() {
     return colFiltered.filter(s => matches(s.tagIds, inc, exc))
   }, [colFiltered, inc, exc])
 
-  // Final list (+ text search)
+  // Final list (+ text search), zawsze w spójnej kolejności:
+  // numer rosnąco, przy remisie wg kolekcji (DP, KM, potem inne).
   const filtered = useMemo(() => {
-    if (!q.trim()) return tagFiltered
-    const n = q.toLowerCase()
-    return tagFiltered.filter(s =>
+    const n = q.trim().toLowerCase()
+    const base = !n ? tagFiltered : tagFiltered.filter(s =>
       s.title.toLowerCase().includes(n) ||
       (s.author ?? '').toLowerCase().includes(n) ||
       String(s.number).includes(n)
+    )
+    return [...base].sort((a, b) =>
+      compareSongs({ number: a.number, short: a.collection.short_name }, { number: b.number, short: b.collection.short_name })
     )
   }, [tagFiltered, q])
 

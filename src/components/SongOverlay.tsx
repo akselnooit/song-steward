@@ -5,7 +5,7 @@ import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRi
 import { TagPill, CatBlock, Sheet } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
-import { useTagCategories, useTags, useServices, useAddServiceSong } from '../lib/queries'
+import { useTagCategories, useTags, useServices, useAddServiceSong, useServiceSongs } from '../lib/queries'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { keyLabel, collectionClass, songTreasuresUrl } from '../lib/utils'
@@ -37,15 +37,24 @@ export function SongOverlay() {
   const restoreSongTag = useRestoreSongTag()
   const addServiceSong = useAddServiceSong()
 
+  const today = todayStr()
+  const nearestService = [...services]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .find(s => s.date >= today)
+  const { data: nearestServiceSongs = [] } = useServiceSongs(nearestService?.id ?? null)
+
   const [shakeTagId, setShakeTagId] = useState<string | null>(null)
   const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
+  const [confirmSung, setConfirmSung] = useState(false)
+  const [dupMsg, setDupMsg] = useState<string | null>(null)
   const [photoFull, setPhotoFull] = useState(false)
   const [tagSheetOpen, setTagSheetOpen] = useState(false)
   const [openTagCatId, setOpenTagCatId] = useState<string | null>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
   const sheetBodyRef = useRef<HTMLDivElement>(null)
+  const dupTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => { setSvcStatus(null); setTagSheetOpen(false); setOpenTagCatId(null) }, [songId])
+  useEffect(() => { setSvcStatus(null); setConfirmSung(false); setDupMsg(null); setTagSheetOpen(false); setOpenTagCatId(null) }, [songId])
 
   useEffect(() => {
     if (!songId) return
@@ -101,10 +110,8 @@ export function SongOverlay() {
 
   if (!songId || !song) return null
 
-  const today = todayStr()
-  const nearestService = [...services]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .find(s => s.date >= today)
+  const alreadyPlanned = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'planned')
+  const alreadySung = nearestServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'sung')
 
   const currentTags = new Map(song.song_tags.map(st => [st.tag_id, st]))
 
@@ -129,10 +136,30 @@ export function SongOverlay() {
     }
   }
 
-  const handleAddToService = (status: 'planned' | 'sung') => {
+  const doAddToService = (status: 'planned' | 'sung') => {
     if (!nearestService) return
     addServiceSong.mutate({ service_id: nearestService.id, song_id: song.id, status, song_order: null })
     setSvcStatus(status)
+  }
+
+  const showDup = (msg: string) => {
+    setDupMsg(msg)
+    navigator.vibrate?.(100)
+    if (dupTimer.current) clearTimeout(dupTimer.current)
+    dupTimer.current = setTimeout(() => setDupMsg(null), 1800)
+  }
+
+  const handleAddToService = (status: 'planned' | 'sung') => {
+    if (!nearestService) return
+    if (status === 'planned') {
+      // Zaplanowane: całkowicie blokuj duplikat (bez pytania).
+      if (alreadyPlanned) { showDup('Ta pieśń jest już zaplanowana'); return }
+      doAddToService('planned')
+    } else {
+      // Zaśpiewane: pozwól po potwierdzeniu.
+      if (alreadySung) { setConfirmSung(true); return }
+      doAddToService('sung')
+    }
   }
 
   const handleHistoryClick = (serviceId: string) => {
@@ -221,6 +248,11 @@ export function SongOverlay() {
                   <button className="btn btn-primary btn-block" onClick={() => handleAddToService('sung')}>
                     <Check size={18} strokeWidth={1.7} /> Zaśpiewana
                   </button>
+                </div>
+              )}
+              {dupMsg && !svcStatus && (
+                <div style={{ marginTop: 11, textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>
+                  {dupMsg}
                 </div>
               )}
             </div>
@@ -400,6 +432,22 @@ export function SongOverlay() {
           />
         </div>
       )}
+
+      {/* potwierdzenie dodania pieśni po raz drugi do zaśpiewanych */}
+      <Sheet open={confirmSung} onClose={() => setConfirmSung(false)}>
+        <div className="t-title" style={{ fontSize: 18, marginBottom: 12 }}>Pieśń już w zaśpiewanych</div>
+        <div style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 24 }}>
+          Ta pieśń jest już w zaśpiewanych. Dodać jeszcze raz?
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-ghost btn-block" onClick={() => setConfirmSung(false)}>
+            Anuluj
+          </button>
+          <button className="btn btn-primary btn-block" onClick={() => { setConfirmSung(false); doAddToService('sung') }}>
+            Dodaj mimo to
+          </button>
+        </div>
+      </Sheet>
     </>,
     document.getElementById('root')!,
   )
