@@ -10,6 +10,7 @@ import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useStatsFilters } from '../hooks/useStatsFilters'
 import { useShake } from '../hooks/useShake'
+import { vibrate } from '../lib/vibrate'
 import {
   useServices, useServiceSongCounts, useTopSung, useNeverSung, usePendingTags, useLocations, useTags,
 } from '../lib/queries'
@@ -108,7 +109,7 @@ export function Dashboard() {
   const { data: neverSungPool } = useNeverSung(statsFilters, 1000)
   const [neverSung, setNeverSung] = useState<NeverSungRow[]>([])
   const rollNeverSung = useCallback(() => {
-    if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); navigator.vibrate?.(30) }
+    if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); vibrate(30) }
   }, [neverSungPool])
   // Nowa próbka gdy pula się załaduje/zmieni (np. po zmianie filtra) oraz przy każdym montażu.
   useEffect(() => { if (neverSungPool) setNeverSung(sample(neverSungPool, 5)) }, [neverSungPool])
