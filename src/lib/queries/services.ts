@@ -1,10 +1,20 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
 import { useLocationFilter } from '../../hooks/useLocationFilter'
 import { qk } from './keys'
 import type { ServiceWithRefs, ServiceSongWithSong, StatsFilters, TopSungRow, NeverSungRow } from '../types'
-import type { CreateServiceInput, UpdateServiceInput, AddServiceSongInput, UpdateServiceSongInput } from '../schemas'
+import type { CreateServiceInput, UpdateServiceInput, AddServiceSongInput, UpdateServiceSongInput, MarkSongSungInput } from '../schemas'
 import type { Location, ServiceCategory, WorshipLeader } from '../types'
+
+// Każda zmiana w `service_songs` dotyka tych samych czterech miejsc. `song-history`
+// jest tu kluczowe — bez niego „Historia śpiewania" w SongOverlay wisiała nieaktualna
+// do 5 minut (staleTime useSongHistory) po dodaniu pieśni do zaśpiewanych.
+function invalidateServiceSongQueries(qc: QueryClient, serviceId: string) {
+  qc.invalidateQueries({ queryKey: qk.serviceSongs(serviceId) })
+  qc.invalidateQueries({ queryKey: ['service-song-counts'] })
+  qc.invalidateQueries({ queryKey: ['today-service-songs'] })
+  qc.invalidateQueries({ queryKey: ['song-history'] })
+}
 
 export function useServices(locationId?: string) {
   return useQuery({
@@ -188,9 +198,53 @@ export function useAddServiceSong() {
       await qc.cancelQueries({ queryKey: qk.serviceSongs(input.service_id) })
     },
     onSuccess: (_, { service_id }) => {
-      qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
-      qc.invalidateQueries({ queryKey: ['service-song-counts'] })
-      qc.invalidateQueries({ queryKey: ['today-service-songs'] })
+      invalidateServiceSongQueries(qc, service_id)
+    },
+  })
+}
+
+// Jedna reguła w całej aplikacji: dodanie pieśni do ZAŚPIEWANYCH konsumuje jej wpis
+// zaplanowany w tym nabożeństwie (awans planned→sung) zamiast wstawiać drugi wiersz.
+// Bez tego pieśń figurowała jednocześnie w „Zaplanowane" i „Zaśpiewane", licznik
+// zaplanowanych był zawyżony, a „Zaplanuj" zostawało zablokowane na zawsze.
+// `planned_id` przekazujemy JAWNIE — hook nie zgaduje stanu z cache'a.
+export function useMarkSongSung() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ service_id, song_id, planned_id, song_order }: MarkSongSungInput) => {
+      if (planned_id) {
+        const { error } = await supabase
+          .from('service_songs')
+          .update({ status: 'sung', song_order })
+          .eq('id', planned_id)
+        if (error) throw error
+        return planned_id
+      }
+      const { data, error } = await supabase
+        .from('service_songs')
+        .insert({ service_id, song_id, status: 'sung', song_order })
+        .select('id')
+        .single()
+      if (error) throw error
+      return data.id as string
+    },
+    // Optymistycznie tylko awans — mamy w cache'u gotowy wiersz ze złączoną pieśnią.
+    // Świeże wstawienie dociąga się przez inwalidację (jak w useAddServiceSong).
+    onMutate: async ({ service_id, planned_id, song_order }) => {
+      await qc.cancelQueries({ queryKey: qk.serviceSongs(service_id) })
+      const prev = qc.getQueryData<ServiceSongWithSong[]>(qk.serviceSongs(service_id))
+      if (planned_id) {
+        qc.setQueryData<ServiceSongWithSong[]>(qk.serviceSongs(service_id), old =>
+          old?.map(ss => ss.id === planned_id ? { ...ss, status: 'sung' as const, song_order } : ss) ?? []
+        )
+      }
+      return { prev }
+    },
+    onError: (_err, { service_id }, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.serviceSongs(service_id), ctx.prev)
+    },
+    onSettled: (_, __, { service_id }) => {
+      invalidateServiceSongQueries(qc, service_id)
     },
   })
 }
@@ -214,9 +268,7 @@ export function useUpdateServiceSong() {
       if (ctx?.prev) qc.setQueryData(qk.serviceSongs(service_id), ctx.prev)
     },
     onSettled: (_, __, { service_id }) => {
-      qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
-      qc.invalidateQueries({ queryKey: ['service-song-counts'] })
-      qc.invalidateQueries({ queryKey: ['today-service-songs'] })
+      invalidateServiceSongQueries(qc, service_id)
     },
   })
 }
@@ -240,9 +292,7 @@ export function useRemoveServiceSong() {
       if (ctx?.prev) qc.setQueryData(qk.serviceSongs(service_id), ctx.prev)
     },
     onSettled: (_, __, { service_id }) => {
-      qc.invalidateQueries({ queryKey: qk.serviceSongs(service_id) })
-      qc.invalidateQueries({ queryKey: ['service-song-counts'] })
-      qc.invalidateQueries({ queryKey: ['today-service-songs'] })
+      invalidateServiceSongQueries(qc, service_id)
     },
   })
 }

@@ -15,6 +15,15 @@ export const AddServiceSongSchema = z.object({
   song_order: z.number().int().nullable().default(null),
 })
 
+// Oznaczenie pieśni jako zaśpiewanej w danym nabożeństwie. `planned_id` = wiersz
+// zaplanowany, który ma zostać skonsumowany (awans planned→sung); null → nowy wiersz.
+export const MarkSongSungSchema = z.object({
+  service_id: z.string().uuid(),
+  song_id: z.string().uuid(),
+  planned_id: z.string().uuid().nullable(),
+  song_order: z.number().int(),
+})
+
 export const UpdateServiceSongSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(['planned', 'sung']).optional(),
@@ -37,5 +46,6 @@ export const AddSongTagSchema = z.object({
 export type CreateServiceInput = z.infer<typeof CreateServiceSchema>
 export type UpdateServiceInput = z.infer<typeof UpdateServiceSchema>
 export type AddServiceSongInput = z.infer<typeof AddServiceSongSchema>
+export type MarkSongSungInput = z.infer<typeof MarkSongSungSchema>
 export type UpdateServiceSongInput = z.infer<typeof UpdateServiceSongSchema>
 export type AddSongTagInput = z.infer<typeof AddSongTagSchema>

@@ -12,7 +12,7 @@ import { useWakeLock } from '../hooks/useWakeLock'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import {
   useService, useServiceSongs,
-  useAddServiceSong, useUpdateServiceSong, useRemoveServiceSong, useUpdateServiceNotes,
+  useAddServiceSong, useMarkSongSung, useUpdateServiceSong, useRemoveServiceSong, useUpdateServiceNotes,
   useUpdateService, useLocations, useServiceCategories, useWorshipLeaders,
 } from '../lib/queries'
 import { useAllSongsForSearch } from '../lib/queries/songs'
@@ -212,6 +212,7 @@ export function Live() {
   const { data: allSongs = [] } = useAllSongsForSearch()
 
   const addServiceSong = useAddServiceSong()
+  const markSongSung = useMarkSongSung()
   const updateServiceSong = useUpdateServiceSong()
   const removeServiceSong = useRemoveServiceSong()
   const updateNotes = useUpdateServiceNotes()
@@ -269,19 +270,35 @@ export function Live() {
   const nextSungOrder = () => sung.reduce((m, ss) => Math.max(m, ss.song_order ?? -1), -1) + 1
   const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
-  const doAddSong = async (songId: string, status: 'planned' | 'sung') => {
+  const doAddPlanned = async (songId: string) => {
     const maxPlannedOrder = planned.reduce((m, ss) => Math.max(m, ss.song_order ?? 0), -1)
-    if (status === 'sung') setJustSungId(songId)
     await addServiceSong.mutateAsync({
       service_id: serviceId!,
       song_id: songId,
-      status,
-      song_order: status === 'planned' ? maxPlannedOrder + 1 : nextSungOrder(),
+      status: 'planned',
+      song_order: maxPlannedOrder + 1,
     })
     setSearchQ('')
-    showToast(status === 'sung' ? 'Dodano do zaśpiewanych' : 'Dodano do zaplanowanych')
-    if (status === 'sung') setTimeout(() => setJustSungId(null), 500)
+    showToast('Dodano do zaplanowanych')
   }
+
+  // Jedna ścieżka dla „zaśpiewana", niezależnie czy klik przyszedł z wyszukiwania,
+  // czy z zielonego „✓" przy zaplanowanej: jeśli pieśń ma wpis zaplanowany, ten wiersz
+  // zostaje awansowany (plan skonsumowany), zamiast wstawiać drugi wiersz.
+  const doMarkSung = async (songId: string, plannedId: string | null) => {
+    setJustSungId(songId)
+    await markSongSung.mutateAsync({
+      service_id: serviceId!,
+      song_id: songId,
+      planned_id: plannedId,
+      song_order: nextSungOrder(),
+    })
+    setSearchQ('')
+    showToast(plannedId ? 'Oznaczono jako zaśpiewaną' : 'Dodano do zaśpiewanych')
+    setTimeout(() => setJustSungId(null), 500)
+  }
+
+  const plannedIdFor = (songId: string) => planned.find(ss => ss.song.id === songId)?.id ?? null
 
   const handleAddSong = async (songId: string, status: 'planned' | 'sung') => {
     if (status === 'planned') {
@@ -292,21 +309,18 @@ export function Live() {
         showToast('Ta pieśń jest już zaplanowana')
         return
       }
-      await doAddSong(songId, 'planned')
+      await doAddPlanned(songId)
     } else {
       if (sung.some(ss => ss.song.id === songId)) {
         setPendingSung({ kind: 'add', songId })
         return
       }
-      await doAddSong(songId, 'sung')
+      await doMarkSung(songId, plannedIdFor(songId))
     }
   }
 
   const doPromote = async (ss: ServiceSongWithSong) => {
-    setJustSungId(ss.song.id)
-    await updateServiceSong.mutateAsync({ id: ss.id, service_id: serviceId!, status: 'sung', song_order: nextSungOrder() })
-    showToast('Oznaczono jako zaśpiewaną')
-    setTimeout(() => setJustSungId(null), 500)
+    await doMarkSung(ss.song.id, ss.id)
   }
 
   const handlePromote = async (ss: ServiceSongWithSong) => {
@@ -550,7 +564,7 @@ export function Live() {
           <button className="btn btn-primary btn-block" onClick={async () => {
             const p = pendingSung
             setPendingSung(null)
-            if (p?.kind === 'add') await doAddSong(p.songId, 'sung')
+            if (p?.kind === 'add') await doMarkSung(p.songId, plannedIdFor(p.songId))
             else if (p?.kind === 'promote') await doPromote(p.ss)
           }}>
             Dodaj mimo to

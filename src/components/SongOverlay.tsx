@@ -5,7 +5,7 @@ import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRi
 import { TagPill, CatBlock, Sheet } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
-import { useTagCategories, useTags, useServices, useAddServiceSong, useServiceSongs, useTodayServiceSongIds } from '../lib/queries'
+import { useTagCategories, useTags, useServices, useAddServiceSong, useMarkSongSung, useServiceSongs, useTodayServiceSongIds } from '../lib/queries'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { keyLabel, collectionClass, songTreasuresUrl } from '../lib/utils'
@@ -36,20 +36,21 @@ export function SongOverlay() {
   const removeSongTag = useRemoveSongTag()
   const restoreSongTag = useRestoreSongTag()
   const addServiceSong = useAddServiceSong()
+  const markSongSung = useMarkSongSung()
   const todaySongs = useTodayServiceSongIds()
 
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
   const [serviceSheetOpen, setServiceSheetOpen] = useState(false)
   const [shakeTagId, setShakeTagId] = useState<string | null>(null)
-  const [svcStatus, setSvcStatus] = useState<'planned' | 'sung' | null>(null)
+  const [shakePlanned, setShakePlanned] = useState(false)
   const [confirmSung, setConfirmSung] = useState(false)
-  const [dupMsg, setDupMsg] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
   const [photoFull, setPhotoFull] = useState(false)
   const [tagSheetOpen, setTagSheetOpen] = useState(false)
   const [openTagCatId, setOpenTagCatId] = useState<string | null>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
   const sheetBodyRef = useRef<HTMLDivElement>(null)
-  const dupTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Kandydujące nabożeństwa = nadchodzące (wg globalnego filtra lokalizacji: useServices
   // już filtruje). Domyślny cel = najbliższe; przy >1 użytkownik może wybrać inne.
@@ -61,8 +62,9 @@ export function SongOverlay() {
   const { data: selectedServiceSongs = [] } = useServiceSongs(selectedService?.id ?? null)
 
   // Nowa pieśń → reset do najbliższego; zmiana celu → reset potwierdzeń/komunikatów.
-  useEffect(() => { setSelectedServiceId(null); setSvcStatus(null); setConfirmSung(false); setDupMsg(null); setTagSheetOpen(false); setOpenTagCatId(null); setServiceSheetOpen(false) }, [songId])
-  useEffect(() => { setSvcStatus(null); setDupMsg(null) }, [selectedServiceId])
+  useEffect(() => { setSelectedServiceId(null); setConfirmSung(false); setToast(null); setTagSheetOpen(false); setOpenTagCatId(null); setServiceSheetOpen(false) }, [songId])
+  useEffect(() => { setToast(null) }, [selectedServiceId])
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   useEffect(() => {
     if (!songId) return
@@ -118,7 +120,9 @@ export function SongOverlay() {
 
   if (!songId || !song) return null
 
-  const alreadyPlanned = selectedServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'planned')
+  // Wiersz zaplanowany, który „Zaśpiewana" skonsumuje (awans planned→sung).
+  const plannedRow = selectedServiceSongs.find(ss => ss.song_id === song.id && ss.status === 'planned') ?? null
+  const alreadyPlanned = !!plannedRow
   const alreadySung = selectedServiceSongs.some(ss => ss.song_id === song.id && ss.status === 'sung')
   const sungToday = todaySongs.sung.has(song.id)
   const plannedToday = !sungToday && todaySongs.planned.has(song.id) // sung ma priorytet
@@ -146,36 +150,55 @@ export function SongOverlay() {
     }
   }
 
-  const doAddToService = (status: 'planned' | 'sung') => {
+  const showToast = (msg: string) => {
+    setToast(msg)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 1800)
+  }
+
+  const doPlan = () => {
     if (!selectedService) return
-    // Zaśpiewane: nadaj najwyższy song_order (max+1), żeby nowo zaśpiewana trafiła
-    // na szczyt listy. Nigdy null — null psuł kolejność (sortował się jako „na górze").
+    addServiceSong.mutate({ service_id: selectedService.id, song_id: song.id, status: 'planned', song_order: null })
+    showToast('Dodano do zaplanowanych')
+  }
+
+  // Zaśpiewane: nadaj najwyższy song_order (max+1), żeby nowo zaśpiewana trafiła
+  // na szczyt listy. Nigdy null — null psuł kolejność (sortował się jako „na górze").
+  // Jeśli pieśń jest zaplanowana, awansujemy TEN wiersz zamiast wstawiać drugi —
+  // dzięki temu plan się zwalnia i „Zaplanuj" znów działa.
+  const doMarkSung = () => {
+    if (!selectedService) return
     const maxSungOrder = selectedServiceSongs.reduce(
       (m, ss) => ss.status === 'sung' ? Math.max(m, ss.song_order ?? -1) : m, -1,
     )
-    const song_order = status === 'sung' ? maxSungOrder + 1 : null
-    addServiceSong.mutate({ service_id: selectedService.id, song_id: song.id, status, song_order })
-    setSvcStatus(status)
+    markSongSung.mutate({
+      service_id: selectedService.id,
+      song_id: song.id,
+      planned_id: plannedRow?.id ?? null,
+      song_order: maxSungOrder + 1,
+    })
+    showToast(plannedRow ? 'Oznaczono jako zaśpiewaną' : 'Dodano do zaśpiewanych')
   }
 
-  const showDup = (msg: string) => {
-    setDupMsg(msg)
-    navigator.vibrate?.(100)
-    if (dupTimer.current) clearTimeout(dupTimer.current)
-    dupTimer.current = setTimeout(() => setDupMsg(null), 1800)
-  }
-
-  const handleAddToService = (status: 'planned' | 'sung') => {
+  const handlePlan = () => {
     if (!selectedService) return
-    if (status === 'planned') {
-      // Zaplanowane: całkowicie blokuj duplikat (bez pytania).
-      if (alreadyPlanned) { showDup('Ta pieśń jest już zaplanowana'); return }
-      doAddToService('planned')
-    } else {
-      // Zaśpiewane: pozwól po potwierdzeniu.
-      if (alreadySung) { setConfirmSung(true); return }
-      doAddToService('sung')
+    // Zaplanowane: duplikat blokowany, ale przycisk zostaje klikalny — shake + toast
+    // mówią dlaczego, zamiast martwego, wyszarzonego przycisku.
+    if (alreadyPlanned) {
+      setShakePlanned(true)
+      navigator.vibrate?.(100)
+      setTimeout(() => setShakePlanned(false), 320)
+      showToast('Ta pieśń jest już zaplanowana')
+      return
     }
+    doPlan()
+  }
+
+  const handleSung = () => {
+    if (!selectedService) return
+    // Zaśpiewane po raz drugi: pozwól po potwierdzeniu.
+    if (alreadySung) { setConfirmSung(true); return }
+    doMarkSung()
   }
 
   const handleHistoryClick = (serviceId: string) => {
@@ -267,28 +290,19 @@ export function SongOverlay() {
                   <span style={{ color: 'var(--text-3)' }}> · {formatDatePL(selectedService.date)} · {selectedService.location.name}</span>
                 </div>
               )}
-              {svcStatus ? (
-                <div className="fin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0', color: 'var(--accent)', fontWeight: 600, fontSize: 14 }}>
-                  <Check size={18} strokeWidth={1.7} />
-                  {svcStatus === 'sung' ? 'Dodano do zaśpiewanych' : 'Dodano do zaplanowanych'}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {/* „Zaplanuj" zależy WYŁĄCZNIE od tego, czy pieśń jest już zaplanowana —
-                      zaśpiewanie NIE blokuje planowania. Zaplanować można maks. raz. */}
-                  <button className="btn btn-ghost btn-block" disabled={alreadyPlanned} onClick={() => handleAddToService('planned')}>
-                    <Bookmark size={18} strokeWidth={1.7} /> {alreadyPlanned ? 'Zaplanowana' : 'Zaplanuj'}
-                  </button>
-                  <button className="btn btn-primary btn-block" onClick={() => handleAddToService('sung')}>
-                    <Check size={18} strokeWidth={1.7} /> Zaśpiewana
-                  </button>
-                </div>
-              )}
-              {dupMsg && !svcStatus && (
-                <div style={{ marginTop: 11, textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>
-                  {dupMsg}
-                </div>
-              )}
+              {/* Przyciski są ZAWSZE widoczne — potwierdzenie leci toastem, nie panelem
+                  zastępującym. Inaczej po dodaniu nie było w co kliknąć (np. żeby po
+                  zaśpiewaniu od razu zaplanować pieśń ponownie). */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                {/* „Zaplanuj" zależy WYŁĄCZNIE od tego, czy pieśń jest już zaplanowana —
+                    zaśpiewanie NIE blokuje planowania (konsumuje plan, więc go zwalnia). */}
+                <button className={`btn btn-ghost btn-block${shakePlanned ? ' shake' : ''}`} onClick={handlePlan}>
+                  <Bookmark size={18} strokeWidth={1.7} /> {alreadyPlanned ? 'Zaplanowana' : 'Zaplanuj'}
+                </button>
+                <button className="btn btn-primary btn-block" onClick={handleSung}>
+                  <Check size={18} strokeWidth={1.7} /> Zaśpiewana
+                </button>
+              </div>
             </div>
           )}
 
@@ -504,11 +518,18 @@ export function SongOverlay() {
           <button className="btn btn-ghost btn-block" onClick={() => setConfirmSung(false)}>
             Anuluj
           </button>
-          <button className="btn btn-primary btn-block" onClick={() => { setConfirmSung(false); doAddToService('sung') }}>
+          <button className="btn btn-primary btn-block" onClick={() => { setConfirmSung(false); doMarkSung() }}>
             Dodaj mimo to
           </button>
         </div>
       </Sheet>
+
+      {/* .saved-toast: position: fixed, z-index 50 → nad arkuszem (41) */}
+      {toast && (
+        <div className="saved-toast fin">
+          <Check size={15} strokeWidth={1.7} /> {toast}
+        </div>
+      )}
     </>,
     document.getElementById('root')!,
   )
