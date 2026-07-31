@@ -92,8 +92,11 @@ function EditServiceSheet({ service, open, onClose }: {
         ))}
       </div>
 
-      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę</div>
+      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę (opcjonalnie)</div>
       <div className="hrow" style={{ marginBottom: 24 }}>
+        <button className={`tag${!leaderId ? ' include' : ''}`} onClick={() => setLeaderId('')}>
+          Brak
+        </button>
         {leaders.map(l => (
           <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`}
             onClick={() => setLeaderId(id => id === l.id ? '' : l.id)}>{l.name}</button>

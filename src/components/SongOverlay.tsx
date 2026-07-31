@@ -444,8 +444,10 @@ export function SongOverlay() {
                       <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
                         {formatDatePL(h.service?.date ?? '')}
                       </span>
+                      {/* Prowadzący jest opcjonalny — sklejamy tylko niepuste człony,
+                          żeby przy jego braku nie zostawała wisząca „· " na końcu. */}
                       <span style={{ color: 'var(--text-2)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        · {h.service?.location?.name} · {h.service?.leader?.name}
+                        {[h.service?.location?.name, h.service?.leader?.name].filter(Boolean).map(part => ` · ${part}`).join('')}
                       </span>
                       <ChevronRight size={15} strokeWidth={1.7} style={{ marginLeft: 'auto', color: 'var(--text-3)', flexShrink: 0 }} />
                     </div>

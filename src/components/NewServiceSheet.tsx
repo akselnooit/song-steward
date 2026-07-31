@@ -93,10 +93,17 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
         ))}
       </div>
 
-      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę</div>
+      {/* Prowadzący jest opcjonalny — bywają nabożeństwa i uroczystości bez konkretnej
+          osoby. Jawny kafelek „Brak" zamiast liczenia na to, że użytkownik domyśli się
+          odklikania wstępnie wybranego prowadzącego. */}
+      <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę (opcjonalnie)</div>
       <div className="hrow" style={{ marginBottom: 24 }}>
+        <button className={`tag${!leaderId ? ' include' : ''}`} onClick={() => setLeaderId('')}>
+          Brak
+        </button>
         {leaders.map(l => (
-          <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`} onClick={() => setLeaderId(l.id)}>
+          <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`}
+            onClick={() => setLeaderId(id => id === l.id ? '' : l.id)}>
             {l.name}
           </button>
         ))}

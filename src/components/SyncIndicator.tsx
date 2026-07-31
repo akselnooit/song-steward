@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useIsMutating, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Check, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 
-type Phase = 'idle' | 'saving' | 'saved' | 'error'
+// Dwie fazy zamiast trzech. „Zapisano" celowo nie istnieje: potwierdzeniem udanej
+// akcji jest toast na dole ekranu („Dodano do zaśpiewanych" itd.), a zniknięcie
+// paska wystarcza jako sygnał zakończenia. Wcześniej użytkownik dostawał dwa
+// potwierdzenia naraz, a górna pastylka zasłaniała ikonę edycji.
+type Phase = 'idle' | 'saving' | 'error'
 
 export function SyncIndicator() {
   const qc = useQueryClient()
@@ -10,7 +14,6 @@ export function SyncIndicator() {
   const [phase, setPhase] = useState<Phase>('idle')
 
   const savingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const prevMutating = useRef(0)
   const hadError = useRef(false)
 
@@ -20,7 +23,6 @@ export function SyncIndicator() {
       if (event.type === 'updated' && event.mutation?.state.status === 'error') {
         hadError.current = true
         if (savingTimer.current) { clearTimeout(savingTimer.current); savingTimer.current = null }
-        if (savedTimer.current) { clearTimeout(savedTimer.current); savedTimer.current = null }
         setPhase('error')
       }
     })
@@ -32,8 +34,8 @@ export function SyncIndicator() {
 
     if (isMutating > 0) {
       if (prev === 0) hadError.current = false // new batch — reset error flag
-      if (savedTimer.current) { clearTimeout(savedTimer.current); savedTimer.current = null }
-      if (!savingTimer.current) {
+      // 400 ms progu: krótkie mutacje kończą się, zanim cokolwiek mrugnie.
+      if (!savingTimer.current && phase !== 'error') {
         savingTimer.current = setTimeout(() => {
           savingTimer.current = null
           setPhase('saving')
@@ -41,28 +43,21 @@ export function SyncIndicator() {
       }
     } else if (prev > 0 && !hadError.current) {
       if (savingTimer.current) { clearTimeout(savingTimer.current); savingTimer.current = null }
-      setPhase('saved')
-      savedTimer.current = setTimeout(() => {
-        savedTimer.current = null
-        setPhase('idle')
-      }, 1500)
+      setPhase('idle')
     }
-  }, [isMutating])
+  }, [isMutating, phase])
+
+  useEffect(() => () => { if (savingTimer.current) clearTimeout(savingTimer.current) }, [])
 
   if (phase === 'idle') return null
 
-  return (
-    <button
-      className={`sync-pill ${phase}`}
-      onClick={phase === 'error' ? () => setPhase('idle') : undefined}
-      style={{ pointerEvents: phase === 'error' ? 'auto' : 'none' }}
-    >
-      {phase === 'saving' && <span className="spin"><Loader2 size={13} strokeWidth={2} /></span>}
-      {phase === 'saved'  && <Check size={13} strokeWidth={2.5} />}
-      {phase === 'error'  && <AlertCircle size={13} strokeWidth={2} />}
-      {phase === 'saving' && 'Zapisuję…'}
-      {phase === 'saved'  && 'Zapisano'}
-      {phase === 'error'  && 'Nie zapisano'}
-    </button>
-  )
+  if (phase === 'error') {
+    return (
+      <button className="sync-error" onClick={() => setPhase('idle')}>
+        <AlertCircle size={14} strokeWidth={2} /> Nie zapisano
+      </button>
+    )
+  }
+
+  return <div className="sync-bar" role="status" aria-label="Zapisywanie" />
 }

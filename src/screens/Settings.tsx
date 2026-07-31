@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom'
-import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Sun, Moon, Check, Mail, Lock } from 'lucide-react'
+import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Sun, Moon, Check, Mail, Lock, Sparkles } from 'lucide-react'
 import { CatBlock, Sheet } from '../components/ui'
 import { useLongPress } from '../hooks/useLongPress'
 import { useTheme } from '../hooks/useTheme'
@@ -157,6 +157,128 @@ function DictEditorSheet({ dict, open, onClose }: { dict: DictConfig; open: bool
   )
 }
 
+// ── Premium — banner reklamowy + arkusz oferty ──────────────────
+
+const PREMIUM_PERKS = [
+  { title: 'Zestawy z AI', sub: 'Propozycje setlisty na podstawie tematu kazania i historii śpiewania' },
+  { title: 'Statystyki bez limitu', sub: 'Pełna historia — nie tylko ostatnie 12 miesięcy' },
+  { title: 'Tryb offline', sub: 'Cały śpiewnik i zestawy dostępne bez zasięgu na scenie' },
+  { title: 'Transpozycja i eksport PDF', sub: 'Akordy w dowolnej tonacji, gotowe karty dla zespołu' },
+  { title: 'Nieograniczony zespół', sub: 'Zaproś dowolną liczbę prowadzących i muzyków' },
+  { title: 'Wsparcie priorytetowe', sub: 'Odpowiedź w ciągu 24 h, wpływ na plan rozwoju' },
+]
+
+const PREMIUM_MONTHLY = 29
+const PREMIUM_YEARLY = PREMIUM_MONTHLY * 9   // rocznie = 9 miesięcy → 3 miesiące gratis
+
+function PremiumSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [plan, setPlan] = useState<'year' | 'month'>('year')
+
+  return (
+    <Sheet open={open} onClose={onClose}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
+          <Sparkles size={18} strokeWidth={1.7} />
+        </span>
+        <h2 className="t-title" style={{ fontSize: 20, margin: 0 }}>Song Steward Premium</h2>
+      </div>
+      <div className="hint" style={{ marginBottom: 16 }}>Wszystko, co masz teraz — plus narzędzia dla zespołu, który prowadzi co tydzień.</div>
+
+      <div className="card" style={{ padding: '4px 16px', marginBottom: 16 }}>
+        <div className="list-rows">
+          {PREMIUM_PERKS.map(p => (
+            <div key={p.title} style={{ display: 'flex', gap: 10, padding: '11px 0' }}>
+              <span style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}><Check size={16} strokeWidth={2.2} /></span>
+              <div>
+                <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text)' }}>{p.title}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.35 }}>{p.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="t-label" style={{ marginBottom: 9 }}>Wybierz plan</div>
+      <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+        {[
+          { v: 'year' as const, label: 'Rocznie', price: `${PREMIUM_YEARLY} zł / rok`, note: 'Płacisz za 9 miesięcy — 3 miesiące gratis', badge: 'Oszczędzasz 25%' },
+          { v: 'month' as const, label: 'Miesięcznie', price: `${PREMIUM_MONTHLY} zł / mies.`, note: 'Rezygnujesz kiedy chcesz' },
+        ].map(opt => (
+          <button
+            key={opt.v}
+            className="card"
+            onClick={() => setPlan(opt.v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', textAlign: 'left',
+              border: `1.5px solid ${plan === opt.v ? 'var(--accent)' : 'var(--border)'}`,
+              background: plan === opt.v ? 'var(--accent-soft)' : 'var(--surface)',
+              minHeight: 48, cursor: 'pointer',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{opt.label}</span>
+                {opt.badge && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid var(--accent-bd)', borderRadius: 'var(--r-pill)', padding: '2px 7px' }}>
+                    {opt.badge}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-2)', marginTop: 3 }}>{opt.price}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>{opt.note}</div>
+            </div>
+            {plan === opt.v && <Check size={17} strokeWidth={2.2} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
+          </button>
+        ))}
+      </div>
+
+      <button className="btn btn-primary btn-block" onClick={onClose}>
+        {plan === 'year' ? `Wykup Premium — ${PREMIUM_YEARLY} zł / rok` : `Wykup Premium — ${PREMIUM_MONTHLY} zł / mies.`}
+      </button>
+      <div className="hint" style={{ marginTop: 10, justifyContent: 'center', width: '100%' }}>
+        14 dni za darmo · bez zobowiązań
+      </div>
+    </Sheet>
+  )
+}
+
+function PremiumBanner({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div
+      className="card"
+      onClick={onOpen}
+      style={{
+        padding: 16, marginBottom: 14, cursor: 'pointer',
+        border: '1px solid var(--accent-bd)',
+        background: 'linear-gradient(135deg, var(--accent-soft) 0%, var(--surface) 78%)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 38, height: 38, borderRadius: 'var(--r-md)', background: 'var(--accent)', color: 'var(--accent-contrast)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <Sparkles size={19} strokeWidth={1.9} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>Song Steward Premium</span>
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 2, lineHeight: 1.35 }}>
+            Zestawy z AI, statystyki bez limitu i tryb offline.
+          </div>
+        </div>
+        <ChevronRight size={16} strokeWidth={1.7} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>{PREMIUM_YEARLY} zł / rok</span>
+        <span style={{ fontSize: 12.5, color: 'var(--text-3)', textDecoration: 'line-through' }}>{PREMIUM_MONTHLY * 12} zł</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', color: 'var(--accent-contrast)', background: 'var(--accent)', borderRadius: 'var(--r-pill)', padding: '3px 8px' }}>
+          3 miesiące gratis
+        </span>
+      </div>
+    </div>
+  )
+}
+
 // ── Stats tag toggle with long-press ────────────────────────────
 
 function StatTag({ name, inc, exc, onInc, onExc }: { name: string; inc: boolean; exc: boolean; onInc: () => void; onExc: () => void }) {
@@ -178,6 +300,7 @@ export function Settings() {
   const [statsTagsHighlight, setStatsTagsHighlight] = useState(routerState?.highlight === 'stats-tags')
   const statsTagsSectionRef = useRef<HTMLDivElement>(null)
   const [editor, setEditor] = useState<DictConfig | null>(null)
+  const [premiumOpen, setPremiumOpen] = useState(false)
 
   // Ponów intencję nawigacji przy KAŻDYM wejściu na ekran (routerLoc.key jest
   // unikatowy dla wpisu w historii). Inicjalizator useState czyta routerState
@@ -249,6 +372,9 @@ export function Settings() {
       <div className="screen-pad" style={{ paddingTop: 16 }}>
         {tab === 'dict' ? (
           <>
+            {/* premium ad banner */}
+            <PremiumBanner onOpen={() => setPremiumOpen(true)} />
+
             {/* moderation entry */}
             <div className="card" style={{ padding: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
               onClick={() => navigate('/moderation')}>
@@ -391,6 +517,9 @@ export function Settings() {
       {editor && (
         <DictEditorSheet dict={editor} open={!!editor} onClose={() => setEditor(null)} />
       )}
+
+      <PremiumSheet open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+
     </div>
   )
 }

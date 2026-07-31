@@ -415,19 +415,43 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   box-shadow: var(--shadow-pop); white-space: nowrap;
 }
 
-.sync-pill {
-  position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: 14px; z-index: 200;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: var(--r-pill); font-size: 13px; font-weight: 600;
-  font-family: var(--font-body); border: 1px solid; white-space: nowrap;
-  box-shadow: var(--shadow-card);
+/* Wskaźnik zapisu — sygnał „coś leci na serwer", który NICZEGO nie zasłania:
+   3-pikselowy pasek przyklejony do samej górnej krawędzi, w pasku statusu nad
+   treścią. Zastąpił pastylkę w prawym górnym rogu, która przykrywała ikonę edycji
+   w nagłówku. Faza „zapisano" została usunięta — zniknięcie paska to potwierdzenie,
+   a konkretną akcję i tak potwierdza toast na dole. */
+.sync-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 200;
+  pointer-events: none; overflow: hidden;
+  background: color-mix(in oklch, var(--accent) 18%, transparent);
+}
+.sync-bar::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: sync-sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes sync-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* Nieudany zapis to jedyna informacja, że dane NIE trafiły na serwer — musi zostać
+   widoczna, ale na dole, przy toastach, żeby nie wracać w okolice nagłówka. */
+.sync-error {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(90px + env(safe-area-inset-bottom)); z-index: 200;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 16px; border-radius: var(--r-pill); font-size: 13px; font-weight: 600;
+  font-family: var(--font-body); white-space: nowrap; cursor: pointer;
+  background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-bd);
+  box-shadow: var(--shadow-pop);
   animation: fin .2s ease;
 }
-.sync-pill.saving { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
-.sync-pill.saved  { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-bd); }
-.sync-pill.error  { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-bd); cursor: pointer; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin .8s linear infinite; display: flex; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-bar::after { animation: none; background: var(--accent); opacity: 0.6; }
+}
 
 .hrow { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 .hrow::-webkit-scrollbar { display: none; }
