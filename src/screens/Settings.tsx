@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom'
 import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Sun, Moon, Check, Mail, Lock, Sparkles } from 'lucide-react'
 import { CatBlock, Sheet } from '../components/ui'
+import { PremiumThanks } from '../components/PremiumThanks'
+import { vibrate } from '../lib/vibrate'
 import { useLongPress } from '../hooks/useLongPress'
 import { useTheme } from '../hooks/useTheme'
 import { useLocationFilter } from '../hooks/useLocationFilter'
@@ -173,6 +175,18 @@ const PREMIUM_YEARLY = PREMIUM_MONTHLY * 9   // rocznie = 9 miesięcy → 3 mies
 
 function PremiumSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [plan, setPlan] = useState<'year' | 'month'>('year')
+  const [thanks, setThanks] = useState(false)
+
+  // Każde otwarcie arkusza startuje od oferty, nie od podziękowania.
+  useEffect(() => { if (open) setThanks(false) }, [open])
+
+  if (thanks) {
+    return (
+      <Sheet open={open} onClose={onClose}>
+        <PremiumThanks />
+      </Sheet>
+    )
+  }
 
   return (
     <Sheet open={open} onClose={onClose}>
@@ -232,7 +246,7 @@ function PremiumSheet({ open, onClose }: { open: boolean; onClose: () => void })
         ))}
       </div>
 
-      <button className="btn btn-primary btn-block" onClick={onClose}>
+      <button className="btn btn-primary btn-block" onClick={() => { vibrate(30); setThanks(true) }}>
         {plan === 'year' ? `Wykup Premium — ${PREMIUM_YEARLY} zł / rok` : `Wykup Premium — ${PREMIUM_MONTHLY} zł / mies.`}
       </button>
       <div className="hint" style={{ marginTop: 10, justifyContent: 'center', width: '100%' }}>

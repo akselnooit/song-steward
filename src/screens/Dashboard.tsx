@@ -53,6 +53,30 @@ function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
   )
 }
 
+// Wiersz „Nigdy nieśpiewanych" z animacją odkopywania: ściana kafelków
+// rozsypuje się blok po bloku, a wiersz spada na miejsce jak stawiany blok.
+// Cała oprawa żyje tylko 1,15 s — potem JS zdejmuje klasę i usuwa ścianę,
+// więc żaden zamrożony/niewsparty keyframe nie może zasłonić pieśni.
+function McRow({ index, children }: { index: number; children: React.ReactNode }) {
+  const [intro, setIntro] = useState(true)
+  useEffect(() => {
+    const t = setTimeout(() => setIntro(false), 1150)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <div className={`mc-row${intro ? ' mc-in' : ''}`} style={{ '--i': index } as React.CSSProperties}>
+      {children}
+      {intro && (
+        <span className="mc-cover" aria-hidden>
+          {Array.from({ length: 12 }, (_, b) => (
+            <i key={b} style={{ '--b': b } as React.CSSProperties} />
+          ))}
+        </span>
+      )}
+    </div>
+  )
+}
+
 function TodayCard({ service, isToday, songCount, onOpen }: {
   service: ServiceWithRefs; isToday: boolean; songCount: { sung: number; planned: number }; onOpen: () => void
 }) {
@@ -108,11 +132,14 @@ export function Dashboard() {
   // losujemy po stronie klienta — nowa próbka przy każdym wejściu i przy potrząśnięciu.
   const { data: neverSungPool } = useNeverSung(statsFilters, 1000)
   const [neverSung, setNeverSung] = useState<NeverSungRow[]>([])
+  // Licznik losowania — bump wymusza remount wierszy, więc animacja „odkopywania"
+  // kafelków startuje od nowa przy każdym losowaniu.
+  const [rollKey, setRollKey] = useState(0)
   const rollNeverSung = useCallback(() => {
-    if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); vibrate(30) }
+    if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); setRollKey(k => k + 1); vibrate(30) }
   }, [neverSungPool])
   // Nowa próbka gdy pula się załaduje/zmieni (np. po zmianie filtra) oraz przy każdym montażu.
-  useEffect(() => { if (neverSungPool) setNeverSung(sample(neverSungPool, 5)) }, [neverSungPool])
+  useEffect(() => { if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); setRollKey(k => k + 1) } }, [neverSungPool])
   const shake = useShake(rollNeverSung)
   const onDiceTap = () => {
     rollNeverSung()                 // ręczne „wylosuj ponownie" — działa zawsze (fallback)
@@ -265,17 +292,19 @@ export function Dashboard() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             title={shake.enabled ? 'Losuj ponownie (lub potrząśnij telefonem)' : 'Losuj ponownie — dotknij, by włączyć potrząsanie'}
           >
-            <Dices size={16} strokeWidth={1.7} /> Losuj
+            <span key={rollKey} className="mc-dice"><Dices size={16} strokeWidth={1.7} /></span> Losuj
           </button>
         </div>
-        <div className="card list-rows" style={{ padding: '4px 14px' }}>
+        <div key={rollKey} className="card list-rows mc-box" style={{ padding: '4px 14px' }}>
           {neverSung.length === 0
             ? <div style={{ padding: '14px 0', color: 'var(--text-3)', fontSize: 13 }}>Brak danych</div>
-            : neverSung.map(r => (
-              <TopRow key={r.id}
-                collectionShortName={r.collection_short_name} number={r.number}
-                title={r.title}
-                onClick={() => openSong(r.id, neverSungIds)} />
+            : neverSung.map((r, i) => (
+              <McRow key={r.id} index={i}>
+                <TopRow
+                  collectionShortName={r.collection_short_name} number={r.number}
+                  title={r.title}
+                  onClick={() => openSong(r.id, neverSungIds)} />
+              </McRow>
             ))}
         </div>
 

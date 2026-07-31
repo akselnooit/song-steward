@@ -485,3 +485,150 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 @media (prefers-reduced-motion: reduce) {
   .svc-song.leaving, .svc-song.drop-in { animation: none; }
 }
+
+/* ============================================================
+   PREMIUM — podziękowanie + mini-gra „Echo melodii"
+   Wszystko na tokenach, więc oba motywy działają same z siebie.
+   ============================================================ */
+
+/* serduszko z pulsującymi pierścieniami */
+.thanks-badge {
+  width: 56px; height: 56px; border-radius: var(--r-pill);
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-contrast);
+  animation: thanks-pop 520ms cubic-bezier(0.2, 1.5, 0.4, 1), thanks-ring 1.9s ease-out 3;
+}
+@keyframes thanks-pop { from { transform: scale(0.4); opacity: 0; } }
+@keyframes thanks-ring {
+  0%   { box-shadow: 0 0 0 0 var(--accent-bd); }
+  70%  { box-shadow: 0 0 0 20px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.echo-best {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  height: 26px; padding: 0 10px; border-radius: var(--r-pill);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-2); font-size: 12.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.echo-stage { position: relative; }
+.echo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.echo-pad {
+  position: relative; aspect-ratio: 1 / 0.72; min-height: 64px;
+  border-radius: var(--r-md); cursor: pointer;
+  background: var(--ps); border: 1.5px solid var(--pb);
+  display: grid; place-items: center;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: transform 120ms ease, background 200ms ease, box-shadow 220ms ease;
+}
+.echo-pad:active { transform: scale(0.97); }
+.echo-dot {
+  width: 12px; height: 12px; border-radius: var(--r-pill);
+  background: var(--pc); opacity: 0.45;
+  transition: transform 170ms cubic-bezier(0.3, 1.5, 0.5, 1), opacity 170ms ease, background 170ms ease;
+}
+.echo-pad.lit {
+  background: var(--pc); border-color: var(--pc);
+  box-shadow: 0 0 0 4px var(--ps), 0 10px 26px -8px var(--pc);
+  transform: scale(1.035);
+}
+.echo-pad.lit .echo-dot { transform: scale(2.7); opacity: 1; background: var(--surface); }
+
+/* iskry po zaliczonej rundzie */
+.echo-burst { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.echo-burst i {
+  position: absolute; width: 7px; height: 7px; border-radius: var(--r-pill);
+  background: var(--accent);
+  transform: rotate(var(--a)) translateY(0) scale(0.5);
+  animation: echo-spark 680ms cubic-bezier(0.2, 0.75, 0.3, 1) forwards;
+}
+@keyframes echo-spark {
+  0%   { transform: rotate(var(--a)) translateY(0) scale(0.5); opacity: 0; }
+  22%  { opacity: 1; }
+  100% { transform: rotate(var(--a)) translateY(-72px) scale(0.15); opacity: 0; }
+}
+
+@keyframes echo-shake {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-7px); } 38% { transform: translateX(6px); }
+  58% { transform: translateX(-4px); } 78% { transform: translateX(2px); }
+}
+.echo-shake { animation: echo-shake 400ms ease; }
+
+.echo-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.echo-score { font-size: 12.5px; font-weight: 600; color: var(--text-3); }
+.echo-score b {
+  color: var(--text); font-size: 19px; font-weight: 700; margin-left: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.echo-bump { display: inline-block; animation: echo-bump 460ms cubic-bezier(0.3, 1.6, 0.4, 1); }
+@keyframes echo-bump {
+  0% { transform: scale(1); } 40% { transform: scale(1.4); color: var(--accent); } 100% { transform: scale(1); }
+}
+
+.echo-record {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 12px; padding: 9px; border-radius: var(--r-md);
+  background: var(--accent-soft); border: 1px solid var(--accent-bd);
+  color: var(--accent); font-size: 13px; font-weight: 700;
+  animation: fin .3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thanks-badge, .echo-shake, .echo-bump, .echo-record { animation: none; }
+  .echo-burst { display: none; }
+  .echo-pad, .echo-dot { transition: none; }
+}
+
+/* ============================================================
+   „Nigdy nieśpiewane" — losowanie w stylu minecraftowych bloków.
+   Ściana kafelków rozsypuje się blok po bloku, a wiersze „stawiają
+   się" skokowo (steps()), jak stawianie bloku w grze.
+   ============================================================ */
+.mc-box { animation: mc-thud 340ms steps(3, end) both; }
+@keyframes mc-thud {
+  0%   { box-shadow: var(--shadow-card), 0 0 0 0 var(--accent-bd); }
+  55%  { box-shadow: var(--shadow-card), 0 0 0 5px var(--accent-soft); }
+  100% { box-shadow: var(--shadow-card), 0 0 0 0 transparent; }
+}
+
+.mc-row { position: relative; overflow: hidden; }
+.mc-row.mc-in > .song-card {
+  animation: mc-place 300ms steps(4, end) both;
+  animation-delay: calc(var(--i) * 90ms + 120ms);
+}
+/* Świadomie BEZ opacity: gdyby animacja nie ruszyła (zamrożona karta, brak
+   wsparcia), tytuł pieśni musi zostać czytelny — rusza się tylko transform. */
+@keyframes mc-place {
+  0%   { transform: translateY(-18px) scale(0.92); }
+  68%  { transform: translateY(2px) scale(1.01); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.mc-cover { position: absolute; inset: 0; display: flex; gap: 2px; pointer-events: none; }
+.mc-cover i {
+  flex: 1; align-self: stretch;
+  background: var(--surface-2);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.10), inset 3px 3px 0 rgba(255, 255, 255, 0.14);
+  animation: mc-break 380ms steps(4, end) both;
+  animation-delay: calc(var(--i) * 90ms + var(--b) * 30ms);
+}
+/* nierówna „faktura" ściany — trochę bloków w odcieniu darni, trochę kamienia */
+.mc-cover i:nth-child(3n)   { background: color-mix(in oklch, var(--surface-2) 80%, var(--accent)); }
+.mc-cover i:nth-child(4n+1) { background: color-mix(in oklch, var(--surface-2) 88%, var(--text-3)); }
+@keyframes mc-break {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  50%  { transform: translateY(1px) scale(0.88); opacity: 1; }
+  100% { transform: translateY(11px) scale(0.2); opacity: 0; }
+}
+
+.mc-dice { display: inline-flex; animation: mc-spin 420ms steps(6, end); }
+@keyframes mc-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-box, .mc-row.mc-in > .song-card, .mc-dice { animation: none; }
+  .mc-cover { display: none; }
+}
