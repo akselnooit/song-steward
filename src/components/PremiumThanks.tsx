@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Heart, Mail, Copy, Check, Play, RotateCcw, Trophy, Volume2 } from 'lucide-react'
+import { Heart, Mail, Copy, Check, Play, RotateCcw, Trophy, Volume2, Gamepad2 } from 'lucide-react'
 import { vibrate } from '../lib/vibrate'
+import { Sheet } from './ui'
 
 const MAIL = 'akselon@gmail.com'
 const MAILTO = `mailto:${MAIL}`
@@ -230,10 +231,27 @@ function EchoGame() {
   )
 }
 
+// ── Gra jako osobny arkusz, otwierany dopiero na życzenie ────────
+
+function EchoGameSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Sheet open={open} onClose={onClose}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
+          <Gamepad2 size={18} strokeWidth={1.7} />
+        </span>
+        <h2 className="t-title" style={{ fontSize: 20, margin: 0 }}>Echo melodii</h2>
+      </div>
+      <EchoGame />
+    </Sheet>
+  )
+}
+
 // ── Ekran podziękowania po kliknięciu „Wykup Premium" ────────────
 
 export function PremiumThanks() {
   const [copied, setCopied] = useState(false)
+  const [gameOpen, setGameOpen] = useState(false)
 
   useEffect(() => {
     if (!copied) return
@@ -281,8 +299,11 @@ export function PremiumThanks() {
         </div>
       </div>
 
-      <div className="t-label" style={{ marginBottom: 9 }}>A w ramach podziękowania — mała gra</div>
-      <EchoGame />
+      <button className="btn btn-ghost btn-block" onClick={() => { vibrate(15); setGameOpen(true) }}>
+        <Gamepad2 size={17} strokeWidth={1.9} /> A w ramach podziękowania — mała gra
+      </button>
+
+      <EchoGameSheet open={gameOpen} onClose={() => setGameOpen(false)} />
     </div>
   )
 }

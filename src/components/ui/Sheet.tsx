@@ -7,17 +7,30 @@ interface SheetProps {
   children: React.ReactNode
 }
 
+// Stos otwartych arkuszy — gdy jeden jest otwarty nad drugim (np. gra nad
+// podziękowaniem), Escape ma zamykać tylko wierzchni, nie oba naraz.
+const openStack: symbol[] = []
+
 export function Sheet({ open, onClose, children }: SheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+  const idRef = useRef(Symbol('sheet'))
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
+    const id = idRef.current
+    openStack.push(id)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && openStack[openStack.length - 1] === id) onCloseRef.current()
+    }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      const i = openStack.indexOf(id)
+      if (i !== -1) openStack.splice(i, 1)
+    }
   }, [open])
 
   // Pull-down-to-close gesture (only when the body is scrolled to the top).
