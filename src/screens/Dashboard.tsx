@@ -53,8 +53,9 @@ function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
   )
 }
 
-// Czas życia oprawy losowania. Najdłuższa warstwa to fala światła ostatniego
-// wiersza: 4 × 64 ms opóźnienia + 460 ms — plus zapas na zdjęcie klasy.
+// Czas życia oprawy losowania. Najdłuższa warstwa to pierścień karty:
+// 90 ms opóźnienia + 620 ms = 710 ms (fala ostatniego wiersza kończy się
+// wcześniej: 4 × 17 + 380 = 448 ms, osiadanie: 4 × 56 + 40 + 300 = 564 ms).
 // Źródłem prawdy o końcu animacji jest ten timer, NIE `animationend`: iOS nie
 // odpala tego zdarzenia dla warstwy odmontowanej ani dla PWA uśpionej w tle,
 // więc oprawa mogłaby zostać na wierzchu na zawsze.
@@ -131,7 +132,7 @@ function TodayCard({ service, isToday, songCount, onOpen }: {
 export function Dashboard() {
   const navigate = useNavigate()
   const { leader } = useCurrentUser()
-  const { openSong } = useSongOverlay()
+  const { openSong, songId } = useSongOverlay()
   const [locationId] = useLocationFilter()
   const [statsPrefs] = useStatsFilters()
   const [newServiceOpen, setNewServiceOpen] = useState(false)
@@ -157,31 +158,56 @@ export function Dashboard() {
   const neverSungCardRef = useRef<HTMLDivElement>(null)
 
   const rollNeverSung = useCallback(() => {
-    if (!neverSungPool || neverSungPool.length === 0) return
+    // Nad Dashboardem może leżeć arkusz pieśni albo „Nowe nabożeństwo" (scrim na
+    // całym ekranie), a sam Dashboard zostaje zamontowany — więc nasłuch
+    // potrząśnięcia dalej żyje. Wtedy potrząśnięcie to przypadkowy ruch telefonu:
+    // animacji nikt nie zobaczy, a po zamknięciu arkusza lista pokazałaby pięć
+    // innych pieśni bez widocznej przyczyny. Tap „Losuj" jest wtedy nieosiągalny,
+    // więc ten warunek bramkuje wyłącznie ścieżkę potrząśnięcia.
+    if (songId || newServiceOpen) return
+
+    if (!neverSungPool || neverSungPool.length === 0) {
+      // Tap musi coś zrobić — inaczej przycisk wygląda na zepsuty. Nie ma czego
+      // losować, więc tylko potwierdzamy dotknięcie i mówimy, dlaczego nic się
+      // nie zmieniło.
+      vibrate(15)
+      setAnnounce({
+        seq: ++seqRef.current,
+        text: neverSungPool ? 'Brak pieśni do wylosowania' : 'Wczytywanie pieśni',
+      })
+      return
+    }
+
     const picked = sample(neverSungPool, 5)
     setNeverSung(picked)
     vibrate(30)
 
-    const seq = ++seqRef.current
-    setRollSeq(seq)
     // Przy wyłączonych animacjach losowanie jest wizualnie nieme — komunikat dla
     // czytnika ekranu jest wtedy jedynym potwierdzeniem, więc leci w obu trybach.
-    setAnnounce({ seq, text: `Wylosowano ${picked.length} ${picked.length === 1 ? 'pieśń' : 'pieśni'}` })
+    // Tytuł pierwszej pieśni w treści też nie jest ozdobnikiem: dwa identyczne
+    // ogłoszenia pod rząd czytniki potrafią scalić w jedno.
+    setAnnounce({
+      seq: ++seqRef.current,
+      text: `Wylosowano ${picked.length} ${picked.length === 1 ? 'pieśń' : 'pieśni'}: ${picked[0].title}`,
+    })
 
     if (rollTimerRef.current != null) {
       clearTimeout(rollTimerRef.current)
       rollTimerRef.current = null
     }
     if (prefersReducedMotion() || !isInViewport(neverSungCardRef.current)) {
+      // Bez oprawy nie ma czego restartować — `rollSeq` zostaje, więc karta się
+      // nie przemontowuje i nie przerysowuje swojego cienia bez powodu.
       setRolling(false)
       return
     }
+    setRollSeq(s => s + 1)   // klucz restartu warstw — tylko gdy naprawdę animujemy
     setRolling(true)
     rollTimerRef.current = window.setTimeout(() => {
       rollTimerRef.current = null
       setRolling(false)
     }, ROLL_MS)
-  }, [neverSungPool])
+  }, [songId, newServiceOpen, neverSungPool])
 
   useEffect(() => () => {
     if (rollTimerRef.current != null) clearTimeout(rollTimerRef.current)
@@ -352,7 +378,6 @@ export function Dashboard() {
             onClick={onDiceTap}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
             aria-label={shake.enabled ? 'Losuj ponownie — lub potrząśnij telefonem' : 'Losuj ponownie — dotknij, by włączyć potrząsanie'}
-            title={shake.enabled ? 'Losuj ponownie (lub potrząśnij telefonem)' : 'Losuj ponownie — dotknij, by włączyć potrząsanie'}
           >
             <span key={rollSeq} className={`roll-dice${rolling ? ' is-rolling' : ''}`} aria-hidden>
               <Dices size={16} strokeWidth={1.7} />

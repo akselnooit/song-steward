@@ -5,8 +5,16 @@ type MotionWithPermission = { requestPermission?: () => Promise<'granted' | 'den
 // Wykrywanie potrząśnięcia telefonem (devicemotion) z obsługą zgody iOS 13+.
 // iOS wymaga, by DeviceMotionEvent.requestPermission() było wołane z gestu użytkownika
 // (tap) i po HTTPS — dlatego `enable()` należy wywołać w handlerze tapnięcia.
+// Ekran, który używa tego hooka, odmontowuje się przy każdej zmianie zakładki,
+// więc stan komponentu ginie i nasłuch trzeba było uzbrajać kolejnym tapem
+// „Losuj". Zgoda iOS jest per-origin i jednorazowa, więc wystarczy zapamiętać
+// fakt jej udzielenia poza komponentem: po pierwszym udanym włączeniu nasłuch
+// uzbraja się sam przy montowaniu, bez ponownego requestPermission (do którego
+// iOS i tak wymaga gestu użytkownika).
+let armed = false
+
 export function useShake(onShake: () => void) {
-  const [enabled, setEnabled] = useState(false)
+  const [enabled, setEnabled] = useState(armed)
   const onShakeRef = useRef(onShake)
   onShakeRef.current = onShake
   const lastRef = useRef(0)
@@ -27,6 +35,7 @@ export function useShake(onShake: () => void) {
         return false
       }
     }
+    armed = true
     setEnabled(true)
     return true
   }, [needsPermission])
