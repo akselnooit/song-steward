@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sheet } from './ui'
+import { HRow, Sheet } from './ui'
 import { useLocations, useServiceCategories, useWorshipLeaders, useCreateService, useServices } from '../lib/queries'
 import type { CreateServiceInput } from '../lib/schemas'
 import { useLocationFilter } from '../hooks/useLocationFilter'
@@ -76,38 +76,45 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
         value={date} onChange={e => setDate(e.target.value)} />
 
       <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>
-      <div className="hrow" style={{ marginBottom: 18 }}>
+      <HRow selected={locationId} style={{ marginBottom: 18 }}>
         {locations.map(l => (
-          <button key={l.id} className={`tag${locationId === l.id ? ' include' : ''}`} onClick={() => setLocationId(l.id)}>
+          <button key={l.id} className={`tag${locationId === l.id ? ' include' : ''}`}
+            data-selected={locationId === l.id ? 'true' : undefined}
+            onClick={() => setLocationId(l.id)}>
             {l.name}
           </button>
         ))}
-      </div>
+      </HRow>
 
       <div className="t-label" style={{ marginBottom: 8 }}>Kategoria</div>
-      <div className="hrow" style={{ marginBottom: 18 }}>
+      <HRow selected={categoryId} style={{ marginBottom: 18 }}>
         {categories.map(c => (
-          <button key={c.id} className={`tag${categoryId === c.id ? ' include' : ''}`} onClick={() => setCategoryId(c.id)}>
+          <button key={c.id} className={`tag${categoryId === c.id ? ' include' : ''}`}
+            data-selected={categoryId === c.id ? 'true' : undefined}
+            onClick={() => setCategoryId(c.id)}>
             {c.name}
           </button>
         ))}
-      </div>
+      </HRow>
 
       {/* Prowadzący jest opcjonalny — bywają nabożeństwa i uroczystości bez konkretnej
           osoby. Jawny kafelek „Brak" zamiast liczenia na to, że użytkownik domyśli się
           odklikania wstępnie wybranego prowadzącego. */}
       <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę (opcjonalnie)</div>
-      <div className="hrow" style={{ marginBottom: 24 }}>
-        <button className={`tag${!leaderId ? ' include' : ''}`} onClick={() => setLeaderId('')}>
+      <HRow selected={leaderId} style={{ marginBottom: 24 }}>
+        <button className={`tag${!leaderId ? ' include' : ''}`}
+          data-selected={!leaderId ? 'true' : undefined}
+          onClick={() => setLeaderId('')}>
           Brak
         </button>
         {leaders.map(l => (
           <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`}
+            data-selected={leaderId === l.id ? 'true' : undefined}
             onClick={() => setLeaderId(id => id === l.id ? '' : l.id)}>
             {l.name}
           </button>
         ))}
-      </div>
+      </HRow>
 
       <button className="btn btn-primary btn-block"
         disabled={!canCreate || createService.isPending} onClick={handleCreate}>

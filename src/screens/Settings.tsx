@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom'
 import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Sun, Moon, Check, Mail, Lock, Sparkles } from 'lucide-react'
-import { CatBlock, Sheet } from '../components/ui'
+import { CatBlock, HRow, Sheet } from '../components/ui'
 import { PremiumThanks } from '../components/PremiumThanks'
 import { vibrate } from '../lib/vibrate'
 import { useLongPress } from '../hooks/useLongPress'
@@ -97,13 +97,15 @@ function DictEditorSheet({ dict, open, onClose }: { dict: DictConfig; open: bool
       </div>
 
       {dict.key === 'tags' && (
-        <div className="hrow" style={{ marginBottom: 12 }}>
+        <HRow selected={tagCatId} style={{ marginBottom: 12 }}>
           {tagCats.map(c => (
-            <button key={c.id} className={`tag${tagCatId === c.id ? ' include' : ''}`} onClick={() => setTagCatId(c.id)}>
+            <button key={c.id} className={`tag${tagCatId === c.id ? ' include' : ''}`}
+              data-selected={tagCatId === c.id ? 'true' : undefined}
+              onClick={() => setTagCatId(c.id)}>
               {c.name}
             </button>
           ))}
-        </div>
+        </HRow>
       )}
 
       {!dict.readonly && (

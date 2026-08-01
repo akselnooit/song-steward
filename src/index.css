@@ -302,7 +302,11 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   background: var(--bg); border-radius: 26px 26px 0 0;
   max-height: 92%; display: flex; flex-direction: column;
   box-shadow: var(--shadow-pop);
-  touch-action: pan-y;
+  /* `pan-y` blokowało przewijanie w POZIOMIE dowolnego paska wewnątrz arkusza
+     (touch-action przodka przecina się z zachowaniem dziecka) — chipy nie dały
+     się przewijać w bok, gest szedł w pion. `pan-x pan-y` puszcza obie osie,
+     nadal bez zoomu/double-tap. */
+  touch-action: pan-x pan-y;
   transform: translateY(0); animation: rise .34s cubic-bezier(.22,1,.36,1);
 }
 @keyframes rise { from { transform: translateY(34px); } }
@@ -327,7 +331,17 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 /* ---------- service screen ---------- */
 .svc-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .meta-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-pill); padding: 5px 11px; white-space: nowrap; }
-.notes-box { width: 100%; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--r-md); padding: 12px 14px; color: var(--text-2); font-size: 14px; font-family: var(--font-body); resize: none; outline: none; line-height: 1.5; }
+/* Notatki: podgląd i edycja dzielą DOKŁADNIE te same metryki pudełka (obrys,
+   padding, szerokość łamania tekstu, interlinia), a textarea rośnie z treścią
+   (wysokość ustawia JS). Dzięki temu wejście w edycję nie zmienia wysokości
+   bloku i ekran nie „skacze", a długiej notatki nie trzeba oglądać przez
+   szparę na 3 linijki. Prawy padding robi miejsce na ikonę ołówka — jest po
+   obu stronach, żeby tekst łamał się identycznie. */
+.notes-box { width: 100%; display: block; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--r-md); padding: 12px 38px 12px 14px; color: var(--text-2); font-size: 14px; font-family: var(--font-body); resize: none; outline: none; line-height: 1.5; min-height: 46px; }
+.notes-wrap { position: relative; }
+.notes-view { white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
+.notes-edit { overflow: hidden; }
+.notes-pencil { position: absolute; top: 13px; right: 13px; color: var(--text-3); opacity: 0.6; pointer-events: none; }
 .svc-song { display: flex; align-items: center; gap: 11px; padding: 11px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
 .svc-song + .svc-song { margin-top: 8px; }
 .drag-h { color: var(--text-3); cursor: grab; touch-action: none; }
@@ -453,8 +467,16 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   .sync-bar::after { animation: none; background: var(--accent); opacity: 0.6; }
 }
 
-.hrow { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+/* Poziomy pasek chipów. `overscroll-behavior-x: contain` odcina łańcuchowanie
+   przewijania na kontener nadrzędny (dojechanie do końca paska nie może pociągnąć
+   arkusza ani ekranu). Oś gestu wybiera przeglądarka — dlatego BEZ touch-action. */
+.hrow {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none; overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
 .hrow::-webkit-scrollbar { display: none; }
+.hrow > * { flex-shrink: 0; }
 
 .colbar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; border: 1px solid var(--border); }
 .colbar span { height: 100%; }

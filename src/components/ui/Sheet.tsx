@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { inHorizontalScroller, isEditableTarget } from '../../lib/gestures'
 
 interface SheetProps {
   open: boolean
@@ -37,16 +38,32 @@ export function Sheet({ open, onClose, children }: SheetProps) {
   useEffect(() => {
     const sheet = sheetRef.current
     if (!sheet || !open) return
-    let startY = 0, startScrollTop = 0, dragging = false
+    let startX = 0, startY = 0, startScrollTop = 0
+    let dragging = false, decided = false, ignore = false
 
     const onStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX
       startY = e.touches[0].clientY
       startScrollTop = bodyRef.current?.scrollTop ?? 0
       dragging = false
+      decided = false
+      // Gest zaczęty na poziomym pasku chipów albo w polu tekstowym nigdy nie
+      // ciągnie arkusza — wcześniej przewijanie chipów w bok ciągnęło arkusz
+      // w dół (wystarczyło minimalne zejście palcem) i zamykało edycję.
+      ignore = inHorizontalScroller(e.target, sheet) || isEditableTarget(e.target)
       sheet.style.transition = 'none'
     }
     const onMove = (e: TouchEvent) => {
+      if (ignore) return
+      const dx = e.touches[0].clientX - startX
       const dy = e.touches[0].clientY - startY
+      // Oś gestu rozstrzygamy raz, po przekroczeniu progu — gest poziomy
+      // oddajemy przeglądarce (natywne przewijanie), nie porywamy go na drag.
+      if (!decided) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+        decided = true
+        if (Math.abs(dx) > Math.abs(dy)) { ignore = true; return }
+      }
       if (dy > 0 && startScrollTop === 0) {
         dragging = true
         e.preventDefault()
