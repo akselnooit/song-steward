@@ -138,8 +138,19 @@ export function Dashboard() {
   const rollNeverSung = useCallback(() => {
     if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); setRollKey(k => k + 1); vibrate(30) }
   }, [neverSungPool])
-  // Nowa próbka gdy pula się załaduje/zmieni (np. po zmianie filtra) oraz przy każdym montażu.
-  useEffect(() => { if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); setRollKey(k => k + 1) } }, [neverSungPool])
+  // Nowa próbka przy pierwszym załadowaniu puli i przy realnej zmianie filtrów —
+  // NIE przy każdym cichym refetchu w tle (staleTime/refetchOnWindowFocus), bo
+  // to podmieniałoby widoczne pieśni i odpalało animację bez akcji użytkownika.
+  const filterSig = JSON.stringify(statsFilters)
+  const lastRollSigRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!neverSungPool) return
+    if (lastRollSigRef.current === filterSig && neverSung.length > 0) return
+    lastRollSigRef.current = filterSig
+    setNeverSung(sample(neverSungPool, 5))
+    setRollKey(k => k + 1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [neverSungPool, filterSig])
   const shake = useShake(rollNeverSung)
   const onDiceTap = () => {
     rollNeverSung()                 // ręczne „wylosuj ponownie" — działa zawsze (fallback)

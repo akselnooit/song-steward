@@ -66,6 +66,9 @@ function nuty(n: number) {
   return 'nut'
 }
 
+// biernik („miała ile?"): 1 nutę, reszta jak w mianowniku (2–4 nuty, 5+ nut)
+const nutyBiernik = (n: number) => (n === 1 ? 'nutę' : nuty(n))
+
 function EchoGame() {
   const [seq, setSeq] = useState<number[]>([])
   const [step, setStep] = useState(0)
@@ -73,7 +76,6 @@ function EchoGame() {
   const [lit, setLit] = useState<number | null>(null)
   const [score, setScore] = useState(0)
   const [burst, setBurst] = useState(0)
-  const [miss, setMiss] = useState(0)
   const [record, setRecord] = useState(false)
   const [best, setBest] = useState(() => Number(localStorage.getItem(BEST_KEY)) || 0)
   const tapTimer = useRef<number | undefined>(undefined)
@@ -106,7 +108,9 @@ function EchoGame() {
     return () => timers.forEach(clearTimeout)
   }, [phase])
 
-  useEffect(() => () => window.clearTimeout(tapTimer.current), [])
+  // suspend() zamiast close(): zwalnia sprzęt audio, ale zachowuje singleton
+  // (tone() sam robi resume() z gestu użytkownika, gdy gra zostanie otwarta ponownie).
+  useEffect(() => () => { window.clearTimeout(tapTimer.current); void audio?.suspend() }, [])
 
   const flash = (i: number) => {
     setLit(i)
@@ -124,7 +128,6 @@ function EchoGame() {
     if (i !== seq[step]) {
       tone(174.61, 0.85, 0.12)     // niskie F3 — melodia „gaśnie", to nie kara
       vibrate(70)
-      setMiss(m => m + 1)
       if (score > best) {
         setBest(score)
         localStorage.setItem(BEST_KEY, String(score))
@@ -155,7 +158,7 @@ function EchoGame() {
   const status = phase === 'show' ? 'Słuchaj…'
     : phase === 'play' ? `Powtórz — nuta ${step + 1} z ${seq.length}`
     : phase === 'win' ? 'Pięknie!'
-    : phase === 'over' ? `Melodia miała ${seq.length} ${nuty(seq.length)}.`
+    : phase === 'over' ? `Melodia miała ${seq.length} ${nutyBiernik(seq.length)}.`
     : 'Dotknij pól, żeby posłuchać.'
 
   return (
@@ -208,22 +211,25 @@ function EchoGame() {
           <div className="echo-score">
             Wynik <b key={score} className={score > 0 ? 'echo-bump' : undefined}>{score}</b>
           </div>
-          <div className="hint" key={`${phase}${miss}`} style={{ marginTop: 2 }}>{status}</div>
+          <div className="hint" role="status" aria-live="polite" style={{ marginTop: 2 }}>
+            {status}
+            {phase === 'over' && record && score > 0 && ` Nowy rekord — ${score} ${nuty(score)}!`}
+          </div>
         </div>
         {phase === 'idle' && (
-          <button className="btn btn-primary" onClick={start} style={{ minHeight: 44, padding: '0 18px' }}>
+          <button className="btn btn-primary" onClick={start} style={{ minHeight: 48, padding: '0 18px' }}>
             <Play size={16} strokeWidth={2} /> Zagraj
           </button>
         )}
         {phase === 'over' && (
-          <button className="btn btn-ghost" onClick={start} style={{ minHeight: 44, padding: '0 18px' }}>
+          <button className="btn btn-ghost" onClick={start} style={{ minHeight: 48, padding: '0 18px' }}>
             <RotateCcw size={16} strokeWidth={2} /> Jeszcze raz
           </button>
         )}
       </div>
 
       {phase === 'over' && record && score > 0 && (
-        <div className="echo-record">
+        <div className="echo-record" aria-hidden>
           <Trophy size={14} strokeWidth={2} /> Nowy rekord — {score} {nuty(score)}!
         </div>
       )}
@@ -285,7 +291,7 @@ export function PremiumThanks() {
 
       <div className="card" style={{ padding: 16, marginBottom: 20, background: 'var(--accent-soft)', border: '1px solid var(--accent-bd)' }}>
         <div style={{ fontSize: 13.5, color: 'var(--text)', lineHeight: 1.5, marginBottom: 12 }}>
-          Chcesz być pierwszy w kolejce? Napisz na <b>{MAIL}</b> i poproś o kontakt —
+          Chcesz być na początku kolejki? Napisz na <b>{MAIL}</b> i poproś o kontakt —
           odezwiemy się, gdy Premium będzie gotowe.
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

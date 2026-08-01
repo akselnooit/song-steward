@@ -181,15 +181,17 @@ function PremiumSheet({ open, onClose }: { open: boolean; onClose: () => void })
   useEffect(() => { if (open) setThanks(false) }, [open])
 
   if (thanks) {
+    // key inny niż w gałęzi oferty: wymusza remount portalu, więc .sheet-body
+    // dostaje świeży scrollTop 0 zamiast dziedziczyć pozycję scrolla z oferty.
     return (
-      <Sheet open={open} onClose={onClose}>
+      <Sheet key="thanks" open={open} onClose={onClose}>
         <PremiumThanks />
       </Sheet>
     )
   }
 
   return (
-    <Sheet open={open} onClose={onClose}>
+    <Sheet key="offer" open={open} onClose={onClose}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
         <span style={{ width: 34, height: 34, borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
           <Sparkles size={18} strokeWidth={1.7} />
