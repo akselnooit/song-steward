@@ -55,6 +55,12 @@
   --glass-capsule: color-mix(in oklch, var(--surface) 90%, transparent);
   --glass-rim: rgba(255, 255, 255, 0.65);
   --glass-sheen: rgba(255, 255, 255, 0.5);
+  /* Fala losowania („Nigdy nieśpiewane"). Osobne tokeny per motyw, bo nad
+     --surface o L = 0,998 nie ma zapasu jasności — w jasnym motywie „światło"
+     musi przyciemniać. Głębia dobrana tak, by grzbiet schodził od tła o tyle,
+     co kafelek Premium (ΔL ≈ −0,057), a nie głębiej niż włoski --border. */
+  --roll-crest: color-mix(in oklch, var(--accent-bd) 42%, transparent);
+  --roll-glow:  color-mix(in oklch, var(--accent-soft) 62%, transparent);
 }
 [data-style="reverent"][data-theme="dark"] {
   --bg: oklch(0.185 0.008 150); --bg-2: oklch(0.155 0.008 150);
@@ -67,6 +73,10 @@
   --glass-capsule: color-mix(in oklch, var(--surface) 88%, transparent);
   --glass-rim: rgba(255, 255, 255, 0.14);
   --glass-sheen: rgba(255, 255, 255, 0.13);
+  /* W ciemnym motywie kierunek jest odwrotny — grzbiet rozjaśnia (ΔL ≈ +0,19)
+     i zostaje zielony, bo bierze --accent, nie białe światło. */
+  --roll-crest: color-mix(in oklch, var(--accent) 30%, transparent);
+  --roll-glow:  color-mix(in oklch, var(--accent-bd) 52%, transparent);
 }
 
 /* ============================================================
@@ -634,92 +644,118 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
      na iOS nie odpala dla uśpionej/odmontowanej warstwy.
    ============================================================ */
 
-/* Karta jest układem odniesienia dla pierścienia. */
+/* Karta jest układem odniesienia dla pierścienia. `isolation` zamyka warstwy
+   oprawy WEWNĄTRZ karty — bez tego `.roll-stage` (z-index: auto) nie tworzy
+   kontekstu układania i pierścień konkurowałby z resztą drzewa ekranu. */
 .roll-stage { position: relative; }
+.roll-stage.is-rolling { isolation: isolate; }
 
 /* Pierścień — zamiast box-shadow, bo cień animuje się na CPU. `inset: 0`, a nie
    -1px: pierścień ma leżeć dokładnie na obrysie karty, bo `border-radius: inherit`
-   daje promień karty, a nie promień powiększony o odsunięcie. Rozchodzi się na
-   zewnątrz samym `scale`. */
+   daje promień karty, a nie promień powiększony o odsunięcie. Pełne krycie
+   osiąga przy scale(1), czyli dokładnie na obrysie, i dopiero potem rozchodzi
+   się na zewnątrz — inaczej „domykałby" kartę obok jej krawędzi. Opóźnienie
+   90 ms stawia szczyt na środku masy fali. */
 .roll-stage.is-rolling::after {
-  content: ''; position: absolute; inset: 0; z-index: 3;
+  content: ''; position: absolute; inset: 0; z-index: 1;
   pointer-events: none; border-radius: inherit;
   border: 1px solid var(--accent-bd);
-  animation: roll-rim 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: roll-rim 620ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+  animation-delay: 90ms;
 }
 @keyframes roll-rim {
-  0%   { opacity: 0; transform: scale(0.988); }
-  24%  { opacity: 1; }
-  100% { opacity: 0; transform: scale(1.018); }
+  0%   { opacity: 0; transform: scale(1); }
+  16%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.012); }
 }
 
 /* `overflow: hidden` obcina falę do pasa wiersza — wiersze są prostokątne
    (karta odsuwa je paddingiem od zaokrąglonych narożników), więc iOS nie
-   musi budować maski z promieniem. `contain` zamyka unieważnianie w wierszu. */
-.roll-row { position: relative; overflow: hidden; contain: layout paint; }
+   musi budować maski z promieniem. `contain` tylko na czas losowania: na stałe
+   zostawiałby kontekst układania i blok zawierający w każdym wierszu listy. */
+.roll-row { position: relative; overflow: hidden; }
+.roll-row.is-rolling { contain: layout paint; }
 
-/* Fala światła. Sam gradient kafelka Premium ma ΔL ≈ 0,07 (jasny) i 0,09
-   (ciemny), więc na 48-pikselowym wierszu byłby niewidoczny — jaśniejszą
-   krawędź daje --accent-bd. Pięć przystanków zamiast dwóch, bo dwa stopnie
-   o niskiej chromie pasmują na OLED-zie w ciemnym motywie. */
+/* Fala idzie POD treścią wiersza. Nad tekstem akcent zjadał kontrast tytułu
+   (15:1 → 1,6:1) i przemalowywał STAŁE kolory odznak zbiorów (--col-*), które
+   wg CLAUDE.md są semantyczne i nietykalne. Pod spodem może być za to mocniejsza. */
+.roll-row > .song-card { position: relative; z-index: 1; }
+
+/* Grzbiet fali. Wąskie pasmo, nie szeroki rozlew: to ono, a nie liczba
+   przystanków, jest realnym lekarstwem na pasmowanie na OLED-zie — ten sam
+   spadek jasności upchnięty w ~60 px zamiast ~140 px schodzi poniżej kroku
+   8-bitowego. Barwy z tokenów per motyw (--roll-crest/--roll-glow), bo jasny
+   i ciemny motyw muszą oddalić się od SWOJEGO tła o tyle, co kafelek Premium:
+   w jasnym nie ma zapasu jasności nad --surface, więc sheen musi przyciemniać. */
 .roll-row.is-rolling::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 148%;
-  pointer-events: none; z-index: 1;
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 112%;
+  pointer-events: none; z-index: 0;
   background: linear-gradient(135deg,
-    transparent 4%,
-    color-mix(in oklch, var(--accent-soft) 48%, transparent) 24%,
-    color-mix(in oklch, var(--accent-soft) 72%, transparent) 40%,
-    color-mix(in oklch, var(--accent-bd) 80%, transparent) 51%,
-    var(--glass-sheen) 55%,
-    color-mix(in oklch, var(--accent-soft) 66%, transparent) 61%,
-    color-mix(in oklch, var(--surface) 24%, transparent) 78%,
-    transparent 94%);
-  transform: translate3d(-120%, 0, 0);
-  animation: roll-wash 460ms cubic-bezier(0.36, 0.02, 0.24, 1) both;
-  animation-delay: calc(var(--i) * 64ms);
+    transparent 6%,
+    var(--roll-glow) 30%,
+    var(--roll-crest) 50%,
+    var(--roll-glow) 68%,
+    transparent 96%);
+  transform: translate3d(-104%, 0, 0);
+  animation: roll-wash 380ms cubic-bezier(0.30, 0.05, 0.30, 1) both;
+  /* Ciągłość grzbietu: żeby pasma sąsiednich wierszy leżały na jednej linii,
+     |dx/dy| grzbietu musi równać się v·Δ/h. Dla 135deg |dx/dy| = 1, więc
+     Δ = h/v ≈ 46 px / 2,73 px/ms ≈ 17 ms. Kaskadę widać w RUCHU wierszy (56 ms),
+     nie w świetle — przy 64 ms światło rozpadało się na osobne ukośne kreski,
+     czyli dokładnie idiom „skeleton loadera", a nie „coś wylosowano". */
+  animation-delay: calc(var(--i) * 17ms);
 }
 @keyframes roll-wash {
-  0%   { transform: translate3d(-120%, 0, 0); opacity: 0; }
-  16%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { transform: translate3d(104%, 0, 0); opacity: 0; }
+  0%   { transform: translate3d(-104%, 0, 0); opacity: 0; }
+  14%  { opacity: 1; }
+  74%  { opacity: 1; }
+  100% { transform: translate3d(196%, 0, 0); opacity: 0; }
 }
 
 /* Osiadanie pieśni. Świadomie BEZ opacity i BEZ scale: gdyby animacja nie
    ruszyła (karta wybudzona z tła, `animation-delay` trzymający klatkę 0%),
-   tytuł musi zostać czytelny — 13 px przesunięcia mieści się w paśmie wiersza. */
+   tytuł musi zostać czytelny. 9 px, nie 13: wiersz ma własny `overflow: hidden`,
+   a przy większym przesunięciu odznaka zbioru dotykała górnej krawędzi klipu. */
 .roll-row.is-rolling > .song-card {
-  animation: roll-settle 400ms cubic-bezier(0.18, 0.92, 0.24, 1) both;
-  animation-delay: calc(var(--i) * 64ms);
+  animation: roll-settle 300ms cubic-bezier(0.20, 0.90, 0.26, 1) both;
+  animation-delay: calc(var(--i) * 56ms + 40ms);
 }
 @keyframes roll-settle {
-  0%   { transform: translate3d(0, -13px, 0); }
-  62%  { transform: translate3d(0, 2px, 0); }
+  0%   { transform: translate3d(0, -9px, 0); }
+  64%  { transform: translate3d(0, 2px, 0); }
   100% { transform: translate3d(0, 0, 0); }
 }
 
-/* Kostka: obrót z lekkim „wyskokiem" jest pierwszą reakcją na tap (< 80 ms),
-   więc przycisk nie wydaje się głuchy, dopóki fala nie dojdzie do wiersza.
-   Dwie fazy w keyframach, nie jedno tempo: 0→42 % to zamach (easing wchodzi
-   w ruch), 42→100 % to wybieg. Pełne DWA obroty, bo bez `forwards` element wraca
-   po animacji do zera — gdyby kończyła się na 540°, kostka skokiem wróciłaby
-   do pionu na oczach użytkownika. */
+/* Kostka: obrót jest pierwszą reakcją na tap (< 80 ms), więc przycisk nie
+   wydaje się głuchy, dopóki fala nie dojdzie do wiersza. JEDEN obrót przy
+   `linear` z ręcznie wyhamowanymi kątami — dwa obroty w 560 ms to ~21° na
+   klatkę przy 60 Hz, a szesnastopikselowa kostka o grubości kreski 1,7 wtedy
+   miga, zamiast się kręcić. Easing per-keyframe też odpada: cubic-bezier
+   działa MIĘDZY każdą parą klatek, więc dwie klatki dawały zwolnienie
+   w połowie obrotu i ponowne przyspieszenie — widoczne zawahanie. */
 .roll-dice { display: inline-flex; }
-.roll-dice.is-rolling { animation: roll-dice 560ms cubic-bezier(0.3, 0.02, 0.22, 1); }
+.roll-dice.is-rolling { animation: roll-dice 620ms linear; }
 @keyframes roll-dice {
-  0%   { transform: rotate(0deg) scale(1); }
-  42%  { transform: rotate(300deg) scale(1.15); }
-  100% { transform: rotate(720deg) scale(1); }
+  0%   { transform: rotate(0deg)   scale(1); }
+  10%  { transform: rotate(64deg)  scale(1.10); }
+  26%  { transform: rotate(158deg) scale(1.12); }
+  46%  { transform: rotate(252deg) scale(1.07); }
+  68%  { transform: rotate(320deg) scale(1.02); }
+  85%  { transform: rotate(350deg) scale(1); }
+  100% { transform: rotate(360deg) scale(1); }
 }
 
 /* Cel dotknięcia „Losuj": .link-btn to 12,5 px tekstu — jedną ręką na scenie,
    w półmroku, trudno w to trafić. Powiększamy sam obszar dotyku pseudo-elementem,
    bo `min-height` podniosłoby wysokość `.sec-h` (margin: 22px 0 10px) i zepchnęło
-   całą sekcję w dół. Granice wynikają z tych marginesów: w górę 20 px, bo 22 px
-   wyżej kończy się „Nowe nabożeństwo"; w dół 9 px, bo 10 px niżej zaczyna się
-   karta i tap trafiałby w pierwszą pieśń. Efektywnie ≈ 45 × 84 px. */
+   całą sekcję w dół. Wykorzystujemy CAŁE marginesy sekcji: w górę 22 px (wyżej
+   jest tylko obwódka i padding karty „Najczęściej śpiewane", nie jej wiersze),
+   w dół 10 px (niżej obwódka i padding karty „Nigdy nieśpiewane"). Bez zwisu
+   w LEWO, bo `.sec-h` to `justify-content: space-between` — przy dłuższej nazwie
+   lokalizacji nagłówek dosuwa się do przycisku i tap w tytuł losowałby pieśni.
+   Efektywnie ≈ 48 × 68 px. */
 .roll-btn { position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-.roll-btn::before { content: ''; position: absolute; inset: -20px -14px -9px; }
+.roll-btn::before { content: ''; position: absolute; inset: -22px -14px -10px 0; }
 
 /* Ograniczony ruch: lista zmienia się natychmiast, bez żadnej oprawy. JS i tak
    nie nakłada `is-rolling`, ale reguła zostaje jako druga linia obrony — jest
