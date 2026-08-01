@@ -413,6 +413,13 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 .link-btn { background: none; border: none; cursor: pointer; color: var(--accent); font-family: var(--font-body); font-weight: 600; font-size: 12.5px; padding: 0; }
 .link-btn:active { opacity: 0.6; }
 
+/* Treść tylko dla czytnika ekranu. `clip-path` zamiast `display:none`, bo
+   ukryty przez `display` element nie jest ogłaszany przez aria-live. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
 .sticky-head { position: sticky; top: 0; z-index: 5; background: var(--glass-bg); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); padding: 8px 18px 12px; border-bottom: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--glass-rim); }
 @media (prefers-reduced-transparency: reduce) {
   .sticky-head { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
@@ -609,51 +616,115 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 }
 
 /* ============================================================
-   „Nigdy nieśpiewane" — losowanie w stylu minecraftowych bloków.
-   Ściana kafelków rozsypuje się blok po bloku, a wiersze „stawiają
-   się" skokowo (steps()), jak stawianie bloku w grze.
+   „Nigdy nieśpiewane" — losowanie „Przesiew".
+   Po tapnięciu „Losuj" (albo potrząśnięciu) przez kartę przechodzi
+   fala światła w gradiencie z rodziny kafelka Premium z Ustawień
+   (135deg, --accent-soft → --surface), wiersz po wierszu z góry na
+   dół (opóźnienie z `--i`), a pieśni osiadają w jej śladzie. Na koniec
+   po obrysie karty przebiega akcentowy pierścień.
+
+   Trzy decyzje, które trzymają to na 120 Hz na iPhonie:
+   • rusza się TYLKO transform i opacity — box-shadow albo background
+     w keyframie to przemalowanie całej karty w każdej klatce;
+   • fala i pierścień to pseudo-elementy (::after), nie dzieci —
+     linie rozdzielające rysuje `.list-rows > * + *` po bezpośrednich
+     dzieciach karty, więc dodatkowy <span> zrobiłby z siebie wiersz;
+   • oprawa żyje tylko póki React trzyma klasę `is-rolling` (ROLL_MS
+     w Dashboard.tsx), więc `both` nie ma czego zamrozić — a `animationend`
+     na iOS nie odpala dla uśpionej/odmontowanej warstwy.
    ============================================================ */
-.mc-box { animation: mc-thud 340ms steps(3, end) both; }
-@keyframes mc-thud {
-  0%   { box-shadow: var(--shadow-card), 0 0 0 0 var(--accent-bd); }
-  55%  { box-shadow: var(--shadow-card), 0 0 0 5px var(--accent-soft); }
-  100% { box-shadow: var(--shadow-card), 0 0 0 0 transparent; }
+
+/* Karta jest układem odniesienia dla pierścienia. */
+.roll-stage { position: relative; }
+
+/* Pierścień — zamiast box-shadow, bo cień animuje się na CPU. `inset: 0`, a nie
+   -1px: pierścień ma leżeć dokładnie na obrysie karty, bo `border-radius: inherit`
+   daje promień karty, a nie promień powiększony o odsunięcie. Rozchodzi się na
+   zewnątrz samym `scale`. */
+.roll-stage.is-rolling::after {
+  content: ''; position: absolute; inset: 0; z-index: 3;
+  pointer-events: none; border-radius: inherit;
+  border: 1px solid var(--accent-bd);
+  animation: roll-rim 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes roll-rim {
+  0%   { opacity: 0; transform: scale(0.988); }
+  24%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.018); }
 }
 
-.mc-row { position: relative; overflow: hidden; }
-.mc-row.mc-in > .song-card {
-  animation: mc-place 300ms steps(4, end) both;
-  animation-delay: calc(var(--i) * 90ms + 120ms);
+/* `overflow: hidden` obcina falę do pasa wiersza — wiersze są prostokątne
+   (karta odsuwa je paddingiem od zaokrąglonych narożników), więc iOS nie
+   musi budować maski z promieniem. `contain` zamyka unieważnianie w wierszu. */
+.roll-row { position: relative; overflow: hidden; contain: layout paint; }
+
+/* Fala światła. Sam gradient kafelka Premium ma ΔL ≈ 0,07 (jasny) i 0,09
+   (ciemny), więc na 48-pikselowym wierszu byłby niewidoczny — jaśniejszą
+   krawędź daje --accent-bd. Pięć przystanków zamiast dwóch, bo dwa stopnie
+   o niskiej chromie pasmują na OLED-zie w ciemnym motywie. */
+.roll-row.is-rolling::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 148%;
+  pointer-events: none; z-index: 1;
+  background: linear-gradient(135deg,
+    transparent 4%,
+    color-mix(in oklch, var(--accent-soft) 48%, transparent) 24%,
+    color-mix(in oklch, var(--accent-soft) 72%, transparent) 40%,
+    color-mix(in oklch, var(--accent-bd) 80%, transparent) 51%,
+    var(--glass-sheen) 55%,
+    color-mix(in oklch, var(--accent-soft) 66%, transparent) 61%,
+    color-mix(in oklch, var(--surface) 24%, transparent) 78%,
+    transparent 94%);
+  transform: translate3d(-120%, 0, 0);
+  animation: roll-wash 460ms cubic-bezier(0.36, 0.02, 0.24, 1) both;
+  animation-delay: calc(var(--i) * 64ms);
 }
-/* Świadomie BEZ opacity: gdyby animacja nie ruszyła (zamrożona karta, brak
-   wsparcia), tytuł pieśni musi zostać czytelny — rusza się tylko transform. */
-@keyframes mc-place {
-  0%   { transform: translateY(-18px) scale(0.92); }
-  68%  { transform: translateY(2px) scale(1.01); }
-  100% { transform: translateY(0) scale(1); }
+@keyframes roll-wash {
+  0%   { transform: translate3d(-120%, 0, 0); opacity: 0; }
+  16%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate3d(104%, 0, 0); opacity: 0; }
 }
 
-.mc-cover { position: absolute; inset: 0; display: flex; gap: 2px; pointer-events: none; }
-.mc-cover i {
-  flex: 1; align-self: stretch;
-  background: var(--surface-2);
-  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.10), inset 3px 3px 0 rgba(255, 255, 255, 0.14);
-  animation: mc-break 380ms steps(4, end) both;
-  animation-delay: calc(var(--i) * 90ms + var(--b) * 30ms);
+/* Osiadanie pieśni. Świadomie BEZ opacity i BEZ scale: gdyby animacja nie
+   ruszyła (karta wybudzona z tła, `animation-delay` trzymający klatkę 0%),
+   tytuł musi zostać czytelny — 13 px przesunięcia mieści się w paśmie wiersza. */
+.roll-row.is-rolling > .song-card {
+  animation: roll-settle 400ms cubic-bezier(0.18, 0.92, 0.24, 1) both;
+  animation-delay: calc(var(--i) * 64ms);
 }
-/* nierówna „faktura" ściany — trochę bloków w odcieniu darni, trochę kamienia */
-.mc-cover i:nth-child(3n)   { background: color-mix(in oklch, var(--surface-2) 80%, var(--accent)); }
-.mc-cover i:nth-child(4n+1) { background: color-mix(in oklch, var(--surface-2) 88%, var(--text-3)); }
-@keyframes mc-break {
-  0%   { transform: translateY(0) scale(1); opacity: 1; }
-  50%  { transform: translateY(1px) scale(0.88); opacity: 1; }
-  100% { transform: translateY(11px) scale(0.2); opacity: 0; }
+@keyframes roll-settle {
+  0%   { transform: translate3d(0, -13px, 0); }
+  62%  { transform: translate3d(0, 2px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 
-.mc-dice { display: inline-flex; animation: mc-spin 420ms steps(6, end); }
-@keyframes mc-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+/* Kostka: obrót z lekkim „wyskokiem" jest pierwszą reakcją na tap (< 80 ms),
+   więc przycisk nie wydaje się głuchy, dopóki fala nie dojdzie do wiersza.
+   Dwie fazy w keyframach, nie jedno tempo: 0→42 % to zamach (easing wchodzi
+   w ruch), 42→100 % to wybieg. Pełne DWA obroty, bo bez `forwards` element wraca
+   po animacji do zera — gdyby kończyła się na 540°, kostka skokiem wróciłaby
+   do pionu na oczach użytkownika. */
+.roll-dice { display: inline-flex; }
+.roll-dice.is-rolling { animation: roll-dice 560ms cubic-bezier(0.3, 0.02, 0.22, 1); }
+@keyframes roll-dice {
+  0%   { transform: rotate(0deg) scale(1); }
+  42%  { transform: rotate(300deg) scale(1.15); }
+  100% { transform: rotate(720deg) scale(1); }
+}
 
+/* Cel dotknięcia „Losuj": .link-btn to 12,5 px tekstu — jedną ręką na scenie,
+   w półmroku, trudno w to trafić. Powiększamy sam obszar dotyku pseudo-elementem,
+   bo `min-height` podniosłoby wysokość `.sec-h` (margin: 22px 0 10px) i zepchnęło
+   całą sekcję w dół. Granice wynikają z tych marginesów: w górę 20 px, bo 22 px
+   wyżej kończy się „Nowe nabożeństwo"; w dół 9 px, bo 10 px niżej zaczyna się
+   karta i tap trafiałby w pierwszą pieśń. Efektywnie ≈ 45 × 84 px. */
+.roll-btn { position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.roll-btn::before { content: ''; position: absolute; inset: -20px -14px -9px; }
+
+/* Ograniczony ruch: lista zmienia się natychmiast, bez żadnej oprawy. JS i tak
+   nie nakłada `is-rolling`, ale reguła zostaje jako druga linia obrony — jest
+   bezpieczna, bo stan „po animacji" jest zwykłym stanem wiersza. */
 @media (prefers-reduced-motion: reduce) {
-  .mc-box, .mc-row.mc-in > .song-card, .mc-dice { animation: none; }
-  .mc-cover { display: none; }
+  .roll-row.is-rolling > .song-card, .roll-dice.is-rolling { animation: none; }
+  .roll-row.is-rolling::after, .roll-stage.is-rolling::after { display: none; }
 }
