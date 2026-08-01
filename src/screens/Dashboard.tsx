@@ -53,26 +53,38 @@ function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
   )
 }
 
-// Wiersz „Nigdy nieśpiewanych" z animacją odkopywania: ściana kafelków
-// rozsypuje się blok po bloku, a wiersz spada na miejsce jak stawiany blok.
-// Cała oprawa żyje tylko 1,15 s — potem JS zdejmuje klasę i usuwa ścianę,
-// więc żaden zamrożony/niewsparty keyframe nie może zasłonić pieśni.
-function McRow({ index, children }: { index: number; children: React.ReactNode }) {
-  const [intro, setIntro] = useState(true)
-  useEffect(() => {
-    const t = setTimeout(() => setIntro(false), 1150)
-    return () => clearTimeout(t)
-  }, [])
+// Czas życia oprawy losowania. Najdłuższa warstwa to fala światła ostatniego
+// wiersza: 4 × 64 ms opóźnienia + 460 ms — plus zapas na zdjęcie klasy.
+// Źródłem prawdy o końcu animacji jest ten timer, NIE `animationend`: iOS nie
+// odpala tego zdarzenia dla warstwy odmontowanej ani dla PWA uśpionej w tle,
+// więc oprawa mogłaby zostać na wierzchu na zawsze.
+const ROLL_MS = 780
+
+const prefersReducedMotion = () =>
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
+// Potrząśnięcie może przyjść, gdy sekcja jest przewinięta poza ekran — wtedy
+// animacja to tylko darmowe warstwy na GPU, więc ją pomijamy.
+function isInViewport(el: HTMLElement | null) {
+  if (!el) return false
+  const r = el.getBoundingClientRect()
+  return r.bottom > 0 && r.top < window.innerHeight
+}
+
+// Wiersz „Nigdy nieśpiewanych". Wrapper istnieje ZAWSZE, bo linie rozdzielające
+// rysuje `.list-rows > * + *` po bezpośrednich dzieciach karty — dodatkowy
+// poziom pojawiający się tylko na czas animacji przesuwałby włoski. Sama oprawa
+// to pseudo-element klasy `is-rolling`, więc React zdejmując klasę gwarantuje
+// sprzątnięcie: nie ma elementu, który mógłby zostać z zamrożonym keyframem.
+function RollRow({ index, rolling, children }: {
+  index: number; rolling: boolean; children: React.ReactNode
+}) {
   return (
-    <div className={`mc-row${intro ? ' mc-in' : ''}`} style={{ '--i': index } as React.CSSProperties}>
+    <div
+      className={`roll-row${rolling ? ' is-rolling' : ''}`}
+      style={{ '--i': index } as React.CSSProperties}
+    >
       {children}
-      {intro && (
-        <span className="mc-cover" aria-hidden>
-          {Array.from({ length: 12 }, (_, b) => (
-            <i key={b} style={{ '--b': b } as React.CSSProperties} />
-          ))}
-        </span>
-      )}
     </div>
   )
 }
@@ -132,25 +144,62 @@ export function Dashboard() {
   // losujemy po stronie klienta — nowa próbka przy każdym wejściu i przy potrząśnięciu.
   const { data: neverSungPool } = useNeverSung(statsFilters, 1000)
   const [neverSung, setNeverSung] = useState<NeverSungRow[]>([])
-  // Licznik losowania — bump wymusza remount wierszy, więc animacja „odkopywania"
-  // kafelków startuje od nowa przy każdym losowaniu.
-  const [rollKey, setRollKey] = useState(0)
+  // Animacja losowania jest POTWIERDZENIEM akcji użytkownika, więc odpala się
+  // wyłącznie z tapu „Losuj" / potrząśnięcia. Wejście na ekran główny montuje
+  // Dashboard od nowa (osobne dzieci trasy) i wtedy próbka też jest świeża —
+  // ale bez oprawy. Dlatego stan animacji (`rollSeq` + `rolling`) jest osobny
+  // i efekt próbkujący NIGDY go nie dotyka.
+  const [rollSeq, setRollSeq] = useState(0)   // klucz restartu warstw animacji
+  const [rolling, setRolling] = useState(false)
+  const [announce, setAnnounce] = useState<{ seq: number; text: string } | null>(null)
+  const seqRef = useRef(0)
+  const rollTimerRef = useRef<number | null>(null)
+  const neverSungCardRef = useRef<HTMLDivElement>(null)
+
   const rollNeverSung = useCallback(() => {
-    if (neverSungPool) { setNeverSung(sample(neverSungPool, 5)); setRollKey(k => k + 1); vibrate(30) }
+    if (!neverSungPool || neverSungPool.length === 0) return
+    const picked = sample(neverSungPool, 5)
+    setNeverSung(picked)
+    vibrate(30)
+
+    const seq = ++seqRef.current
+    setRollSeq(seq)
+    // Przy wyłączonych animacjach losowanie jest wizualnie nieme — komunikat dla
+    // czytnika ekranu jest wtedy jedynym potwierdzeniem, więc leci w obu trybach.
+    setAnnounce({ seq, text: `Wylosowano ${picked.length} ${picked.length === 1 ? 'pieśń' : 'pieśni'}` })
+
+    if (rollTimerRef.current != null) {
+      clearTimeout(rollTimerRef.current)
+      rollTimerRef.current = null
+    }
+    if (prefersReducedMotion() || !isInViewport(neverSungCardRef.current)) {
+      setRolling(false)
+      return
+    }
+    setRolling(true)
+    rollTimerRef.current = window.setTimeout(() => {
+      rollTimerRef.current = null
+      setRolling(false)
+    }, ROLL_MS)
   }, [neverSungPool])
-  // Nowa próbka przy pierwszym załadowaniu puli i przy realnej zmianie filtrów —
-  // NIE przy każdym cichym refetchu w tle (staleTime/refetchOnWindowFocus), bo
-  // to podmieniałoby widoczne pieśni i odpalało animację bez akcji użytkownika.
+
+  useEffect(() => () => {
+    if (rollTimerRef.current != null) clearTimeout(rollTimerRef.current)
+  }, [])
+
+  // Nowa próbka przy pierwszym załadowaniu puli i przy realnej zmianie filtrów.
+  // Cichy refetch w tle (staleTime/refetchOnWindowFocus) nie podmienia widocznych
+  // pieśni — a nawet gdyby (pusta lista), to już tylko dane: żadnej animacji.
   const filterSig = JSON.stringify(statsFilters)
-  const lastRollSigRef = useRef<string | null>(null)
+  const lastSampleSigRef = useRef<string | null>(null)
   useEffect(() => {
     if (!neverSungPool) return
-    if (lastRollSigRef.current === filterSig && neverSung.length > 0) return
-    lastRollSigRef.current = filterSig
+    if (lastSampleSigRef.current === filterSig && neverSung.length > 0) return
+    lastSampleSigRef.current = filterSig
     setNeverSung(sample(neverSungPool, 5))
-    setRollKey(k => k + 1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [neverSungPool, filterSig])
+
   const shake = useShake(rollNeverSung)
   const onDiceTap = () => {
     rollNeverSung()                 // ręczne „wylosuj ponownie" — działa zawsze (fallback)
@@ -298,26 +347,42 @@ export function Dashboard() {
             {'Nigdy nieśpiewane' + locSuffix}
           </div>
           <button
-            className="link-btn"
+            type="button"
+            className="link-btn roll-btn"
             onClick={onDiceTap}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            aria-label={shake.enabled ? 'Losuj ponownie — lub potrząśnij telefonem' : 'Losuj ponownie — dotknij, by włączyć potrząsanie'}
             title={shake.enabled ? 'Losuj ponownie (lub potrząśnij telefonem)' : 'Losuj ponownie — dotknij, by włączyć potrząsanie'}
           >
-            <span key={rollKey} className="mc-dice"><Dices size={16} strokeWidth={1.7} /></span> Losuj
+            <span key={rollSeq} className={`roll-dice${rolling ? ' is-rolling' : ''}`} aria-hidden>
+              <Dices size={16} strokeWidth={1.7} />
+            </span> Losuj
           </button>
         </div>
-        <div key={rollKey} className="card list-rows mc-box" style={{ padding: '4px 14px' }}>
+        {/* `key={rollSeq}` remontuje wiersze przy każdym losowaniu — to jedyny
+            sposób, by animacja wystartowała od nowa, gdy poprzednia jeszcze
+            trwa (szybkie tapy pod rząd, seria potrząśnięć). Pusta lista nie
+            dostaje `roll-stage`: nie ma czego animować. */}
+        <div
+          key={rollSeq}
+          ref={neverSungCardRef}
+          className={`card list-rows${neverSung.length > 0 ? ' roll-stage' : ''}${rolling && neverSung.length > 0 ? ' is-rolling' : ''}`}
+          style={{ padding: '4px 14px' }}
+        >
           {neverSung.length === 0
             ? <div style={{ padding: '14px 0', color: 'var(--text-3)', fontSize: 13 }}>Brak danych</div>
             : neverSung.map((r, i) => (
-              <McRow key={r.id} index={i}>
+              <RollRow key={r.id} index={i} rolling={rolling}>
                 <TopRow
                   collectionShortName={r.collection_short_name} number={r.number}
                   title={r.title}
                   onClick={() => openSong(r.id, neverSungIds)} />
-              </McRow>
+              </RollRow>
             ))}
         </div>
+        <span className="sr-only" role="status" aria-live="polite">
+          {announce && <span key={announce.seq}>{announce.text}</span>}
+        </span>
 
         {/* filter summary */}
         <button className="filter-summary" onClick={() => navigate('/settings', { state: { tab: 'filters', highlight: 'stats-tags' } })}>
