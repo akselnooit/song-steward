@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Bookmark, Check, X, Search, Tag, Pencil, GripVertical } from 'lucide-react'
 import {
@@ -7,7 +7,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { MetaChip, Sheet } from '../components/ui'
+import { HRow, MetaChip, Sheet } from '../components/ui'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import {
@@ -18,6 +18,7 @@ import {
 import { useAllSongsForSearch } from '../lib/queries/songs'
 import type { ServiceSongWithSong, ServiceWithRefs } from '../lib/types'
 import { collectionClass, compareSongs } from '../lib/utils'
+import { inHorizontalScroller, isEditableTarget } from '../lib/gestures'
 
 function formatDatePL(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -77,31 +78,36 @@ function EditServiceSheet({ service, open, onClose }: {
         value={date} onChange={e => setDate(e.target.value)} />
 
       <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>
-      <div className="hrow" style={{ marginBottom: 18 }}>
+      <HRow selected={locationId} style={{ marginBottom: 18 }}>
         {locations.map(l => (
           <button key={l.id} className={`tag${locationId === l.id ? ' include' : ''}`}
+            data-selected={locationId === l.id ? 'true' : undefined}
             onClick={() => setLocationId(l.id)}>{l.name}</button>
         ))}
-      </div>
+      </HRow>
 
       <div className="t-label" style={{ marginBottom: 8 }}>Kategoria</div>
-      <div className="hrow" style={{ marginBottom: 18 }}>
+      <HRow selected={categoryId} style={{ marginBottom: 18 }}>
         {categories.map(c => (
           <button key={c.id} className={`tag${categoryId === c.id ? ' include' : ''}`}
+            data-selected={categoryId === c.id ? 'true' : undefined}
             onClick={() => setCategoryId(c.id)}>{c.name}</button>
         ))}
-      </div>
+      </HRow>
 
       <div className="t-label" style={{ marginBottom: 8 }}>Prowadzący muzykę (opcjonalnie)</div>
-      <div className="hrow" style={{ marginBottom: 24 }}>
-        <button className={`tag${!leaderId ? ' include' : ''}`} onClick={() => setLeaderId('')}>
+      <HRow selected={leaderId} style={{ marginBottom: 24 }}>
+        <button className={`tag${!leaderId ? ' include' : ''}`}
+          data-selected={!leaderId ? 'true' : undefined}
+          onClick={() => setLeaderId('')}>
           Brak
         </button>
         {leaders.map(l => (
           <button key={l.id} className={`tag${leaderId === l.id ? ' include' : ''}`}
+            data-selected={leaderId === l.id ? 'true' : undefined}
             onClick={() => setLeaderId(id => id === l.id ? '' : l.id)}>{l.name}</button>
         ))}
-      </div>
+      </HRow>
 
       <button className="btn btn-primary btn-block"
         disabled={!canSave || updateService.isPending}
@@ -171,45 +177,6 @@ export function Live() {
 
   const screenRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const screen = screenRef.current
-    if (!screen || navServiceIds.length === 0) return
-    let startX = 0, startY = 0, decided = false, dir: 'h' | 'v' | null = null
-
-    const onStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX
-      startY = e.touches[0].clientY
-      decided = false; dir = null
-    }
-    const onMove = (e: TouchEvent) => {
-      const dx = e.touches[0].clientX - startX
-      const dy = e.touches[0].clientY - startY
-      if (!decided && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
-        decided = true
-        dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
-      }
-      if (dir === 'h') e.preventDefault()
-    }
-    const onEnd = (e: TouchEvent) => {
-      const dx = e.changedTouches[0].clientX - startX
-      if (dir !== 'h') return
-      if (dx < -60 && canGoNextSvc) {
-        navigate(`/live/${navServiceIds[navIdx + 1]}`, { state: location.state })
-      } else if (dx > 60 && canGoPrevSvc) {
-        navigate(`/live/${navServiceIds[navIdx - 1]}`, { state: location.state })
-      }
-    }
-
-    screen.addEventListener('touchstart', onStart, { passive: false })
-    screen.addEventListener('touchmove', onMove, { passive: false })
-    screen.addEventListener('touchend', onEnd, { passive: true })
-    return () => {
-      screen.removeEventListener('touchstart', onStart)
-      screen.removeEventListener('touchmove', onMove)
-      screen.removeEventListener('touchend', onEnd)
-    }
-  }, [serviceId, navServiceIds, navIdx, canGoPrevSvc, canGoNextSvc, navigate, location.state])
-
   const { data: service } = useService(serviceId ?? null)
   const { data: serviceSongs = [] } = useServiceSongs(serviceId ?? null)
   const { data: allSongs = [] } = useAllSongsForSearch()
@@ -235,7 +202,13 @@ export function Live() {
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => { setNotes(service?.notes ?? '') }, [service?.notes])
+  // Podczas edycji nie nadpisujemy pola danymi z serwera — odświeżenie w tle
+  // (np. po dodaniu pieśni) skasowałoby to, co użytkownik właśnie pisze.
+  const editingNotesRef = useRef(false)
+  editingNotesRef.current = editingNotes
+  useEffect(() => {
+    if (!editingNotesRef.current) setNotes(service?.notes ?? '')
+  }, [service?.notes])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -342,12 +315,107 @@ export function Live() {
     removeServiceSong.mutate({ id: ss.id, service_id: serviceId! })
   }
 
+  // Ostatnia wartość wysłana do bazy (per nabożeństwo) — zapis z `onBlur`
+  // i awaryjny zapis przy znikaniu ekranu nie mogą wysłać tego samego dwa razy.
+  const pushedNotes = useRef<{ id: string; value: string } | null>(null)
+
+  const pushNotes = (value: string) => {
+    if (!serviceId) return
+    if (value === (service?.notes ?? '')) return
+    if (pushedNotes.current?.id === serviceId && pushedNotes.current.value === value) return
+    pushedNotes.current = { id: serviceId, value }
+    updateNotes.mutate({ id: serviceId, notes: value })
+  }
+
   const handleSaveNotes = () => {
     setEditingNotes(false)
-    if (notes !== (service?.notes ?? '')) {
-      updateNotes.mutate({ id: serviceId!, notes })
-    }
+    pushNotes(notes)
   }
+
+  // Textarea rośnie z treścią — długiej notatki nie oglądamy już przez szparę
+  // na 3 linijki, a wysokość pudełka jest ta sama co w podglądzie, więc wejście
+  // w edycję nie przesuwa zawartości ekranu.
+  const notesRef = useRef<HTMLTextAreaElement>(null)
+  const autoGrow = (el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    const chrome = el.offsetHeight - el.clientHeight   // obrys (box-sizing: border-box)
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + chrome}px`
+  }
+  useLayoutEffect(() => { if (editingNotes) autoGrow(notesRef.current) }, [editingNotes, notes])
+  useLayoutEffect(() => {
+    const el = notesRef.current
+    if (!editingNotes || !el) return
+    // `preventScroll` — bez tego przeglądarka sama przewija kontener do pola
+    // i ekran „skacze"; kursor stawiamy na końcu notatki.
+    el.focus({ preventScroll: true })
+    el.selectionStart = el.selectionEnd = el.value.length
+  }, [editingNotes])
+
+  // Sieć bezpieczeństwa dla niezapisanych notatek. `onBlur` nie zdąży się
+  // wykonać, gdy ekran znika bez odkliknięcia pola — systemowy gest „wstecz"
+  // iOS, przejście aplikacji w tło, zamknięcie karty. Mutacja odpalona przy
+  // odmontowaniu i tak leci do końca (żyje w cache mutacji, nie w komponencie).
+  const flushNotes = useRef(() => {})
+  flushNotes.current = () => pushNotes(notes)
+  useEffect(() => {
+    const onHide = () => flushNotes.current()
+    const onVisibility = () => { if (document.hidden) flushNotes.current() }
+    window.addEventListener('pagehide', onHide)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', onHide)
+      document.removeEventListener('visibilitychange', onVisibility)
+      flushNotes.current()
+    }
+  }, [])
+
+  // Przesunięcie palcem w bok = poprzednie/następne nabożeństwo. Gest musi
+  // ustąpić, gdy trwa edycja notatki (przerzucenie na inne nabożeństwo gubiło
+  // wpisany tekst) oraz gdy zaczyna się w polu tekstowym albo na poziomym
+  // pasku chipów. Podczas edycji nadal przechwytujemy ruch poziomy — po to,
+  // by systemowy gest „wstecz" nie zabrał ekranu w środku pisania.
+  useEffect(() => {
+    const screen = screenRef.current
+    if (!screen) return
+    if (navServiceIds.length === 0 && !editingNotes) return
+    let startX = 0, startY = 0, decided = false, ignore = false, dir: 'h' | 'v' | null = null
+
+    const onStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+      decided = false; dir = null
+      ignore = isEditableTarget(e.target) || inHorizontalScroller(e.target, screen)
+    }
+    const onMove = (e: TouchEvent) => {
+      if (ignore) return
+      const dx = e.touches[0].clientX - startX
+      const dy = e.touches[0].clientY - startY
+      if (!decided && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+        decided = true
+        dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+      }
+      if (dir === 'h') e.preventDefault()
+    }
+    const onEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX
+      if (ignore || dir !== 'h' || editingNotes) return
+      if (dx < -60 && canGoNextSvc) {
+        navigate(`/live/${navServiceIds[navIdx + 1]}`, { state: location.state })
+      } else if (dx > 60 && canGoPrevSvc) {
+        navigate(`/live/${navServiceIds[navIdx - 1]}`, { state: location.state })
+      }
+    }
+
+    screen.addEventListener('touchstart', onStart, { passive: false })
+    screen.addEventListener('touchmove', onMove, { passive: false })
+    screen.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      screen.removeEventListener('touchstart', onStart)
+      screen.removeEventListener('touchmove', onMove)
+      screen.removeEventListener('touchend', onEnd)
+    }
+  }, [serviceId, navServiceIds, navIdx, canGoPrevSvc, canGoNextSvc, navigate, location.state, editingNotes])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -434,31 +502,30 @@ export function Live() {
       <div className="screen-pad" style={{ paddingTop: 16 }}>
         {/* notes */}
         <div className="t-label" style={{ marginBottom: 7 }}>Notatki</div>
-        {editingNotes ? (
-          <textarea
-            className="notes-box"
-            autoFocus
-            value={notes}
-            rows={3}
-            onChange={e => setNotes(e.target.value)}
-            onBlur={handleSaveNotes}
-            onKeyDown={e => { if (e.key === 'Escape') handleSaveNotes() }}
-            onFocus={e => {
-              const el = e.currentTarget
-              el.selectionStart = el.selectionEnd = el.value.length
-              el.scrollTop = el.scrollHeight
-            }}
-          />
-        ) : (
-          <div
-            className="notes-box"
-            style={{ cursor: 'text', minHeight: 46, color: notes ? 'var(--text-2)' : 'var(--text-3)', display: 'flex', alignItems: 'flex-start', gap: 8 }}
-            onClick={() => setEditingNotes(true)}
-          >
-            <Pencil size={15} strokeWidth={1.7} style={{ marginTop: 3, flexShrink: 0, opacity: 0.6 }} />
-            {notes || 'Dotknij, aby dodać notatkę…'}
-          </div>
-        )}
+        <div className="notes-wrap">
+          {editingNotes ? (
+            <textarea
+              ref={notesRef}
+              className="notes-box notes-edit"
+              value={notes}
+              rows={1}
+              onChange={e => setNotes(e.target.value)}
+              onBlur={handleSaveNotes}
+              onKeyDown={e => { if (e.key === 'Escape') handleSaveNotes() }}
+            />
+          ) : (
+            <>
+              <div
+                className="notes-box notes-view"
+                style={{ color: notes ? 'var(--text-2)' : 'var(--text-3)' }}
+                onClick={() => setEditingNotes(true)}
+              >
+                {notes || 'Dotknij, aby dodać notatkę…'}
+              </div>
+              <Pencil className="notes-pencil" size={15} strokeWidth={1.7} aria-hidden />
+            </>
+          )}
+        </div>
 
         {/* song search */}
         <div style={{ marginTop: 18 }}>
