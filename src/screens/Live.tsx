@@ -19,6 +19,8 @@ import { useAllSongsForSearch } from '../lib/queries/songs'
 import type { ServiceSongWithSong, ServiceWithRefs } from '../lib/types'
 import { collectionClass, compareSongs } from '../lib/utils'
 import { inHorizontalScroller, isEditableTarget } from '../lib/gestures'
+import { revealAboveKeyboard } from '../lib/scroll'
+import { useKeyboardInset } from '../hooks/useKeyboardInset'
 
 function formatDatePL(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -346,11 +348,33 @@ export function Live() {
   useLayoutEffect(() => {
     const el = notesRef.current
     if (!editingNotes || !el) return
-    // `preventScroll` — bez tego przeglądarka sama przewija kontener do pola
-    // i ekran „skacze"; kursor stawiamy na końcu notatki.
+    // `preventScroll` — heurystyka przeglądarki wyrównywała GÓRĘ wysokiego pola
+    // (kursor lądował pod klawiaturą) i potrafiła szarpnąć ekranem. Przewijanie
+    // bierzemy więc w całości na siebie, w efekcie niżej.
     el.focus({ preventScroll: true })
     el.selectionStart = el.selectionEnd = el.value.length
   }, [editingNotes])
+
+  // Zapas na klawiaturę na dole ekranu — bez niego `scrollTop` jest przycięty
+  // do końca zawartości i dół pola nie ma jak wyjechać nad klawiaturę.
+  const kbdInset = useKeyboardInset(editingNotes)
+
+  // Dowiezienie dołu pola (czyli kursora — stoi na końcu tekstu, a pole rośnie
+  // z treścią) nad klawiaturę. Efekt wznawia się, gdy:
+  //  • wchodzimy w edycję,
+  //  • zmienia się `kbdInset` — czyli klawiatura właśnie weszła i zapas jest już
+  //    doklejony w tym samym renderze (wysokość widocznego obszaru kurczy się
+  //    dopiero po animacji klawiatury, więc wcześniej nie da się policzyć celu),
+  //  • rośnie notatka podczas pisania — dopisywana linia nie chowa się pod klawiaturą.
+  // Powtórka po 260 ms wygrywa z ewentualnym własnym „odsłanianiem" pola przez
+  // przeglądarkę; obie próby są bezstratne (cel liczony bezwzględnie).
+  useEffect(() => {
+    if (!editingNotes) return
+    const run = () => revealAboveKeyboard(notesRef.current, screenRef.current)
+    run()
+    const t = window.setTimeout(run, 260)
+    return () => window.clearTimeout(t)
+  }, [editingNotes, kbdInset, notes])
 
   // Sieć bezpieczeństwa dla niezapisanych notatek. `onBlur` nie zdąży się
   // wykonać, gdy ekran znika bez odkliknięcia pola — systemowy gest „wstecz"
@@ -610,6 +634,10 @@ export function Live() {
             </SortableContext>
           </DndContext>
         )}
+
+        {/* Zapas na klawiaturę — daje kontenerowi dokąd przewinąć, gdy pole
+            notatek kończy się nisko. Znika dopiero po schowaniu klawiatury. */}
+        {kbdInset > 0 && <div aria-hidden style={{ height: kbdInset }} />}
       </div>
 
       {toast && (
