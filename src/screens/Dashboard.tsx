@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays, Dices } from 'lucide-react'
+import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays, Dices, History } from 'lucide-react'
 import { collectionClass } from '../lib/utils'
 import { LocationChip } from '../components/ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
@@ -38,6 +38,46 @@ function formatDatePL(dateStr: string) {
   return d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
+// Ile pełnych dni temu (po dobach lokalnych, nie po 24 h — inaczej strefa czasu
+// i zmiana czasu potrafią przesunąć „wczoraj" o dzień).
+function daysAgo(dateStr: string) {
+  const d = new Date(dateStr + 'T12:00:00')
+  const now = new Date()
+  const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((b - a) / 86400000)
+}
+
+// Etykieta względna dla kafelka „Ostatnio odbyte". Druga linia kafelka zawsze
+// pokazuje konkretną datę, więc tutaj wolno być zgrubnym.
+function relativeDayPL(dateStr: string) {
+  const n = daysAgo(dateStr)
+  // n <= 0 nie powinno tu trafić (pasek pokazuje tylko daty wcześniejsze niż
+  // dziś), ale gdyby reguła „zakończonego" kiedyś się zmieniła, lepiej żeby
+  // dzisiejsze nabożeństwo nie przedstawiało się jako wczorajsze.
+  if (n <= 0) return 'dziś'
+  if (n === 1) return 'wczoraj'
+  if (n <= 6) return new Date(dateStr + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'long' })
+  if (n <= 13) return 'tydzień temu'
+  if (n <= 27) return `${Math.floor(n / 7)} tyg. temu`
+  // Powyżej roku liczenie miesięcy przestaje cokolwiek mówić („13 mies. temu"),
+  // a dokładna data z rokiem i tak jest w linijce niżej.
+  if (n >= 365) return 'ponad rok temu'
+  const months = Math.floor(n / 30)
+  return months <= 1 ? 'miesiąc temu' : `${months} mies. temu`
+}
+
+// Data dzienna: 27.07, a przy innym roku 27.07.25 — żeby stare wpisy nie kłamały.
+function shortDatePL(dateStr: string) {
+  const [y, m, d] = dateStr.split('-')
+  const sameYear = y === String(new Date().getFullYear())
+  return sameYear ? `${d}.${m}` : `${d}.${m}.${y.slice(2)}`
+}
+
+// „pieśń" ma tę wygodną cechę, że mianownik i dopełniacz liczby mnogiej brzmią
+// tak samo („2 pieśni", „5 pieśni"), więc odrębny jest tylko przypadek 1.
+const piesni = (n: number) => (n === 1 ? 'pieśń' : 'pieśni')
+
 // ── sub-components ───────────────────────────────────────────────
 
 function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
@@ -50,6 +90,30 @@ function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
       <div className="title" style={{ fontSize: 15, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
       {count != null && <span className="count-x">{count}×</span>}
     </div>
+  )
+}
+
+// Kafelek zakończonego nabożeństwa — czyta się od góry: kiedy → co → ile.
+// Lokalizację pokazujemy tylko przy wyłączonym globalnym filtrze, bo inaczej
+// powtarzałaby to, co widać w chipie w nagłówku ekranu.
+function PastServiceTile({ service, sung, leftover, showLocation, onClick }: {
+  service: ServiceWithRefs; sung: number; leftover: number; showLocation: boolean; onClick: () => void
+}) {
+  return (
+    <button className="past-tile" onClick={onClick}>
+      {leftover > 0 && (
+        <span
+          className="past-dot"
+          title={`Zostały nieodhaczone pieśni: ${leftover}`}
+          aria-label={`Zostały nieodhaczone pieśni: ${leftover}`}
+        />
+      )}
+      <span className="past-when">{relativeDayPL(service.date)}</span>
+      <span className="past-date t-mono">{shortDatePL(service.date)}</span>
+      <span className="past-what">{service.category.name}</span>
+      {showLocation && <span className="past-where">{service.location.name}</span>}
+      <span className="past-count"><b>{sung}</b> {piesni(sung)}</span>
+    </button>
   )
 }
 
@@ -240,8 +304,19 @@ export function Dashboard() {
   const featured = upcoming[0]
   const isToday = featured?.date === today
 
+  // Zakończone = data wcześniejsza niż dziś (nabożeństwo nie ma godziny końca),
+  // od najnowszego. Ograniczone do 10 — w pasku 3 kafelków dalsze przewijanie
+  // traci sens, od tego jest „Wszystkie".
+  const past = useMemo(
+    () => services.filter(s => s.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10),
+    [services, today],
+  )
+
   const upcomingIds = useMemo(() => upcoming.map(s => s.id), [upcoming])
-  const { data: songCounts = {} } = useServiceSongCounts(upcomingIds)
+  const pastIds = useMemo(() => past.map(s => s.id), [past])
+  // Jedno zapytanie na oba zestawy — klucz i tak sortuje id, więc cache trzyma.
+  const countedIds = useMemo(() => [...upcomingIds, ...pastIds], [upcomingIds, pastIds])
+  const { data: songCounts = {} } = useServiceSongCounts(countedIds)
   const countFor = (id: string) => songCounts[id] ?? { sung: 0, planned: 0 }
 
   // Karuzel nadchodzących nabożeństw (gdy ≥2). Kropki pokazują aktywną kartę.
@@ -347,6 +422,36 @@ export function Dashboard() {
         <button className="btn btn-ghost btn-block" style={{ marginTop: 12 }} onClick={() => setNewServiceOpen(true)}>
           <Plus size={18} strokeWidth={1.7} /> Nowe nabożeństwo
         </button>
+
+        {/* ostatnio odbyte — poziomy pasek kafelków, 3 widoczne + skrawek */}
+        {past.length > 0 && (
+          <>
+            <div className="sec-h">
+              <div className="t-label" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <History size={14} strokeWidth={1.7} />
+                Ostatnio odbyte
+              </div>
+              <button className="link-btn" onClick={() => navigate('/services')}>
+                Wszystkie <ChevronRight size={13} strokeWidth={1.7} />
+              </button>
+            </div>
+            <div className="past-strip">
+              {past.map(s => {
+                const c = countFor(s.id)
+                return (
+                  <PastServiceTile
+                    key={s.id}
+                    service={s}
+                    sung={c.sung}
+                    leftover={c.planned}
+                    showLocation={!locationId}
+                    onClick={() => navigate(`/live/${s.id}`)}
+                  />
+                )
+              })}
+            </div>
+          </>
+        )}
 
         {/* top sung */}
         <div className="sec-h">

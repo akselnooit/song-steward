@@ -397,6 +397,66 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 .svc-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: width 0.2s ease, background 0.2s ease; }
 .svc-dot.on { width: 18px; border-radius: 3px; background: var(--accent); }
 
+/* „Ostatnio odbyte" — pasek zakończonych nabożeństw. Ten sam język co karuzela
+   wyżej (poziomy scroll ze snapem), ale mniejsza skala: 3 kafelki w kadrze,
+   a ćwiartka czwartego wystaje, żeby było widać, że pasek jedzie dalej.
+   Marginesy ujemne + padding pozwalają kafelkom dojechać do krawędzi ekranu. */
+.past-strip {
+  display: flex; gap: 8px; overflow-x: auto;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  margin: 0 -18px; padding: 2px 18px 4px; scrollbar-width: none;
+}
+.past-strip::-webkit-scrollbar { display: none; }
+
+.past-tile {
+  flex: 0 0 calc((100% - 24px) / 3.25);
+  /* Bez min-width: 0 `min-width: auto` elementu flex rozpycha kafelek do
+     szerokości najdłuższego tekstu — długa nazwa kategorii robiła kafelek
+     dwa razy szerszy i wielokropek nigdy się nie pojawiał. */
+  min-width: 0;
+  scroll-snap-align: start;
+  position: relative;
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 1px; padding: 11px 12px; cursor: pointer;
+  text-align: left; font-family: var(--font-body);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); box-shadow: var(--shadow-card);
+  -webkit-tap-highlight-color: transparent;
+}
+.past-tile:active { transform: scale(0.97); }
+
+.past-when {
+  font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.past-date { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+.past-what {
+  font-size: 12.5px; color: var(--text-2); margin-top: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.past-where {
+  font-size: 11.5px; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Kreska oddziela opis („co to było") od wyniku („ile z tego wyszło"). */
+.past-count {
+  font-size: 12px; color: var(--text-3); margin-top: 7px; padding-top: 7px;
+  border-top: 1px solid var(--border); white-space: nowrap;
+}
+.past-count b { color: var(--text); font-weight: 700; font-size: 13px; }
+
+/* Bursztyn = „wymaga uwagi", tak jak baner moderacji. Kropka nigdy nie niesie
+   informacji samym kolorem — ma title/aria-label z liczbą. */
+.past-dot {
+  position: absolute; top: 9px; right: 9px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--src-user); box-shadow: 0 0 0 3px var(--src-user-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .past-tile:active { transform: none; }
+}
+
 .hint { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
 
 .theme-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
