@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Settings, BarChart2, Clock, Filter, ChevronRight, Plus, User, CalendarDays, Dices, History } from 'lucide-react'
+import { Settings, BarChart2, Clock, Filter, ChevronRight, ArrowRight, Plus, User, CalendarDays, Dices, History } from 'lucide-react'
 import { collectionClass } from '../lib/utils'
 import { LocationChip } from '../components/ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
@@ -113,6 +113,19 @@ function PastServiceTile({ service, sung, leftover, showLocation, onClick }: {
       <span className="past-what">{service.category.name}</span>
       {showLocation && <span className="past-where">{service.location.name}</span>}
       <span className="past-count"><b>{sung}</b> {piesni(sung)}</span>
+    </button>
+  )
+}
+
+// Ostatni element paska — wejście do pełnej listy nabożeństw. Ten sam rozmiar
+// i kształt co kafelki (współdzielona klasa `.past-tile`), ale przerywany obrys
+// i wyśrodkowana treść: to akcja, nie zapis nabożeństwa.
+function PastMoreTile({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="past-tile past-more" onClick={onClick}
+      aria-label="Zobacz wszystkie nabożeństwa">
+      <span className="past-more-ico"><ArrowRight size={17} strokeWidth={1.9} /></span>
+      Więcej
     </button>
   )
 }
@@ -306,7 +319,7 @@ export function Dashboard() {
 
   // Zakończone = data wcześniejsza niż dziś (nabożeństwo nie ma godziny końca),
   // od najnowszego. Ograniczone do 10 — w pasku 3 kafelków dalsze przewijanie
-  // traci sens, od tego jest „Wszystkie".
+  // traci sens, od tego jest kafelek „Więcej" na końcu paska.
   const past = useMemo(
     () => services.filter(s => s.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10),
     [services, today],
@@ -431,9 +444,6 @@ export function Dashboard() {
                 <History size={14} strokeWidth={1.7} />
                 Ostatnio odbyte
               </div>
-              <button className="link-btn" onClick={() => navigate('/services')}>
-                Wszystkie <ChevronRight size={13} strokeWidth={1.7} />
-              </button>
             </div>
             <div className="past-strip">
               {past.map(s => {
@@ -449,6 +459,7 @@ export function Dashboard() {
                   />
                 )
               })}
+              <PastMoreTile onClick={() => navigate('/services')} />
             </div>
           </>
         )}
