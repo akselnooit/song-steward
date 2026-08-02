@@ -390,6 +390,9 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   display: flex; gap: 12px; overflow-x: auto;
   scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
   margin: 0 -18px; padding: 0 18px; scrollbar-width: none;
+  /* Patrz .past-strip: bez tego snapowanie zjada lewy padding i pierwsza karta
+     stoi przy krawędzi ekranu, niżej niż pozostałe widgety pulpitu. */
+  scroll-padding: 0 18px;
 }
 .svc-carousel::-webkit-scrollbar { display: none; }
 .svc-carousel > * { flex: 0 0 87%; scroll-snap-align: start; }
@@ -405,6 +408,11 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   display: flex; gap: 8px; overflow-x: auto;
   scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
   margin: 0 -18px; padding: 2px 18px 4px; scrollbar-width: none;
+  /* Bez scroll-padding snapowanie dosuwa pierwszy kafelek do krawędzi
+     scrollportu, czyli przewija pasek o szerokość paddingu — kafelki lądują
+     przy samej krawędzi ekranu, niżej niż reszta widgetów. Scroll-padding
+     wsuwa snapport o te same 18 px, więc lewa krawędź trzyma linię pulpitu. */
+  scroll-padding: 0 18px;
 }
 .past-strip::-webkit-scrollbar { display: none; }
 
