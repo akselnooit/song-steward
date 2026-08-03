@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { HRow } from './HRow'
 import { formatTimePL } from '../../lib/dates'
 
-// Dwie godziny, o których nabożeństwa odbywają się realnie prawie zawsze.
-// Świadomie NA SZTYWNO, a nie liczone z historii: przewidywalne miejsce kafelka
-// jest warte więcej niż automatyka, która raz po raz przestawia go pod palcem.
-const POPULAR = ['11:00', '19:00']
+// Godziny, o których nabożeństwa odbywają się realnie. Świadomie NA SZTYWNO,
+// a nie liczone z historii: przewidywalne miejsce kafelka jest warte więcej niż
+// automatyka, która raz po raz przestawia go pod palcem. Kolejność chronologiczna
+// — pary przedpołudniowa i wieczorna leżą obok siebie.
+const POPULAR = ['11:00', '12:00', '19:00', '20:00']
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6) // 6:00 – 22:00
 const QUARTERS = ['00', '15', '30', '45']
