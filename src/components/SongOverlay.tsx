@@ -10,16 +10,13 @@ import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { keyLabel, collectionClass, songTreasuresUrl } from '../lib/utils'
 import songTreasuresIcon from '../assets/song-treasures-icon.png'
+import { compareServices, formatDateWithYearPL, formatTimePL, todayStr } from '../lib/dates'
 
-
-function formatDatePL(dateStr: string) {
-  const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+// Data z godziną — w tym arkuszu wybiera się KONKRETNE nabożeństwo, więc dwa
+// tego samego dnia muszą być rozróżnialne.
+function formatWhen(dateStr: string, time?: string | null) {
+  const date = formatDateWithYearPL(dateStr)
+  return time ? `${date} · ${formatTimePL(time)}` : date
 }
 
 export function SongOverlay() {
@@ -56,7 +53,7 @@ export function SongOverlay() {
   // już filtruje). Domyślny cel = najbliższe; przy >1 użytkownik może wybrać inne.
   const today = todayStr()
   const upcomingServices = [...services]
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .sort(compareServices)
     .filter(s => s.date >= today)
   const selectedService = upcomingServices.find(s => s.id === selectedServiceId) ?? upcomingServices[0]
   const { data: selectedServiceSongs = [] } = useServiceSongs(selectedService?.id ?? null)
@@ -280,14 +277,14 @@ export function SongOverlay() {
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{selectedService.category.name}</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{formatDatePL(selectedService.date)} · {selectedService.location.name}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{formatWhen(selectedService.date, selectedService.start_time)} · {selectedService.location.name}</div>
                   </div>
                   <ChevronDown size={18} strokeWidth={1.7} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
                 </button>
               ) : (
                 <div style={{ fontSize: 13.5, color: 'var(--text-2)', marginBottom: 13 }}>
                   <span style={{ fontWeight: 600, color: 'var(--text)' }}>{selectedService.category.name}</span>
-                  <span style={{ color: 'var(--text-3)' }}> · {formatDatePL(selectedService.date)} · {selectedService.location.name}</span>
+                  <span style={{ color: 'var(--text-3)' }}> · {formatWhen(selectedService.date, selectedService.start_time)} · {selectedService.location.name}</span>
                 </div>
               )}
               {/* Przyciski są ZAWSZE widoczne — potwierdzenie leci toastem, nie panelem
@@ -441,8 +438,8 @@ export function SongOverlay() {
                       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', cursor: h.service?.id ? 'pointer' : 'default' }}
                     >
                       <Calendar size={16} strokeWidth={1.7} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
-                      <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
-                        {formatDatePL(h.service?.date ?? '')}
+                      <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', flexShrink: 0 }}>
+                        {h.service ? formatWhen(h.service.date, h.service.start_time) : '—'}
                       </span>
                       {/* Prowadzący jest opcjonalny — sklejamy tylko niepuste człony,
                           żeby przy jego braku nie zostawała wisząca „· " na końcu. */}
@@ -496,7 +493,7 @@ export function SongOverlay() {
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{s.category.name}</div>
-                  <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{formatDatePL(s.date)} · {s.location.name}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-3)' }}>{formatWhen(s.date, s.start_time)} · {s.location.name}</div>
                 </div>
                 {s.date === today && (
                   <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--r-pill)' }}>DZIŚ</span>

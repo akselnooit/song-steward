@@ -1,7 +1,13 @@
 import { z } from 'zod'
 
+// Godzina rozpoczęcia: pełny kwadrans, 24 h, bez sekund. Ten sam warunek pilnuje
+// CHECK w bazie (`services_start_time_quarter`) — walidacja tutaj jest po to,
+// żeby błąd nie musiał lecieć aż do Postgresa.
+const startTime = z.string().regex(/^([01]\d|2[0-3]):(00|15|30|45)$/)
+
 export const CreateServiceSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start_time: startTime,
   location_id: z.string().uuid(),
   category_id: z.string().uuid(),
   worship_leader_id: z.string().uuid().nullable(),
@@ -33,6 +39,7 @@ export const UpdateServiceSongSchema = z.object({
 export const UpdateServiceSchema = z.object({
   id: z.string().uuid(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start_time: startTime,
   location_id: z.string().uuid(),
   category_id: z.string().uuid(),
   worship_leader_id: z.string().uuid().nullable(),

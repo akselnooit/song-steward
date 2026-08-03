@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
 import { useLocationFilter } from '../../hooks/useLocationFilter'
+import { todayStr } from '../dates'
 import { qk } from './keys'
 import type { ServiceWithRefs, ServiceSongWithSong, StatsFilters, TopSungRow, NeverSungRow } from '../types'
 import type { CreateServiceInput, UpdateServiceInput, AddServiceSongInput, UpdateServiceSongInput, MarkSongSungInput } from '../schemas'
@@ -22,9 +23,12 @@ export function useServices(locationId?: string) {
     queryFn: async () => {
       let q = supabase
         .from('services')
-        .select('id, date, notes, location_id, category_id, worship_leader_id, location:locations(id, name), category:service_categories(id, name), leader:worship_leaders(id, name)')
+        .select('id, date, start_time, notes, location_id, category_id, worship_leader_id, location:locations(id, name), category:service_categories(id, name), leader:worship_leaders(id, name)')
+        // Najnowsze pierwsze, a w obrębie dnia — najpóźniejsze. `created_at`
+        // świadomie NIE bierze już udziału: kolejność dodawania wpisów do apki nie
+        // mówi nic o kolejności nabożeństw. Od tego jest godzina.
         .order('date', { ascending: false })
-        .order('created_at', { ascending: false })
+        .order('start_time', { ascending: false })
       if (locationId) q = q.eq('location_id', locationId)
       const { data, error } = await q
       if (error) throw error
@@ -41,7 +45,7 @@ export function useService(serviceId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('services')
-        .select('id, date, notes, location_id, category_id, worship_leader_id, location:locations(id, name), category:service_categories(id, name), leader:worship_leaders(id, name)')
+        .select('id, date, start_time, notes, location_id, category_id, worship_leader_id, location:locations(id, name), category:service_categories(id, name), leader:worship_leaders(id, name)')
         .eq('id', serviceId!)
         .single()
       if (error) throw error
@@ -57,7 +61,7 @@ export function useUpdateService() {
       const { error } = await supabase.from('services').update(patch).eq('id', id)
       if (error) throw error
     },
-    onMutate: async ({ id, date, location_id, category_id, worship_leader_id }) => {
+    onMutate: async ({ id, date, start_time, location_id, category_id, worship_leader_id }) => {
       await qc.cancelQueries({ queryKey: ['service', id] })
       const prev = qc.getQueryData<ServiceWithRefs>(['service', id])
       const locations = qc.getQueryData<Location[]>(qk.locations())
@@ -68,7 +72,7 @@ export function useUpdateService() {
       const leader = worship_leader_id ? (leaders?.find(l => l.id === worship_leader_id) ?? null) : null
       if (prev && location && category) {
         qc.setQueryData<ServiceWithRefs>(['service', id], {
-          ...prev, date, location_id, category_id, worship_leader_id, location, category, leader,
+          ...prev, date, start_time, location_id, category_id, worship_leader_id, location, category, leader,
         })
       }
       return { prev }
@@ -136,11 +140,6 @@ export function useServiceSongCounts(serviceIds: string[]) {
     },
     staleTime: 0,
   })
-}
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // Zbiory song_id zaśpiewanych/zaplanowanych w DZISIEJSZYCH nabożeństwach (wg globalnego

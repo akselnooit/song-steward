@@ -60,6 +60,8 @@ export interface Service {
   category_id: string
   worship_leader_id: string | null
   date: string
+  /** Godzina rozpoczęcia, „HH:MM" lub „HH:MM:SS" — Postgres `TIME`, zawsze pełny kwadrans. */
+  start_time: string
   notes: string | null
 }
 

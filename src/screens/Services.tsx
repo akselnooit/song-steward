@@ -7,16 +7,7 @@ import { useServices, useLocations, useDeleteService } from '../lib/queries'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import type { ServiceWithRefs } from '../lib/types'
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function formatDatePL(dateStr: string) {
-  const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-}
+import { formatDateCompactPL, formatTimePL, todayStr } from '../lib/dates'
 
 function ServiceCard({ service, isToday, onClick, onDelete }: {
   service: ServiceWithRefs; isToday: boolean; onClick: () => void; onDelete: () => void
@@ -37,7 +28,9 @@ function ServiceCard({ service, isToday, onClick, onDelete }: {
             DZIŚ
           </span>
         )}
-        <span className="count-line">{formatDatePL(service.date)}</span>
+        <span className="count-line">
+          {formatDateCompactPL(service.date)} · {formatTimePL(service.start_time)}
+        </span>
         <button
           style={{ marginLeft: 'auto', width: 34, height: 34, borderRadius: 'var(--r-sm)', border: '1px solid', display: 'grid', placeItems: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all .15s', background: confirming ? 'var(--danger-soft)' : 'var(--surface-2)', color: confirming ? 'var(--danger)' : 'var(--text-3)', borderColor: confirming ? 'var(--danger-bd)' : 'var(--border)' }}
           onClick={handleDelete}

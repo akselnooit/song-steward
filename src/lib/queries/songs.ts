@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
+import { compareServices } from '../dates'
 import { qk } from './keys'
 import type { SongWithCollection, SongDetail } from '../types'
 import type { AddSongTagInput } from '../schemas'
@@ -153,15 +154,26 @@ export function useSongHistory(songId: string | null, locationId?: string) {
     queryFn: async () => {
       let q = supabase
         .from('service_songs')
-        .select('id, status, added_at, service:services!inner(id, date, location:locations(name), leader:worship_leaders(name))')
+        .select('id, status, added_at, service:services!inner(id, date, start_time, location:locations(name), leader:worship_leaders(name))')
         .eq('song_id', songId!)
         .eq('status', 'sung')
+        // `added_at` ogranicza PULĘ do 20 najnowszych wpisów. Nie da się tego zrobić
+        // po dacie nabożeństwa: PostgREST nie sortuje wierszy nadrzędnych po kolumnie
+        // zagnieżdżonego zasobu (`referencedTable` porządkuje wnętrze zagnieżdżenia),
+        // więc kolejność do wyświetlenia ustawiamy niżej, na kliencie.
         .order('added_at', { ascending: false })
         .limit(20)
       if (locationId) q = q.eq('service.location_id', locationId)
       const { data, error } = await q
       if (error) throw error
-      return data
+      // Chronologia NABOŻEŃSTW, nie kolejność odhaczania w apce: przy nadrabianiu
+      // zaległości `added_at` stawiał stare nabożeństwo nad nowszym.
+      return [...(data ?? [])].sort((a, b) => {
+        const x = a.service as unknown as { date: string; start_time: string } | null
+        const y = b.service as unknown as { date: string; start_time: string } | null
+        if (!x || !y) return 0
+        return compareServices(y, x)
+      })
     },
     staleTime: 1000 * 60 * 5,
   })

@@ -15,6 +15,9 @@ import {
   useServices, useServiceSongCounts, useTopSung, useNeverSung, usePendingTags, useLocations, useTags,
 } from '../lib/queries'
 import type { ServiceWithRefs, NeverSungRow } from '../lib/types'
+import {
+  compareServices, formatDatePL, formatTimePL, relativeDayPL, shortDatePL, todayStr,
+} from '../lib/dates'
 
 // Losowa próbka n elementów (Fisher–Yates + slice). Math.random dozwolony w kodzie aplikacji.
 function sample<T>(arr: readonly T[], n: number): T[] {
@@ -27,52 +30,6 @@ function sample<T>(arr: readonly T[], n: number): T[] {
 }
 
 // ── helpers ─────────────────────────────────────────────────────
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function formatDatePL(dateStr: string) {
-  const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })
-}
-
-// Ile pełnych dni temu (po dobach lokalnych, nie po 24 h — inaczej strefa czasu
-// i zmiana czasu potrafią przesunąć „wczoraj" o dzień).
-function daysAgo(dateStr: string) {
-  const d = new Date(dateStr + 'T12:00:00')
-  const now = new Date()
-  const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
-  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
-  return Math.round((b - a) / 86400000)
-}
-
-// Etykieta względna dla kafelka „Ostatnio odbyte". Druga linia kafelka zawsze
-// pokazuje konkretną datę, więc tutaj wolno być zgrubnym.
-function relativeDayPL(dateStr: string) {
-  const n = daysAgo(dateStr)
-  // n <= 0 nie powinno tu trafić (pasek pokazuje tylko daty wcześniejsze niż
-  // dziś), ale gdyby reguła „zakończonego" kiedyś się zmieniła, lepiej żeby
-  // dzisiejsze nabożeństwo nie przedstawiało się jako wczorajsze.
-  if (n <= 0) return 'dziś'
-  if (n === 1) return 'wczoraj'
-  if (n <= 6) return new Date(dateStr + 'T12:00:00').toLocaleDateString('pl-PL', { weekday: 'long' })
-  if (n <= 13) return 'tydzień temu'
-  if (n <= 27) return `${Math.floor(n / 7)} tyg. temu`
-  // Powyżej roku liczenie miesięcy przestaje cokolwiek mówić („13 mies. temu"),
-  // a dokładna data z rokiem i tak jest w linijce niżej.
-  if (n >= 365) return 'ponad rok temu'
-  const months = Math.floor(n / 30)
-  return months <= 1 ? 'miesiąc temu' : `${months} mies. temu`
-}
-
-// Data dzienna: 27.07, a przy innym roku 27.07.25 — żeby stare wpisy nie kłamały.
-function shortDatePL(dateStr: string) {
-  const [y, m, d] = dateStr.split('-')
-  const sameYear = y === String(new Date().getFullYear())
-  return sameYear ? `${d}.${m}` : `${d}.${m}.${y.slice(2)}`
-}
 
 // „pieśń" ma tę wygodną cechę, że mianownik i dopełniacz liczby mnogiej brzmią
 // tak samo („2 pieśni", „5 pieśni"), więc odrębny jest tylko przypadek 1.
@@ -109,7 +66,7 @@ function PastServiceTile({ service, sung, leftover, showLocation, onClick }: {
         />
       )}
       <span className="past-when">{relativeDayPL(service.date)}</span>
-      <span className="past-date t-mono">{shortDatePL(service.date)}</span>
+      <span className="past-date t-mono">{shortDatePL(service.date)} · {formatTimePL(service.start_time)}</span>
       <span className="past-what">{service.category.name}</span>
       {showLocation && <span className="past-where">{service.location.name}</span>}
       <span className="past-count"><b>{sung}</b> {piesni(sung)}</span>
@@ -176,7 +133,7 @@ function TodayCard({ service, isToday, songCount, onOpen }: {
         {isToday && (
           <span style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 'var(--r-pill)', letterSpacing: '0.02em' }}>DZIŚ</span>
         )}
-        <span className="count-line">{formatDatePL(service.date)}</span>
+        <span className="count-line">{formatDatePL(service.date)} · {formatTimePL(service.start_time)}</span>
       </div>
       <div className="t-title" style={{ fontSize: 21, marginBottom: 4 }}>
         {service.category.name} · {service.location.name}
@@ -313,7 +270,11 @@ export function Dashboard() {
   const { data: allTags = [] } = useTags()
 
   const today = todayStr()
-  const upcoming = [...services].sort((a, b) => a.date.localeCompare(b.date)).filter(s => s.date >= today)
+  // Nadchodzące = od dziś włącznie, chronologicznie (data, przy remisie godzina).
+  // Godzina świadomie NIE decyduje o tym, czy nabożeństwo jest „nadchodzące":
+  // dzisiejsze zostaje na górze pulpitu do końca dnia, żeby po porannym
+  // nabożeństwie dopisanie pieśni czy notatki było jednym tapnięciem.
+  const upcoming = [...services].sort(compareServices).filter(s => s.date >= today)
   const featured = upcoming[0]
   const isToday = featured?.date === today
 
@@ -321,7 +282,7 @@ export function Dashboard() {
   // od najnowszego. Ograniczone do 10 — w pasku 3 kafelków dalsze przewijanie
   // traci sens, od tego jest kafelek „Więcej" na końcu paska.
   const past = useMemo(
-    () => services.filter(s => s.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10),
+    () => services.filter(s => s.date < today).sort((a, b) => compareServices(b, a)).slice(0, 10),
     [services, today],
   )
 

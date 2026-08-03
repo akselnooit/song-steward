@@ -7,13 +7,13 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { HRow, MetaChip, Sheet } from '../components/ui'
+import { HRow, MetaChip, Sheet, TimePicker } from '../components/ui'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import {
   useService, useServiceSongs,
   useAddServiceSong, useMarkSongSung, useUpdateServiceSong, useRemoveServiceSong, useUpdateServiceNotes,
-  useUpdateService, useLocations, useServiceCategories, useWorshipLeaders,
+  useUpdateService, useLocations, useServiceCategories, useWorshipLeaders, useServices,
 } from '../lib/queries'
 import { useAllSongsForSearch } from '../lib/queries/songs'
 import type { ServiceSongWithSong, ServiceWithRefs } from '../lib/types'
@@ -21,16 +21,7 @@ import { collectionClass, compareSongs } from '../lib/utils'
 import { inHorizontalScroller, isEditableTarget } from '../lib/gestures'
 import { revealAboveKeyboard } from '../lib/scroll'
 import { useKeyboardInset } from '../hooks/useKeyboardInset'
-
-function formatDatePL(dateStr: string) {
-  const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import { formatDateWithYearPL, formatTimePL, timeKey, todayStr } from '../lib/dates'
 
 // ── Edit service sheet ───────────────────────────────────────────
 
@@ -40,9 +31,13 @@ function EditServiceSheet({ service, open, onClose }: {
   const { data: locations = [] } = useLocations()
   const { data: categories = [] } = useServiceCategories()
   const { data: leaders = [] } = useWorshipLeaders()
+  const { data: allServices = [] } = useServices()
   const updateService = useUpdateService()
 
+  // Godzina istniejącego nabożeństwa przychodzi z bazy jako „19:00:00" — TimePicker
+  // i walidacja operują na „HH:MM", więc obcinamy sekundy raz, tutaj.
   const [date, setDate] = useState(service.date)
+  const [time, setTime] = useState<string | null>(timeKey(service.start_time))
   const [locationId, setLocationId] = useState(service.location_id)
   const [categoryId, setCategoryId] = useState(service.category_id)
   const [leaderId, setLeaderId] = useState(service.worship_leader_id ?? '')
@@ -50,19 +45,28 @@ function EditServiceSheet({ service, open, onClose }: {
   useEffect(() => {
     if (open) {
       setDate(service.date)
+      setTime(timeKey(service.start_time))
       setLocationId(service.location_id)
       setCategoryId(service.category_id)
       setLeaderId(service.worship_leader_id ?? '')
     }
   }, [open, service])
 
-  const canSave = date && locationId && categoryId
+  // Ta sama blokada, co przy tworzeniu — z pominięciem samego siebie, żeby zapis
+  // bez zmiany terminu nie zgłaszał kolizji z własnym wpisem.
+  const duplicate = time !== null && allServices.find(s =>
+    s.id !== service.id && s.date === date && s.location_id === locationId
+    && timeKey(s.start_time) === timeKey(time),
+  )
+
+  const canSave = !!(date && time && locationId && categoryId && !duplicate)
 
   const handleSave = async () => {
-    if (!canSave) return
+    if (!canSave || !time) return
     await updateService.mutateAsync({
       id: service.id,
       date,
+      start_time: time,
       location_id: locationId,
       category_id: categoryId,
       worship_leader_id: leaderId || null,
@@ -78,6 +82,9 @@ function EditServiceSheet({ service, open, onClose }: {
       <input type="date" className="field"
         style={{ padding: '13px 14px', marginBottom: 18 }}
         value={date} onChange={e => setDate(e.target.value)} />
+
+      <div className="t-label" style={{ marginBottom: 8 }}>Godzina</div>
+      <TimePicker value={time} onChange={setTime} />
 
       <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>
       <HRow selected={locationId} style={{ marginBottom: 18 }}>
@@ -110,6 +117,13 @@ function EditServiceSheet({ service, open, onClose }: {
             onClick={() => setLeaderId(id => id === l.id ? '' : l.id)}>{l.name}</button>
         ))}
       </HRow>
+
+      {duplicate && (
+        <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 14, lineHeight: 1.45 }}>
+          W tej lokalizacji jest już nabożeństwo o {formatTimePL(duplicate.start_time)} tego dnia
+          ({duplicate.category.name}).
+        </div>
+      )}
 
       <button className="btn btn-primary btn-block"
         disabled={!canSave || updateService.isPending}
@@ -517,7 +531,11 @@ export function Live() {
           {service?.category.name ?? '…'}
         </h1>
         <div className="svc-meta">
-          <MetaChip icon={<Tag size={14} strokeWidth={1.7} />}>{formatDatePL(service?.date ?? '')}</MetaChip>
+          {/* Data i godzina w JEDNYM chipie — czwarty chip nie zmieściłby się w
+              wierszu na wąskim ekranie, a rozdzielenie tych dwóch nic nie wnosi. */}
+          <MetaChip icon={<Tag size={14} strokeWidth={1.7} />}>
+            {service ? `${formatDateWithYearPL(service.date)} · ${formatTimePL(service.start_time)}` : '…'}
+          </MetaChip>
           <MetaChip icon={<Tag size={14} strokeWidth={1.7} />}>{service?.location.name}</MetaChip>
           <MetaChip icon={<Tag size={14} strokeWidth={1.7} />}>{service?.leader?.name ?? '—'}</MetaChip>
         </div>

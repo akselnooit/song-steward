@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HRow, Sheet } from './ui'
+import { HRow, Sheet, TimePicker } from './ui'
 import { useLocations, useServiceCategories, useWorshipLeaders, useCreateService, useServices } from '../lib/queries'
 import type { CreateServiceInput } from '../lib/schemas'
 import { useLocationFilter } from '../hooks/useLocationFilter'
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import { formatTimePL, timeKey, todayStr } from '../lib/dates'
 
 interface NewServiceSheetProps {
   open: boolean
@@ -26,10 +22,12 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
   const [filterLocationId] = useLocationFilter()
 
   const [date, setDate] = useState(todayStr())
+  // Godzina startuje PUSTA i nie ma wartości domyślnej — dwa nabożeństwa w
+  // jednym dniu różni tylko ona, więc musi być świadomym wyborem.
+  const [time, setTime] = useState<string | null>(null)
   const [locationId, setLocationId] = useState(filterLocationId ?? '')
   const [categoryId, setCategoryId] = useState('')
   const [leaderId, setLeaderId] = useState(defaultLeaderId ?? '')
-  const [showDupWarning, setShowDupWarning] = useState(false)
 
   // Zasiej domyślne wartości za każdym razem, gdy arkusz się otwiera —
   // leader i filtr lokalizacji ładują się asynchronicznie, więc inicjalizator
@@ -37,16 +35,28 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
   useEffect(() => {
     if (!open) return
     setDate(todayStr())
+    setTime(null)
     setCategoryId('')
     setLocationId(filterLocationId ?? '')
     setLeaderId(defaultLeaderId ?? '')
   }, [open, filterLocationId, defaultLeaderId])
 
-  const canCreate = date && locationId && categoryId
+  // Ten sam termin w tej samej lokalizacji jest fizycznie niemożliwy, więc
+  // BLOKUJEMY zapis (unikalny indeks w bazie odrzuciłby go i tak — lepiej
+  // powiedzieć to przed tapnięciem niż błędem po). Wcześniej ostrzegaliśmy przy
+  // samej dacie + lokalizacji, co przy 11:00 i 19:00 tego samego dnia wyskakiwało
+  // za każdym razem i uczyło klikać „Dodaj mimo to" bez czytania.
+  const duplicate = time !== null && allServices.find(s =>
+    s.date === date && s.location_id === locationId && timeKey(s.start_time) === timeKey(time),
+  )
 
-  const doCreate = async () => {
+  const canCreate = !!(date && time && locationId && categoryId && !duplicate)
+
+  const handleCreate = async () => {
+    if (!canCreate || !time) return
     const id = await createService.mutateAsync({
       date,
+      start_time: time,
       location_id: locationId,
       category_id: categoryId,
       worship_leader_id: leaderId || null,
@@ -56,24 +66,16 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
     navigate(`/live/${id}`)
   }
 
-  const handleCreate = async () => {
-    if (!canCreate) return
-    const isDuplicate = allServices.some(s => s.date === date && s.location_id === locationId)
-    if (isDuplicate) {
-      setShowDupWarning(true)
-      return
-    }
-    await doCreate()
-  }
-
   return (
-    <>
     <Sheet open={open} onClose={onClose}>
       <div className="t-title" style={{ fontSize: 20, marginBottom: 20 }}>Nowe nabożeństwo</div>
 
       <label className="t-label" style={{ display: 'block', marginBottom: 8 }}>Data</label>
       <input type="date" className="field" style={{ padding: '13px 14px', marginBottom: 18, WebkitAppearance: 'none' }}
         value={date} onChange={e => setDate(e.target.value)} />
+
+      <div className="t-label" style={{ marginBottom: 8 }}>Godzina</div>
+      <TimePicker value={time} onChange={setTime} />
 
       <div className="t-label" style={{ marginBottom: 8 }}>Lokalizacja</div>
       <HRow selected={locationId} style={{ marginBottom: 18 }}>
@@ -116,28 +118,17 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
         ))}
       </HRow>
 
+      {duplicate && (
+        <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 14, lineHeight: 1.45 }}>
+          W tej lokalizacji jest już nabożeństwo o {formatTimePL(duplicate.start_time)} tego dnia
+          ({duplicate.category.name}). Zmień godzinę albo otwórz istniejące.
+        </div>
+      )}
+
       <button className="btn btn-primary btn-block"
         disabled={!canCreate || createService.isPending} onClick={handleCreate}>
         {createService.isPending ? 'Tworzenie…' : 'Utwórz i otwórz'}
       </button>
     </Sheet>
-
-    <Sheet open={showDupWarning} onClose={() => setShowDupWarning(false)}>
-      <div className="t-title" style={{ fontSize: 18, marginBottom: 12 }}>Nabożeństwo już istnieje</div>
-      <div style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 24 }}>
-        Nabożeństwo w tej lokalizacji zostało już dodane na ten dzień. Czy na pewno dodać kolejne?
-      </div>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button className="btn btn-ghost btn-block" onClick={() => setShowDupWarning(false)}>
-          Anuluj
-        </button>
-        <button className="btn btn-primary btn-block"
-          disabled={createService.isPending}
-          onClick={async () => { setShowDupWarning(false); await doCreate() }}>
-          {createService.isPending ? 'Tworzenie…' : 'Dodaj mimo to'}
-        </button>
-      </div>
-    </Sheet>
-    </>
   )
 }
