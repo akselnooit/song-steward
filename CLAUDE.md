@@ -73,6 +73,7 @@ Kolejność od najtańszego. Rób to, co ma sens dla danej zmiany, i **zawsze na
 1. `npx tsc -b` i `npm run build` — zawsze przy zmianach w kodzie.
 2. Stan bazy — read-only `psql` rolą `backup_ro` (istnienie kolumn, ograniczeń, indeksów, rozkład danych).
 3. UI — dev server w panelu Browser. Cała apka jest za magic linkiem, więc bez zalogowanej sesji widać tylko ekran logowania.
+4. **Rzadko, tylko przy ważnych zmianach UI:** tymczasowa trasa poza `ProtectedRoute` (np. `/#/dev/nazwa`), która renderuje sam komponent na danych przykładowych — wtedy da się go obejrzeć i przeklikać bez logowania i bez dotykania produkcyjnych danych. Nie jest to domyślny tryb pracy: zakładaj taką trasę tylko wtedy, gdy zmiana jest istotna i inaczej nie do sprawdzenia, i **usuń ją po weryfikacji**, jeszcze przed pushem (chyba że użytkownik zdecyduje inaczej).
 
 **Nigdy nie loguj się na konto użytkownika** i nie proś o kod z maila. Jeśli użytkownik zalogował sesję w panelu podglądu: czytaj i klikaj swobodnie, ale **nie twórz, nie zmieniaj i nie usuwaj danych produkcyjnych** bez wyraźnej zgody w tej rozmowie — to jedna wspólna baza zespołu, nie piaskownica.
 
