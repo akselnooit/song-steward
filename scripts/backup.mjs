@@ -115,8 +115,15 @@ async function summarize(file) {
 const url = await readDbUrl()
 const scrub = makeScrubber(url)
 
-const docker = await run('docker', ['--version'])
-if (docker.code !== 0) fail('Docker nie odpowiada. Uruchom Docker Desktop i spróbuj ponownie.')
+// `docker --version` odpowiada nawet przy wyłączonym demonie (to tylko CLI),
+// dlatego pytamy o `docker info` — dopiero to dotyka silnika.
+const docker = await run('docker', ['info', '--format', '{{.ServerVersion}}'])
+if (docker.code !== 0) {
+  fail(
+    'Silnik Dockera nie odpowiada — uruchom Docker Desktop, poczekaj, aż ikonka\n' +
+    '  wieloryba przestanie się animować, i odpal `npm run backup` ponownie.',
+  )
+}
 
 await mkdir(OUT_DIR, { recursive: true })
 const outFile = join(OUT_DIR, `backup-${stamp()}.sql`)
@@ -136,7 +143,12 @@ const dump = await run(
     'sh', '-c',
     // Connection string zostaje w zmiennej środowiskowej kontenera — nie ma go
     // w linii komend, więc nie widać go w liście procesów.
-    'pg_dump "$PGURL" --schema=public --no-owner --no-privileges',
+    // --enable-row-security: bez tego pg_dump ODMAWIA zrzutu tabeli objętej RLS
+    // („query would be affected by row-level security policy"), bo nie chce po
+    // cichu pominąć niewidocznych wierszy. U nas polityka `backup_ro_read` to
+    // USING (true), więc widoczne jest wszystko — a kontrola „0 wierszy" niżej
+    // złapie sytuację, w której ktoś kiedyś tę politykę zawęzi.
+    'pg_dump "$PGURL" --schema=public --no-owner --no-privileges --enable-row-security',
   ],
   { env: { PGURL: url }, stdoutTo: sink, scrub },
 )
