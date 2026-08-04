@@ -357,6 +357,10 @@ export function Live() {
     const chrome = el.offsetHeight - el.clientHeight   // obrys (box-sizing: border-box)
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight + chrome}px`
+    // Pole ma `overflow: hidden` i mieści całą treść, więc własny `scrollTop`
+    // powinien być zerem. WebKit zostawiał tu resztkę po chwilowym przepełnieniu
+    // (między dwoma przypisaniami wysokości) i malował karetkę o tyle obok.
+    el.scrollTop = 0
   }
   useLayoutEffect(() => { if (editingNotes) autoGrow(notesRef.current) }, [editingNotes, notes])
   useLayoutEffect(() => {
@@ -379,7 +383,6 @@ export function Live() {
   //  • zmienia się `kbdInset` — czyli klawiatura właśnie weszła i zapas jest już
   //    doklejony w tym samym renderze (wysokość widocznego obszaru kurczy się
   //    dopiero po animacji klawiatury, więc wcześniej nie da się policzyć celu),
-  //  • rośnie notatka podczas pisania — dopisywana linia nie chowa się pod klawiaturą.
   // Powtórka po 260 ms wygrywa z ewentualnym własnym „odsłanianiem" pola przez
   // przeglądarkę; obie próby są bezstratne (cel liczony bezwzględnie).
   useEffect(() => {
@@ -388,7 +391,16 @@ export function Live() {
     run()
     const t = window.setTimeout(run, 260)
     return () => window.clearTimeout(t)
-  }, [editingNotes, kbdInset, notes])
+  }, [editingNotes, kbdInset])
+
+  // Pisanie: dopisywana linia nie może schować się pod klawiaturą, ale bez
+  // animacji — płynne przewijanie startowane na każdy znak nigdy nie dobiega
+  // końca. `revealAboveKeyboard` samo nic nie robi, gdy dół pola jest widoczny,
+  // więc przy krótkiej notatce ten efekt jest bezkosztowy.
+  useEffect(() => {
+    if (!editingNotes) return
+    revealAboveKeyboard(notesRef.current, screenRef.current, { instant: true })
+  }, [notes, editingNotes])
 
   // Sieć bezpieczeństwa dla niezapisanych notatek. `onBlur` nie zdąży się
   // wykonać, gdy ekran znika bez odkliknięcia pola — systemowy gest „wstecz"

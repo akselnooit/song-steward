@@ -100,9 +100,12 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* Bez `-webkit-overflow-scrolling: touch`: w WebKicie momentum-scrolling na
+   kontenerze rozjeżdżał karetkę w wysokiej `textarea` w środku (tekst wstawiał
+   się o tyle wyżej, o ile ekran był przewinięty). Od iOS 13 pęd jest domyślny,
+   więc usunięcie tej właściwości nic nie zabiera. */
 .screen {
   flex: 1; overflow-y: auto; overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
   padding-top: env(safe-area-inset-top);
   scrollbar-width: none; -ms-overflow-style: none;
 }

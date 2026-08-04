@@ -30,15 +30,21 @@ function visibleBottom(): number {
  * Nie robi nic, gdy dół i tak jest widoczny. Cel liczony jest bezwzględnie
  * (`scrollTop + delta`), więc kolejne wywołania w trakcie płynnej animacji
  * trafiają w to samo miejsce, zamiast sumować się i przestrzeliwać.
+ *
+ * `instant` — przewinięcie bez animacji. Podczas pisania płynna animacja nigdy
+ * się nie kończy (każdy znak startuje nową) i wygląda gorzej niż zwykły skok.
  */
 export function revealAboveKeyboard(
   el: HTMLElement | null,
   container: HTMLElement | null,
-  margin = 24,
+  { margin = 24, instant = false }: { margin?: number; instant?: boolean } = {},
 ): void {
   if (!el || !container) return
   const delta = el.getBoundingClientRect().bottom + margin - visibleBottom()
   if (delta <= 1) return
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  container.scrollTo({ top: container.scrollTop + delta, behavior: reduce ? 'auto' : 'smooth' })
+  container.scrollTo({
+    top: container.scrollTop + delta,
+    behavior: instant || reduce ? 'auto' : 'smooth',
+  })
 }
