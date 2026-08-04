@@ -354,7 +354,23 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 .notes-wrap { position: relative; }
 .notes-view { white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
 .notes-edit { overflow: hidden; }
-.notes-pencil { position: absolute; top: 13px; right: 13px; color: var(--text-3); opacity: 0.6; pointer-events: none; }
+/* Błąd synchronizacji — całe pole dostaje czerwonawy akcent, bez animacji:
+   sygnał ma być czytelny w półmroku, a nie ściągać wzrok w trakcie pisania. */
+.notes-box.err { border-color: var(--danger-bd); background: var(--danger-soft); }
+.notes-status {
+  position: absolute; top: 13px; right: 13px;
+  width: 15px; height: 15px; display: grid; place-items: center;
+  color: var(--text-3); opacity: 0.6; pointer-events: none;
+  transition: color .18s ease, opacity .18s ease;
+}
+.notes-status.dirty, .notes-status.busy { opacity: 1; }
+.notes-status.ok { color: var(--accent); opacity: 1; }
+.notes-status.err { color: var(--danger); opacity: 1; }
+.notes-status .spin { animation: notes-spin 900ms linear infinite; }
+@keyframes notes-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .notes-status .spin { animation: none; }
+}
 .svc-song { display: flex; align-items: center; gap: 11px; padding: 11px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
 .svc-song + .svc-song { margin-top: 8px; }
 .drag-h { color: var(--text-3); cursor: grab; touch-action: none; }

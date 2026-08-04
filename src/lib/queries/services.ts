@@ -296,9 +296,27 @@ export function useRemoveServiceSong() {
   })
 }
 
+/** Klucz mutacji notatek — po nim `SyncIndicator` rozpoznaje, że o tym błędzie
+ *  informuje już samo pole notatek, i nie dubluje komunikatu na górze ekranu. */
+export const NOTES_MUTATION_KEY = ['service-notes'] as const
+
 export function useUpdateServiceNotes() {
   const qc = useQueryClient()
   return useMutation({
+    mutationKey: NOTES_MUTATION_KEY,
+    // Notatki pisze się na scenie, przy kiepskim zasięgu. Dwie ciche próby
+    // z narastającym odstępem załatwiają większość chwilowych zerwań, zanim
+    // użytkownik w ogóle zobaczy czerwień.
+    retry: 2,
+    retryDelay: attempt => (attempt === 0 ? 1000 : 4000),
+    // `networkMode: 'always'` zamiast domyślnego `'online'`. Domyślnie TanStack
+    // po nieudanej próbie WSTRZYMUJE mutację: zostaje w stanie `pending`
+    // (wskaźnik świeci „zapisywanie" bez końca), a po powrocie sieci sam ją
+    // odtwarza — stąd „Nie zapisano" wyskakujące długo po utracie zasięgu,
+    // czasem na kilku zaległych próbach naraz. Notatka ma zawieść od razu
+    // i widocznie; ponawianiem sterują szkic w localStorage, dotknięcie pola,
+    // powrót aplikacji na wierzch i zdarzenie `online`.
+    networkMode: 'always',
     mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
       const { error } = await supabase.from('services').update({ notes }).eq('id', id)
       if (error) throw error

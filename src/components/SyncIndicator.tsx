@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useIsMutating, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
+import { NOTES_MUTATION_KEY } from '../lib/queries/services'
+
+// Notatki mają własny wskaźnik w narożniku pola. Dwa komunikaty o jednym błędzie
+// to szum, a górna pastylka zasłania właśnie ten narożnik.
+const isNotes = (m: { options: { mutationKey?: readonly unknown[] } }) =>
+  m.options.mutationKey?.[0] === NOTES_MUTATION_KEY[0]
 
 // Dwie fazy zamiast trzech. „Zapisano" celowo nie istnieje: potwierdzeniem udanej
 // akcji jest toast na dole ekranu („Dodano do zaśpiewanych" itd.), a zniknięcie
@@ -10,7 +16,7 @@ type Phase = 'idle' | 'saving' | 'error'
 
 export function SyncIndicator() {
   const qc = useQueryClient()
-  const isMutating = useIsMutating()
+  const isMutating = useIsMutating({ predicate: m => !isNotes(m) })
   const [phase, setPhase] = useState<Phase>('idle')
 
   const savingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -20,10 +26,20 @@ export function SyncIndicator() {
   // Detect errors via mutation cache events
   useEffect(() => {
     return qc.getMutationCache().subscribe((event) => {
-      if (event.type === 'updated' && event.mutation?.state.status === 'error') {
+      if (event.type !== 'updated' || !event.mutation) return
+      if (isNotes(event.mutation)) return
+      const status = event.mutation.state.status
+      if (status === 'error') {
         hadError.current = true
         if (savingTimer.current) { clearTimeout(savingTimer.current); savingTimer.current = null }
         setPhase('error')
+      } else if (status === 'success') {
+        // Bez tego pastylka „Nie zapisano" wisiała do kliknięcia: w fazie `error`
+        // efekt niżej nie ma jak wrócić do `idle`. Udany zapis jest dowodem, że
+        // połączenie wróciło — komunikat gaśnie sam.
+        hadError.current = false
+        if (savingTimer.current) { clearTimeout(savingTimer.current); savingTimer.current = null }
+        setPhase('idle')
       }
     })
   }, [qc])

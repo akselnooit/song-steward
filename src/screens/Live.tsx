@@ -8,11 +8,13 @@ import {
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { HRow, MetaChip, Sheet, TimePicker } from '../components/ui'
+import { NotesStatus } from '../components/NotesStatus'
 import { useWakeLock } from '../hooks/useWakeLock'
+import { useNotesAutosave } from '../hooks/useNotesAutosave'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import {
   useService, useServiceSongs,
-  useAddServiceSong, useMarkSongSung, useUpdateServiceSong, useRemoveServiceSong, useUpdateServiceNotes,
+  useAddServiceSong, useMarkSongSung, useUpdateServiceSong, useRemoveServiceSong,
   useUpdateService, useLocations, useServiceCategories, useWorshipLeaders, useServices,
 } from '../lib/queries'
 import { useAllSongsForSearch } from '../lib/queries/songs'
@@ -201,7 +203,6 @@ export function Live() {
   const markSongSung = useMarkSongSung()
   const updateServiceSong = useUpdateServiceSong()
   const removeServiceSong = useRemoveServiceSong()
-  const updateNotes = useUpdateServiceNotes()
 
   const [searchQ, setSearchQ] = useState('')
   const [editingNotes, setEditingNotes] = useState(false)
@@ -214,17 +215,14 @@ export function Live() {
   const [shakePlannedId, setShakePlannedId] = useState<string | null>(null)
   const [justSungId, setJustSungId] = useState<string | null>(null)   // pieśń, która ma zagrać „drop-in" w zaśpiewanych
   const [leavingId, setLeavingId] = useState<string | null>(null)      // wiersz zaplanowanej „odlatujący" przy awansie
-  const [notes, setNotes] = useState(service?.notes ?? '')
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Podczas edycji nie nadpisujemy pola danymi z serwera — odświeżenie w tle
-  // (np. po dodaniu pieśni) skasowałoby to, co użytkownik właśnie pisze.
-  const editingNotesRef = useRef(false)
-  editingNotesRef.current = editingNotes
-  useEffect(() => {
-    if (!editingNotesRef.current) setNotes(service?.notes ?? '')
-  }, [service?.notes])
+  // Cały cykl życia notatki — stan pola, autozapis co kilka sekund, ponowienia
+  // i szkic w localStorage — siedzi w jednym haku.
+  const {
+    value: notes, change: changeNotes, state: notesState, flush: flushNotes, retry: retryNotes,
+  } = useNotesAutosave(serviceId ?? null, service?.notes ?? undefined, editingNotes)
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -331,21 +329,12 @@ export function Live() {
     removeServiceSong.mutate({ id: ss.id, service_id: serviceId! })
   }
 
-  // Ostatnia wartość wysłana do bazy (per nabożeństwo) — zapis z `onBlur`
-  // i awaryjny zapis przy znikaniu ekranu nie mogą wysłać tego samego dwa razy.
-  const pushedNotes = useRef<{ id: string; value: string } | null>(null)
-
-  const pushNotes = (value: string) => {
-    if (!serviceId) return
-    if (value === (service?.notes ?? '')) return
-    if (pushedNotes.current?.id === serviceId && pushedNotes.current.value === value) return
-    pushedNotes.current = { id: serviceId, value }
-    updateNotes.mutate({ id: serviceId, notes: value })
-  }
-
+  // Wyjście z pola: zapisz od razu, nie czekając na debounce. Jeśli poprzednia
+  // próba padła, to jest też moment na ponowienie — o to prosił użytkownik
+  // („dotknij pola i wyjdź, żeby spróbować jeszcze raz").
   const handleSaveNotes = () => {
     setEditingNotes(false)
-    pushNotes(notes)
+    flushNotes()
   }
 
   // Textarea rośnie z treścią — długiej notatki nie oglądamy już przez szparę
@@ -382,7 +371,7 @@ export function Live() {
   //  • wchodzimy w edycję,
   //  • zmienia się `kbdInset` — czyli klawiatura właśnie weszła i zapas jest już
   //    doklejony w tym samym renderze (wysokość widocznego obszaru kurczy się
-  //    dopiero po animacji klawiatury, więc wcześniej nie da się policzyć celu),
+  //    dopiero po animacji klawiatury, więc wcześniej nie da się policzyć celu).
   // Powtórka po 260 ms wygrywa z ewentualnym własnym „odsłanianiem" pola przez
   // przeglądarkę; obie próby są bezstratne (cel liczony bezwzględnie).
   useEffect(() => {
@@ -401,24 +390,6 @@ export function Live() {
     if (!editingNotes) return
     revealAboveKeyboard(notesRef.current, screenRef.current, { instant: true })
   }, [notes, editingNotes])
-
-  // Sieć bezpieczeństwa dla niezapisanych notatek. `onBlur` nie zdąży się
-  // wykonać, gdy ekran znika bez odkliknięcia pola — systemowy gest „wstecz"
-  // iOS, przejście aplikacji w tło, zamknięcie karty. Mutacja odpalona przy
-  // odmontowaniu i tak leci do końca (żyje w cache mutacji, nie w komponencie).
-  const flushNotes = useRef(() => {})
-  flushNotes.current = () => pushNotes(notes)
-  useEffect(() => {
-    const onHide = () => flushNotes.current()
-    const onVisibility = () => { if (document.hidden) flushNotes.current() }
-    window.addEventListener('pagehide', onHide)
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => {
-      window.removeEventListener('pagehide', onHide)
-      document.removeEventListener('visibilitychange', onVisibility)
-      flushNotes.current()
-    }
-  }, [])
 
   // Przesunięcie palcem w bok = poprzednie/następne nabożeństwo. Gest musi
   // ustąpić, gdy trwa edycja notatki (przerzucenie na inne nabożeństwo gubiło
@@ -560,25 +531,25 @@ export function Live() {
           {editingNotes ? (
             <textarea
               ref={notesRef}
-              className="notes-box notes-edit"
+              className={`notes-box notes-edit${notesState === 'error' ? ' err' : ''}`}
               value={notes}
               rows={1}
-              onChange={e => setNotes(e.target.value)}
+              onChange={e => changeNotes(e.target.value)}
               onBlur={handleSaveNotes}
               onKeyDown={e => { if (e.key === 'Escape') handleSaveNotes() }}
             />
           ) : (
-            <>
-              <div
-                className="notes-box notes-view"
-                style={{ color: notes ? 'var(--text-2)' : 'var(--text-3)' }}
-                onClick={() => setEditingNotes(true)}
-              >
-                {notes || 'Dotknij, aby dodać notatkę…'}
-              </div>
-              <Pencil className="notes-pencil" size={15} strokeWidth={1.7} aria-hidden />
-            </>
+            <div
+              className={`notes-box notes-view${notesState === 'error' ? ' err' : ''}`}
+              style={{ color: notes ? 'var(--text-2)' : 'var(--text-3)' }}
+              onClick={() => { setEditingNotes(true); retryNotes() }}
+            >
+              {notes || 'Dotknij, aby dodać notatkę…'}
+            </div>
           )}
+          {/* Wskaźnik także w trybie edycji: stan „zapisywanie"/„błąd" przeżywa
+              wyjście z pola, więc musi być widoczny w obu trybach. */}
+          <NotesStatus state={notesState} />
         </div>
 
         {/* song search */}
