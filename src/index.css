@@ -353,7 +353,6 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 .notes-box { width: 100%; display: block; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--r-md); padding: 12px 38px 12px 14px; color: var(--text-2); font-size: 14px; font-family: var(--font-body); resize: none; outline: none; line-height: 1.5; min-height: 46px; }
 .notes-wrap { position: relative; }
 .notes-view { white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
-.notes-edit { overflow: hidden; }
 /* Błąd synchronizacji — całe pole dostaje czerwonawy akcent, bez animacji:
    sygnał ma być czytelny w półmroku, a nie ściągać wzrok w trakcie pisania. */
 .notes-box.err { border-color: var(--danger-bd); background: var(--danger-soft); }
@@ -363,6 +362,32 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   color: var(--text-3); opacity: 0.6; pointer-events: none;
   transition: color .18s ease, opacity .18s ease;
 }
+/* Pełnoekranowy edytor notatki. Wysokość dostaje z `visualViewport` (JS), więc
+   pole kończy się nad klawiaturą i przewija się SAMO — żadnego programowego
+   przewijania ani liczenia karetki. */
+.note-edit-layer {
+  position: fixed; left: 0; right: 0; z-index: 60;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+}
+.note-edit-head {
+  flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top)) 14px 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.note-edit-title { font-size: 15px; font-weight: 600; }
+.note-edit-state { position: relative; width: 20px; height: 20px; }
+.note-edit-state .notes-status { top: 50%; right: 50%; transform: translate(50%, -50%); }
+.note-edit-done { margin-left: auto; width: auto; padding: 0 16px; height: 40px; gap: 7px; }
+.note-edit-area {
+  flex: 1; min-height: 0; width: 100%;
+  overflow-y: auto;                       /* natywne przewijanie treści */
+  background: transparent; border: 0; outline: none; resize: none;
+  padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
+  color: var(--text); font-size: 15px; font-family: var(--font-body); line-height: 1.6;
+}
+.note-edit-area.err { background: var(--danger-soft); }
+
 .notes-status.dirty, .notes-status.busy { opacity: 1; }
 .notes-status.ok { color: var(--accent); opacity: 1; }
 .notes-status.err { color: var(--danger); opacity: 1; }

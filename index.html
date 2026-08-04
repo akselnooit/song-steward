@@ -2,7 +2,11 @@
 <html lang="pl" data-style="reverent" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- `interactive-widget=resizes-content`: klawiatura ekranowa ma kurczyć
+         layout viewport, żeby przeglądarka sama utrzymywała pole edycji nad nią.
+         Chrome/Android to respektuje; iOS może ignorować — tam wysokość edytora
+         notatki bierzemy z `visualViewport`. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#1a1f1e" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

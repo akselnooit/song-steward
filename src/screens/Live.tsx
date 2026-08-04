@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Bookmark, Check, X, Search, Tag, Pencil, GripVertical } from 'lucide-react'
 import {
@@ -9,6 +9,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities'
 import { HRow, MetaChip, Sheet, TimePicker } from '../components/ui'
 import { NotesStatus } from '../components/NotesStatus'
+import { NotesEditor } from '../components/NotesEditor'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { useNotesAutosave } from '../hooks/useNotesAutosave'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
@@ -21,8 +22,6 @@ import { useAllSongsForSearch } from '../lib/queries/songs'
 import type { ServiceSongWithSong, ServiceWithRefs } from '../lib/types'
 import { collectionClass, compareSongs } from '../lib/utils'
 import { inHorizontalScroller, isEditableTarget } from '../lib/gestures'
-import { revealAboveKeyboard } from '../lib/scroll'
-import { useKeyboardInset } from '../hooks/useKeyboardInset'
 import { formatDateWithYearPL, formatTimePL, timeKey, todayStr } from '../lib/dates'
 
 // ── Edit service sheet ───────────────────────────────────────────
@@ -329,67 +328,12 @@ export function Live() {
     removeServiceSong.mutate({ id: ss.id, service_id: serviceId! })
   }
 
-  // Wyjście z pola: zapisz od razu, nie czekając na debounce. Jeśli poprzednia
-  // próba padła, to jest też moment na ponowienie — o to prosił użytkownik
-  // („dotknij pola i wyjdź, żeby spróbować jeszcze raz").
-  const handleSaveNotes = () => {
+  // Zamknięcie edytora: zapisz od razu, nie czekając na debounce. Jeśli
+  // poprzednia próba padła, jest to też moment na ponowienie.
+  const handleCloseNotes = () => {
     setEditingNotes(false)
     flushNotes()
   }
-
-  // Textarea rośnie z treścią — długiej notatki nie oglądamy już przez szparę
-  // na 3 linijki, a wysokość pudełka jest ta sama co w podglądzie, więc wejście
-  // w edycję nie przesuwa zawartości ekranu.
-  const notesRef = useRef<HTMLTextAreaElement>(null)
-  const autoGrow = (el: HTMLTextAreaElement | null) => {
-    if (!el) return
-    const chrome = el.offsetHeight - el.clientHeight   // obrys (box-sizing: border-box)
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight + chrome}px`
-    // Pole ma `overflow: hidden` i mieści całą treść, więc własny `scrollTop`
-    // powinien być zerem. WebKit zostawiał tu resztkę po chwilowym przepełnieniu
-    // (między dwoma przypisaniami wysokości) i malował karetkę o tyle obok.
-    el.scrollTop = 0
-  }
-  useLayoutEffect(() => { if (editingNotes) autoGrow(notesRef.current) }, [editingNotes, notes])
-  useLayoutEffect(() => {
-    const el = notesRef.current
-    if (!editingNotes || !el) return
-    // `preventScroll` — heurystyka przeglądarki wyrównywała GÓRĘ wysokiego pola
-    // (kursor lądował pod klawiaturą) i potrafiła szarpnąć ekranem. Przewijanie
-    // bierzemy więc w całości na siebie, w efekcie niżej.
-    el.focus({ preventScroll: true })
-    el.selectionStart = el.selectionEnd = el.value.length
-  }, [editingNotes])
-
-  // Zapas na klawiaturę na dole ekranu — bez niego `scrollTop` jest przycięty
-  // do końca zawartości i dół pola nie ma jak wyjechać nad klawiaturę.
-  const kbdInset = useKeyboardInset(editingNotes)
-
-  // Dowiezienie dołu pola (czyli kursora — stoi na końcu tekstu, a pole rośnie
-  // z treścią) nad klawiaturę. Efekt wznawia się, gdy:
-  //  • wchodzimy w edycję,
-  //  • zmienia się `kbdInset` — czyli klawiatura właśnie weszła i zapas jest już
-  //    doklejony w tym samym renderze (wysokość widocznego obszaru kurczy się
-  //    dopiero po animacji klawiatury, więc wcześniej nie da się policzyć celu).
-  // Powtórka po 260 ms wygrywa z ewentualnym własnym „odsłanianiem" pola przez
-  // przeglądarkę; obie próby są bezstratne (cel liczony bezwzględnie).
-  useEffect(() => {
-    if (!editingNotes) return
-    const run = () => revealAboveKeyboard(notesRef.current, screenRef.current)
-    run()
-    const t = window.setTimeout(run, 260)
-    return () => window.clearTimeout(t)
-  }, [editingNotes, kbdInset])
-
-  // Pisanie: dopisywana linia nie może schować się pod klawiaturą, ale bez
-  // animacji — płynne przewijanie startowane na każdy znak nigdy nie dobiega
-  // końca. `revealAboveKeyboard` samo nic nie robi, gdy dół pola jest widoczny,
-  // więc przy krótkiej notatce ten efekt jest bezkosztowy.
-  useEffect(() => {
-    if (!editingNotes) return
-    revealAboveKeyboard(notesRef.current, screenRef.current, { instant: true })
-  }, [notes, editingNotes])
 
   // Przesunięcie palcem w bok = poprzednie/następne nabożeństwo. Gest musi
   // ustąpić, gdy trwa edycja notatki (przerzucenie na inne nabożeństwo gubiło
@@ -527,28 +471,17 @@ export function Live() {
       <div className="screen-pad" style={{ paddingTop: 16 }}>
         {/* notes */}
         <div className="t-label" style={{ marginBottom: 7 }}>Notatki</div>
+        {/* Podglądem jest DIV z całą treścią — nie ma w nim karetki, więc rosnąca
+            wysokość niczego nie psuje. Edycja dzieje się w pełnoekranowym
+            edytorze, gdzie pole przewija się natywnie. */}
         <div className="notes-wrap">
-          {editingNotes ? (
-            <textarea
-              ref={notesRef}
-              className={`notes-box notes-edit${notesState === 'error' ? ' err' : ''}`}
-              value={notes}
-              rows={1}
-              onChange={e => changeNotes(e.target.value)}
-              onBlur={handleSaveNotes}
-              onKeyDown={e => { if (e.key === 'Escape') handleSaveNotes() }}
-            />
-          ) : (
-            <div
-              className={`notes-box notes-view${notesState === 'error' ? ' err' : ''}`}
-              style={{ color: notes ? 'var(--text-2)' : 'var(--text-3)' }}
-              onClick={() => { setEditingNotes(true); retryNotes() }}
-            >
-              {notes || 'Dotknij, aby dodać notatkę…'}
-            </div>
-          )}
-          {/* Wskaźnik także w trybie edycji: stan „zapisywanie"/„błąd" przeżywa
-              wyjście z pola, więc musi być widoczny w obu trybach. */}
+          <div
+            className={`notes-box notes-view${notesState === 'error' ? ' err' : ''}`}
+            style={{ color: notes ? 'var(--text-2)' : 'var(--text-3)' }}
+            onClick={() => { setEditingNotes(true); retryNotes() }}
+          >
+            {notes || 'Dotknij, aby dodać notatkę…'}
+          </div>
           <NotesStatus state={notesState} />
         </div>
 
@@ -635,10 +568,6 @@ export function Live() {
             </SortableContext>
           </DndContext>
         )}
-
-        {/* Zapas na klawiaturę — daje kontenerowi dokąd przewinąć, gdy pole
-            notatek kończy się nisko. Znika dopiero po schowaniu klawiatury. */}
-        {kbdInset > 0 && <div aria-hidden style={{ height: kbdInset }} />}
       </div>
 
       {toast && (
@@ -670,6 +599,15 @@ export function Live() {
           </button>
         </div>
       </Sheet>
+
+      {editingNotes && (
+        <NotesEditor
+          value={notes}
+          onChange={changeNotes}
+          state={notesState}
+          onClose={handleCloseNotes}
+        />
+      )}
     </div>
   )
 }

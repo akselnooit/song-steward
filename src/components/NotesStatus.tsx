@@ -14,7 +14,7 @@ const LABEL: Record<NotesSaveState, string> = {
   dirty: 'Niezapisane zmiany',
   saving: 'Zapisywanie…',
   saved: 'Zapisano',
-  error: 'Nie udało się zapisać — dotknij pola, aby ponowić',
+  error: 'Nie udało się zapisać — dotknij notatki, aby ponowić',
 }
 
 const MOD: Record<NotesSaveState, string> = {
