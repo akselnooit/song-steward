@@ -1,12 +1,14 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Settings, Filter, Plus, User, CalendarDays, ArrowRight, History } from 'lucide-react'
+import { Settings, Filter, Plus, User, CalendarDays, ArrowRight, History, BarChart2 } from 'lucide-react'
 import { LocationChip } from '../components/ui'
 import { WaveformIcon } from '../components/WaveformIcon'
 import { NewServiceSheet } from '../components/NewServiceSheet'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
-import { useServices, useServiceSongCounts, usePendingTags, useLocations } from '../lib/queries'
+import { useSongOverlay } from '../contexts/SongOverlayContext'
+import { collectionClass } from '../lib/utils'
+import { useServices, useServiceSongCounts, usePendingTags, useLocations, useTopSung } from '../lib/queries'
 import type { ServiceWithRefs } from '../lib/types'
 import {
   compareServices, formatDatePL, formatTimePL, relativeDayPL, shortDatePL, todayStr,
@@ -19,6 +21,20 @@ import {
 const piesni = (n: number) => (n === 1 ? 'pieśń' : 'pieśni')
 
 // ── sub-components ───────────────────────────────────────────────
+
+// Wiersz listy „Najczęściej śpiewane": miejsce → odznaka zbioru → tytuł → licznik.
+function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
+  rank: number; collectionShortName: string; number: number; title: string; count: number; onClick: () => void
+}) {
+  return (
+    <div className="song-card" style={{ cursor: 'pointer', padding: '13px 4px' }} onClick={onClick}>
+      <span className="rank">{rank}</span>
+      <span className={`badge-col ${collectionClass(collectionShortName)}`} style={{ fontSize: 10, flexShrink: 0 }}>{collectionShortName} {number}</span>
+      <div className="title" style={{ fontSize: 15, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>
+      <span className="count-x">{count}×</span>
+    </div>
+  )
+}
 
 // Kafelek zakończonego nabożeństwa — czyta się od góry: kiedy → co → ile.
 // Lokalizację pokazujemy tylko przy wyłączonym globalnym filtrze, bo inaczej
@@ -99,12 +115,14 @@ function TodayCard({ service, isToday, songCount, onOpen }: {
 export function Dashboard() {
   const navigate = useNavigate()
   const { leader } = useCurrentUser()
+  const { openSong } = useSongOverlay()
   const [locationId] = useLocationFilter()
   const [newServiceOpen, setNewServiceOpen] = useState(false)
 
   const { data: services = [] } = useServices(locationId)
   const { data: pendingTags = [] } = usePendingTags()
   const { data: locations = [] } = useLocations()
+  const { data: topSung = [] } = useTopSung(locationId)
 
   const today = todayStr()
   // Nadchodzące = od dziś włącznie, chronologicznie (data, przy remisie godzina).
@@ -142,7 +160,9 @@ export function Dashboard() {
   }
 
   const locationName = locations.find(l => l.id === locationId)?.name
+  const locSuffix = locationName ? ` · ${locationName}` : ''
   const pendingCount = pendingTags.length
+  const topSungIds = useMemo(() => topSung.map(r => r.id), [topSung])
 
   return (
     <div className="screen">
@@ -247,6 +267,26 @@ export function Dashboard() {
             </div>
           </>
         )}
+
+        {/* najczęściej śpiewane — w zakresie globalnego filtra lokalizacji.
+            Bez własnych filtrów: „jak dawno" i węższe kryteria mieszkają teraz
+            na ekranie „Pieśni", tutaj zostaje sam ranking. */}
+        <div className="sec-h">
+          <div className="t-label" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <BarChart2 size={14} strokeWidth={1.7} />
+            {'Najczęściej śpiewane' + locSuffix}
+          </div>
+        </div>
+        <div className="card list-rows" style={{ padding: '4px 14px' }}>
+          {topSung.length === 0
+            ? <div style={{ padding: '14px 0', color: 'var(--text-3)', fontSize: 13 }}>Brak danych</div>
+            : topSung.map((r, i) => (
+              <TopRow key={r.id} rank={i + 1}
+                collectionShortName={r.collection_short_name} number={r.number}
+                title={r.title} count={r.sung_count}
+                onClick={() => openSong(r.id, topSungIds)} />
+            ))}
+        </div>
       </div>
 
       <NewServiceSheet

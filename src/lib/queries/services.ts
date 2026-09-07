@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useLocationFilter } from '../../hooks/useLocationFilter'
 import { todayStr } from '../dates'
 import { qk } from './keys'
-import type { ServiceWithRefs, ServiceSongWithSong } from '../types'
+import type { ServiceWithRefs, ServiceSongWithSong, TopSungRow } from '../types'
 import type { CreateServiceInput, UpdateServiceInput, AddServiceSongInput, UpdateServiceSongInput, MarkSongSungInput } from '../schemas'
 import type { Location, ServiceCategory, WorshipLeader } from '../types'
 
@@ -16,6 +16,7 @@ function invalidateServiceSongQueries(qc: QueryClient, serviceId: string) {
   qc.invalidateQueries({ queryKey: ['today-service-songs'] })
   qc.invalidateQueries({ queryKey: ['song-history'] })
   qc.invalidateQueries({ queryKey: qk.sungServiceSongs() })
+  qc.invalidateQueries({ queryKey: ['top-sung'] })
 }
 
 // Wszystkie ZAŚPIEWANE wpisy (tylko `song_id` + `service_id`) — surowiec dla
@@ -366,5 +367,32 @@ export function useUpdateServiceNotes() {
       qc.invalidateQueries({ queryKey: ['service', id] })
       qc.invalidateQueries({ queryKey: qk.servicesAll() })
     },
+  })
+}
+
+/**
+ * Najczęściej śpiewane pieśni — widget na pulpicie.
+ *
+ * Liczy funkcja SQL `get_top_sung` (patrz `supabase/03_rpc.sql`): pulpit jest
+ * ekranem startowym, więc nie chcemy ściągać tu całego śpiewnika po to, żeby
+ * pokazać pięć wierszy. Z parametrów funkcji używamy już tylko lokalizacji —
+ * pozostałe filtry statystyk zniknęły razem z ich ustawieniami.
+ */
+export function useTopSung(locationId?: string, limit = 5) {
+  return useQuery({
+    queryKey: [...qk.topSung(locationId), limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_top_sung', {
+        p_location_id: locationId ?? null,
+        p_leader_id: null,
+        p_months: null,
+        p_tag_ids_include: [],
+        p_tag_ids_exclude: [],
+        p_limit: limit,
+      })
+      if (error) throw error
+      return data as TopSungRow[]
+    },
+    staleTime: 1000 * 60 * 5,
   })
 }

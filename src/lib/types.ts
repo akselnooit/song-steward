@@ -97,3 +97,17 @@ export interface ServiceWithRefs extends Service {
 export interface ServiceSongWithSong extends ServiceSong {
   song: SongWithCollection
 }
+
+// ── RPC return types ─────────────────────────────────────────────
+
+/** Wiersz z `get_top_sung` — pieśń plus licznik zaśpiewań w danym zakresie. */
+export interface TopSungRow {
+  id: string
+  collection_short_name: string
+  number: number
+  title: string
+  author: string | null
+  original_key: string | null
+  minor: boolean | null
+  sung_count: number
+}
