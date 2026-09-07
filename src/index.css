@@ -55,12 +55,6 @@
   --glass-capsule: color-mix(in oklch, var(--surface) 90%, transparent);
   --glass-rim: rgba(255, 255, 255, 0.65);
   --glass-sheen: rgba(255, 255, 255, 0.5);
-  /* Fala losowania („Nigdy nieśpiewane"). Osobne tokeny per motyw, bo nad
-     --surface o L = 0,998 nie ma zapasu jasności — w jasnym motywie „światło"
-     musi przyciemniać. Głębia dobrana tak, by grzbiet schodził od tła o tyle,
-     co kafelek Premium (ΔL ≈ −0,057), a nie głębiej niż włoski --border. */
-  --roll-crest: color-mix(in oklch, var(--accent-bd) 42%, transparent);
-  --roll-glow:  color-mix(in oklch, var(--accent-soft) 62%, transparent);
 }
 [data-style="reverent"][data-theme="dark"] {
   --bg: oklch(0.185 0.008 150); --bg-2: oklch(0.155 0.008 150);
@@ -73,10 +67,6 @@
   --glass-capsule: color-mix(in oklch, var(--surface) 88%, transparent);
   --glass-rim: rgba(255, 255, 255, 0.14);
   --glass-sheen: rgba(255, 255, 255, 0.13);
-  /* W ciemnym motywie kierunek jest odwrotny — grzbiet rozjaśnia (ΔL ≈ +0,19)
-     i zostaje zielony, bo bierze --accent, nie białe światło. */
-  --roll-crest: color-mix(in oklch, var(--accent) 30%, transparent);
-  --roll-glow:  color-mix(in oklch, var(--accent-bd) 52%, transparent);
 }
 
 /* ============================================================
@@ -287,6 +277,10 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   font-family: var(--font-body); font-weight: 600; font-size: 13px; padding: 7px 14px; border-radius: var(--r-pill);
 }
 .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-card); }
+/* Przełącznik na całą szerokość ekranu, z równymi polami — na liście pieśni
+   to główny przełącznik trybu, a nie ozdobnik w nagłówku. */
+.seg-block { display: flex; width: 100%; }
+.seg-block button { flex: 1; min-width: 0; white-space: nowrap; }
 
 .song-card { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
 .song-card .meta { flex: 1; min-width: 0; }
@@ -305,6 +299,20 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 
 .rank { font-family: var(--font-mono); font-weight: 600; font-size: 13px; width: 22px; text-align: center; color: var(--text-3); flex-shrink: 0; }
 .count-x { font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--accent); }
+
+/* Znacznik statystyki przy pieśni („12×", „7 mies.", „nigdy"). Stała szerokość
+   minimalna, żeby kolumna nie skakała od wiersza do wiersza; „nigdy" dostaje
+   akcent, bo to właśnie tego szuka się w trybie „Dawno niegrane". */
+.song-stat {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  color: var(--text-2); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 3px 8px; min-width: 58px; text-align: center;
+  white-space: nowrap; flex-shrink: 0;
+}
+.song-stat.never { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-bd); }
+/* Liczba trafień w chipie podpowiedzi — słabsza od nazwy tagu, ale czytelna. */
+.tag .n { opacity: 0.6; font-family: var(--font-mono); font-feature-settings: "tnum" 1; }
 
 /* ============================================================
    OVERLAY / SONG DETAIL SHEET
@@ -387,6 +395,16 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   color: var(--text); font-size: 15px; font-family: var(--font-body); line-height: 1.6;
 }
 .note-edit-area.err { background: var(--danger-soft); }
+/* iOS trzyma nad klawiaturą własny pasek pomocniczy (strzałki „poprzednie/
+   następne pole" + „Gotowe"). Strona nie ma jak go wyłączyć, ale jest on
+   półprzezroczysty, a `visualViewport` kończy się NAD nim — przez pasek
+   prześwitywał więc ekran nabożeństwa leżący pod edytorem. Wypełniacz
+   przedłuża tło edytora w dół, pod pasek: przejście do klawiatury jest
+   jednolite, niezależnie od tego, ile miejsca zajmie pasek. */
+.note-edit-layer::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 100%;
+  height: 200px; background: var(--bg); pointer-events: none;
+}
 
 .notes-status.dirty, .notes-status.busy { opacity: 1; }
 .notes-status.ok { color: var(--accent); opacity: 1; }
@@ -537,17 +555,6 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 }
 .theme-opt.on { border-color: var(--accent-bd); background: var(--accent-soft); color: var(--accent); }
 .theme-opt:active { transform: scale(0.98); }
-
-.filter-summary {
-  width: 100%; margin-top: 16px; text-align: left; cursor: pointer;
-  display: flex; align-items: flex-start; gap: 9px;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
-  padding: 13px 14px; color: var(--text-2); font-family: var(--font-body); font-size: 13px; line-height: 1.5;
-}
-.filter-summary > svg:first-child { flex-shrink: 0; margin-top: 2px; color: var(--text-3); }
-.filter-summary > span:nth-child(2) { flex: 1; text-wrap: pretty; }
-.filter-summary:active { transform: scale(0.99); }
-.filter-summary-cta { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; color: var(--accent); font-weight: 600; white-space: nowrap; align-self: center; }
 
 .link-btn { background: none; border: none; cursor: pointer; color: var(--accent); font-family: var(--font-body); font-weight: 600; font-size: 12.5px; padding: 0; }
 .link-btn:active { opacity: 0.6; }
@@ -754,142 +761,3 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
   .echo-pad, .echo-dot { transition: none; }
 }
 
-/* ============================================================
-   „Nigdy nieśpiewane" — losowanie „Przesiew".
-   Po tapnięciu „Losuj" (albo potrząśnięciu) przez kartę przechodzi
-   fala światła w gradiencie z rodziny kafelka Premium z Ustawień
-   (135deg, --accent-soft → --surface), wiersz po wierszu z góry na
-   dół (opóźnienie z `--i`), a pieśni osiadają w jej śladzie. Na koniec
-   po obrysie karty przebiega akcentowy pierścień.
-
-   Trzy decyzje, które trzymają to na 120 Hz na iPhonie:
-   • rusza się TYLKO transform i opacity — box-shadow albo background
-     w keyframie to przemalowanie całej karty w każdej klatce;
-   • fala i pierścień to pseudo-elementy (::after), nie dzieci —
-     linie rozdzielające rysuje `.list-rows > * + *` po bezpośrednich
-     dzieciach karty, więc dodatkowy <span> zrobiłby z siebie wiersz;
-   • oprawa żyje tylko póki React trzyma klasę `is-rolling` (ROLL_MS
-     w Dashboard.tsx), więc `both` nie ma czego zamrozić — a `animationend`
-     na iOS nie odpala dla uśpionej/odmontowanej warstwy.
-   ============================================================ */
-
-/* Karta jest układem odniesienia dla pierścienia. `isolation` zamyka warstwy
-   oprawy WEWNĄTRZ karty — bez tego `.roll-stage` (z-index: auto) nie tworzy
-   kontekstu układania i pierścień konkurowałby z resztą drzewa ekranu. */
-.roll-stage { position: relative; }
-.roll-stage.is-rolling { isolation: isolate; }
-
-/* Pierścień — zamiast box-shadow, bo cień animuje się na CPU. `inset: 0`, a nie
-   -1px: pierścień ma leżeć dokładnie na obrysie karty, bo `border-radius: inherit`
-   daje promień karty, a nie promień powiększony o odsunięcie. Pełne krycie
-   osiąga przy scale(1), czyli dokładnie na obrysie, i dopiero potem rozchodzi
-   się na zewnątrz — inaczej „domykałby" kartę obok jej krawędzi. Opóźnienie
-   90 ms stawia szczyt na środku masy fali. */
-.roll-stage.is-rolling::after {
-  content: ''; position: absolute; inset: 0; z-index: 1;
-  pointer-events: none; border-radius: inherit;
-  border: 1px solid var(--accent-bd);
-  animation: roll-rim 620ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
-  animation-delay: 90ms;
-}
-@keyframes roll-rim {
-  0%   { opacity: 0; transform: scale(1); }
-  16%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.012); }
-}
-
-/* `overflow: hidden` obcina falę do pasa wiersza — wiersze są prostokątne
-   (karta odsuwa je paddingiem od zaokrąglonych narożników), więc iOS nie
-   musi budować maski z promieniem. `contain` tylko na czas losowania: na stałe
-   zostawiałby kontekst układania i blok zawierający w każdym wierszu listy. */
-.roll-row { position: relative; overflow: hidden; }
-.roll-row.is-rolling { contain: layout paint; }
-
-/* Fala idzie POD treścią wiersza. Nad tekstem akcent zjadał kontrast tytułu
-   (15:1 → 1,6:1) i przemalowywał STAŁE kolory odznak zbiorów (--col-*), które
-   wg CLAUDE.md są semantyczne i nietykalne. Pod spodem może być za to mocniejsza. */
-.roll-row > .song-card { position: relative; z-index: 1; }
-
-/* Grzbiet fali. Wąskie pasmo, nie szeroki rozlew: to ono, a nie liczba
-   przystanków, jest realnym lekarstwem na pasmowanie na OLED-zie — ten sam
-   spadek jasności upchnięty w ~60 px zamiast ~140 px schodzi poniżej kroku
-   8-bitowego. Barwy z tokenów per motyw (--roll-crest/--roll-glow), bo jasny
-   i ciemny motyw muszą oddalić się od SWOJEGO tła o tyle, co kafelek Premium:
-   w jasnym nie ma zapasu jasności nad --surface, więc sheen musi przyciemniać. */
-.roll-row.is-rolling::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 112%;
-  pointer-events: none; z-index: 0;
-  background: linear-gradient(135deg,
-    transparent 6%,
-    var(--roll-glow) 30%,
-    var(--roll-crest) 50%,
-    var(--roll-glow) 68%,
-    transparent 96%);
-  transform: translate3d(-104%, 0, 0);
-  animation: roll-wash 380ms cubic-bezier(0.30, 0.05, 0.30, 1) both;
-  /* Ciągłość grzbietu: żeby pasma sąsiednich wierszy leżały na jednej linii,
-     |dx/dy| grzbietu musi równać się v·Δ/h. Dla 135deg |dx/dy| = 1, więc
-     Δ = h/v ≈ 46 px / 2,73 px/ms ≈ 17 ms. Kaskadę widać w RUCHU wierszy (56 ms),
-     nie w świetle — przy 64 ms światło rozpadało się na osobne ukośne kreski,
-     czyli dokładnie idiom „skeleton loadera", a nie „coś wylosowano". */
-  animation-delay: calc(var(--i) * 17ms);
-}
-@keyframes roll-wash {
-  0%   { transform: translate3d(-104%, 0, 0); opacity: 0; }
-  14%  { opacity: 1; }
-  74%  { opacity: 1; }
-  100% { transform: translate3d(196%, 0, 0); opacity: 0; }
-}
-
-/* Osiadanie pieśni. Świadomie BEZ opacity i BEZ scale: gdyby animacja nie
-   ruszyła (karta wybudzona z tła, `animation-delay` trzymający klatkę 0%),
-   tytuł musi zostać czytelny. 9 px, nie 13: wiersz ma własny `overflow: hidden`,
-   a przy większym przesunięciu odznaka zbioru dotykała górnej krawędzi klipu. */
-.roll-row.is-rolling > .song-card {
-  animation: roll-settle 300ms cubic-bezier(0.20, 0.90, 0.26, 1) both;
-  animation-delay: calc(var(--i) * 56ms + 40ms);
-}
-@keyframes roll-settle {
-  0%   { transform: translate3d(0, -9px, 0); }
-  64%  { transform: translate3d(0, 2px, 0); }
-  100% { transform: translate3d(0, 0, 0); }
-}
-
-/* Kostka: obrót jest pierwszą reakcją na tap (< 80 ms), więc przycisk nie
-   wydaje się głuchy, dopóki fala nie dojdzie do wiersza. JEDEN obrót przy
-   `linear` z ręcznie wyhamowanymi kątami — dwa obroty w 560 ms to ~21° na
-   klatkę przy 60 Hz, a szesnastopikselowa kostka o grubości kreski 1,7 wtedy
-   miga, zamiast się kręcić. Easing per-keyframe też odpada: cubic-bezier
-   działa MIĘDZY każdą parą klatek, więc dwie klatki dawały zwolnienie
-   w połowie obrotu i ponowne przyspieszenie — widoczne zawahanie. */
-.roll-dice { display: inline-flex; }
-.roll-dice.is-rolling { animation: roll-dice 620ms linear; }
-@keyframes roll-dice {
-  0%   { transform: rotate(0deg)   scale(1); }
-  10%  { transform: rotate(64deg)  scale(1.10); }
-  26%  { transform: rotate(158deg) scale(1.12); }
-  46%  { transform: rotate(252deg) scale(1.07); }
-  68%  { transform: rotate(320deg) scale(1.02); }
-  85%  { transform: rotate(350deg) scale(1); }
-  100% { transform: rotate(360deg) scale(1); }
-}
-
-/* Cel dotknięcia „Losuj": .link-btn to 12,5 px tekstu — jedną ręką na scenie,
-   w półmroku, trudno w to trafić. Powiększamy sam obszar dotyku pseudo-elementem,
-   bo `min-height` podniosłoby wysokość `.sec-h` (margin: 22px 0 10px) i zepchnęło
-   całą sekcję w dół. Wykorzystujemy CAŁE marginesy sekcji: w górę 22 px (wyżej
-   jest tylko obwódka i padding karty „Najczęściej śpiewane", nie jej wiersze),
-   w dół 10 px (niżej obwódka i padding karty „Nigdy nieśpiewane"). Bez zwisu
-   w LEWO, bo `.sec-h` to `justify-content: space-between` — przy dłuższej nazwie
-   lokalizacji nagłówek dosuwa się do przycisku i tap w tytuł losowałby pieśni.
-   Efektywnie ≈ 48 × 68 px. */
-.roll-btn { position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-.roll-btn::before { content: ''; position: absolute; inset: -22px -14px -10px 0; }
-
-/* Ograniczony ruch: lista zmienia się natychmiast, bez żadnej oprawy. JS i tak
-   nie nakłada `is-rolling`, ale reguła zostaje jako druga linia obrony — jest
-   bezpieczna, bo stan „po animacji" jest zwykłym stanem wiersza. */
-@media (prefers-reduced-motion: reduce) {
-  .roll-row.is-rolling > .song-card, .roll-dice.is-rolling { animation: none; }
-  .roll-row.is-rolling::after, .roll-stage.is-rolling::after { display: none; }
-}

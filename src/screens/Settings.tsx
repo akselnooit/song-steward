@@ -1,13 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom'
 import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Sun, Moon, Check, Mail, Lock, Sparkles } from 'lucide-react'
-import { CatBlock, HRow, Sheet } from '../components/ui'
+import { HRow, Sheet } from '../components/ui'
 import { PremiumThanks } from '../components/PremiumThanks'
-import { vibrate } from '../lib/vibrate'
-import { useLongPress } from '../hooks/useLongPress'
 import { useTheme } from '../hooks/useTheme'
 import { useLocationFilter } from '../hooks/useLocationFilter'
-import { useStatsFilters } from '../hooks/useStatsFilters'
 import { supabase } from '../lib/supabase'
 import {
   useLocations, useServiceCategories, useWorshipLeaders, useCollections,
@@ -250,7 +247,7 @@ function PremiumSheet({ open, onClose }: { open: boolean; onClose: () => void })
         ))}
       </div>
 
-      <button className="btn btn-primary btn-block" onClick={() => { vibrate(30); setThanks(true) }}>
+      <button className="btn btn-primary btn-block" onClick={() => setThanks(true)}>
         {plan === 'year' ? `Wykup Premium — ${PREMIUM_YEARLY} zł / rok` : `Wykup Premium — ${PREMIUM_MONTHLY} zł / mies.`}
       </button>
       <div className="hint" style={{ marginTop: 10, justifyContent: 'center', width: '100%' }}>
@@ -297,15 +294,6 @@ function PremiumBanner({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-// ── Stats tag toggle with long-press ────────────────────────────
-
-function StatTag({ name, inc, exc, onInc, onExc }: { name: string; inc: boolean; exc: boolean; onInc: () => void; onExc: () => void }) {
-  const lp = useLongPress(onInc, onExc)
-  return (
-    <button className={`tag${inc ? ' include' : exc ? ' exclude' : ''}`} {...lp}>{name}</button>
-  )
-}
-
 // ── Settings screen ──────────────────────────────────────────────
 
 export function Settings() {
@@ -315,8 +303,6 @@ export function Settings() {
   const [tab, setTab] = useState<'dict' | 'filters'>(routerState?.tab === 'filters' ? 'filters' : 'dict')
   const [locHighlight, setLocHighlight] = useState(routerState?.highlight === 'location')
   const locSectionRef = useRef<HTMLDivElement>(null)
-  const [statsTagsHighlight, setStatsTagsHighlight] = useState(routerState?.highlight === 'stats-tags')
-  const statsTagsSectionRef = useRef<HTMLDivElement>(null)
   const [editor, setEditor] = useState<DictConfig | null>(null)
   const [premiumOpen, setPremiumOpen] = useState(false)
 
@@ -327,7 +313,6 @@ export function Settings() {
   useEffect(() => {
     if (routerState?.tab) setTab(routerState.tab === 'filters' ? 'filters' : 'dict')
     if (routerState?.highlight === 'location') setLocHighlight(true)
-    if (routerState?.highlight === 'stats-tags') setStatsTagsHighlight(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routerLoc.key])
 
@@ -337,40 +322,16 @@ export function Settings() {
     const t = setTimeout(() => setLocHighlight(false), 2200)
     return () => clearTimeout(t)
   }, [locHighlight])
-
-  useEffect(() => {
-    if (!statsTagsHighlight) return
-    statsTagsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    const t = setTimeout(() => setStatsTagsHighlight(false), 2200)
-    return () => clearTimeout(t)
-  }, [statsTagsHighlight])
   const [theme, setTheme] = useTheme()
   const [locationId, setLocationId] = useLocationFilter()
-  const [statsPrefs, setStatsPrefs] = useStatsFilters()
   const { data: pendingTags = [] } = usePendingTags()
   const { data: locations = [] } = useLocations()
-  const { data: leaders = [] } = useWorshipLeaders()
-  const { data: tagCategories = [] } = useTagCategories()
-  const { data: allTags = [] } = useTags()
 
   const pendingCount = pendingTags.length
-
-  const toggleStatTag = (tagId: string, kind: 'inc' | 'exc') => {
-    const inc = statsPrefs.tagIdsInclude ?? []
-    const exc = statsPrefs.tagIdsExclude ?? []
-    if (kind === 'inc') {
-      setStatsPrefs({ ...statsPrefs, tagIdsInclude: inc.includes(tagId) ? inc.filter(x => x !== tagId) : [...inc, tagId], tagIdsExclude: exc.filter(x => x !== tagId) })
-    } else {
-      setStatsPrefs({ ...statsPrefs, tagIdsExclude: exc.includes(tagId) ? exc.filter(x => x !== tagId) : [...exc, tagId], tagIdsInclude: inc.filter(x => x !== tagId) })
-    }
-  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
-
-  const incIds = statsPrefs.tagIdsInclude ?? []
-  const excIds = statsPrefs.tagIdsExclude ?? []
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
@@ -462,66 +423,7 @@ export function Settings() {
                   </button>
                 ))}
               </div>
-              <div className="hint">Wpływa na pulpit, listę nabożeństw i statystyki.</div>
-            </div>
-
-            {/* stats filters */}
-            <div className="t-label" style={{ marginBottom: 9 }}>Domyślne filtry statystyk</div>
-            <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-              <div style={{ marginBottom: 14 }}>
-                <div className="count-line" style={{ marginBottom: 8 }}>Prowadzący muzykę</div>
-                <div className="pill-row">
-                  <button className={`tag${!statsPrefs.leaderId ? ' include' : ''}`} onClick={() => setStatsPrefs({ ...statsPrefs, leaderId: undefined })}>
-                    Wszyscy
-                  </button>
-                  {leaders.map(l => (
-                    <button key={l.id} className={`tag${statsPrefs.leaderId === l.id ? ' include' : ''}`} onClick={() => setStatsPrefs({ ...statsPrefs, leaderId: l.id })}>
-                      {l.name.split(' ')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="count-line" style={{ marginBottom: 8 }}>Zakres czasu</div>
-                <div className="pill-row">
-                  {[{ label: '3 mies.', v: 3 }, { label: '6 mies.', v: 6 }, { label: '12 mies.', v: 12 }, { label: 'Cały czas', v: undefined }].map(r => (
-                    <button key={r.label} className={`tag${statsPrefs.months === r.v ? ' include' : ''}`} onClick={() => setStatsPrefs({ ...statsPrefs, months: r.v })}>
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* stats tag filters */}
-            <div ref={statsTagsSectionRef} className={statsTagsHighlight ? 'section-highlight' : ''} style={{ marginBottom: 0 }}>
-            <div className="sec-h" style={{ marginTop: 0, marginBottom: 4 }}>
-              <div className="t-label">Tagi statystyk</div>
-              {(incIds.length > 0 || excIds.length > 0) && (
-                <button className="link-btn" onClick={() => setStatsPrefs({ ...statsPrefs, tagIdsInclude: [], tagIdsExclude: [] })}>Wyczyść</button>
-              )}
-            </div>
-            <div className="hint" style={{ marginBottom: 10 }}>Dotknij = dołącz · przytrzymaj = wyklucz</div>
-            <div className="card" style={{ padding: '2px 16px 8px', marginBottom: 22 }}>
-              {tagCategories.map(cat => {
-                const catTags = allTags.filter(t => t.category_id === cat.id)
-                const selectedCount = catTags.filter(t => incIds.includes(t.id) || excIds.includes(t.id)).length
-                return (
-                  <CatBlock key={cat.id} name={cat.name} selectedCount={selectedCount} defaultOpen={false}>
-                    {catTags.map(tag => (
-                      <StatTag
-                        key={tag.id}
-                        name={tag.name}
-                        inc={incIds.includes(tag.id)}
-                        exc={excIds.includes(tag.id)}
-                        onInc={() => toggleStatTag(tag.id, 'inc')}
-                        onExc={() => toggleStatTag(tag.id, 'exc')}
-                      />
-                    ))}
-                  </CatBlock>
-                )
-              })}
-            </div>
+              <div className="hint">Wpływa na pulpit, listę nabożeństw i statystyki pieśni.</div>
             </div>
 
             <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -1,12 +1,52 @@
+import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabase'
 import { compareServices } from '../dates'
 import { qk } from './keys'
+import { useServices, useSungServiceSongs } from './services'
 import type { SongWithCollection, SongDetail } from '../types'
 import type { AddSongTagInput } from '../schemas'
 
 export interface SongForSearch extends SongWithCollection {
   tagIds: string[]
+}
+
+/** Ile razy pieśń była zaśpiewana i kiedy ostatnio (`null` = nigdy). */
+export interface SongStat {
+  count: number
+  lastDate: string | null
+}
+
+/**
+ * Statystyki śpiewania per pieśń, zawężone globalnym filtrem lokalizacji.
+ *
+ * Liczone na kliencie ze zbioru zaśpiewanych wpisów i pełnej listy nabożeństw
+ * (obie i tak są w cache'u) — patrz komentarz przy `useSungServiceSongs`.
+ * Nabożeństwa pobieramy BEZ filtra lokalizacji, żeby przełączenie filtra
+ * nie wymuszało nowego zapytania; zawężamy tutaj.
+ */
+export function useSongStats(locationId?: string) {
+  const { data: services } = useServices()
+  const { data: sungRows } = useSungServiceSongs()
+
+  return useMemo(() => {
+    const stats = new Map<string, SongStat>()
+    if (!services || !sungRows) return stats
+    const byId = new Map(services.map(s => [s.id, s]))
+    for (const row of sungRows) {
+      const svc = byId.get(row.service_id)
+      if (!svc) continue
+      if (locationId && svc.location_id !== locationId) continue
+      const cur = stats.get(row.song_id)
+      if (!cur) {
+        stats.set(row.song_id, { count: 1, lastDate: svc.date })
+      } else {
+        cur.count++
+        if (!cur.lastDate || svc.date > cur.lastDate) cur.lastDate = svc.date
+      }
+    }
+    return stats
+  }, [services, sungRows, locationId])
 }
 
 async function fetchAllSongTags() {

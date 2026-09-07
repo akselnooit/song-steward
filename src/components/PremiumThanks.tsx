@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Heart, Mail, Copy, Check, Play, RotateCcw, Trophy, Volume2, Gamepad2 } from 'lucide-react'
-import { vibrate } from '../lib/vibrate'
 import { Sheet } from './ui'
 
 const MAIL = 'akselon@gmail.com'
@@ -123,11 +122,9 @@ function EchoGame() {
     tone(PADS[i].freq, 0.42)
     flash(i)
     if (phase !== 'play') return   // w bezczynności pola są po prostu instrumentem
-    vibrate(12)
 
     if (i !== seq[step]) {
       tone(174.61, 0.85, 0.12)     // niskie F3 — melodia „gaśnie", to nie kara
-      vibrate(70)
       if (score > best) {
         setBest(score)
         localStorage.setItem(BEST_KEY, String(score))
@@ -142,7 +139,6 @@ function EchoGame() {
     }
     setScore(seq.length)
     setBurst(b => b + 1)
-    vibrate(30)
     setPhase('win')
   }
 
@@ -269,7 +265,6 @@ export function PremiumThanks() {
     try {
       await navigator.clipboard.writeText(MAIL)
       setCopied(true)
-      vibrate(20)
     } catch {
       setCopied(false)
     }
@@ -305,7 +300,7 @@ export function PremiumThanks() {
         </div>
       </div>
 
-      <button className="btn btn-ghost btn-block" onClick={() => { vibrate(15); setGameOpen(true) }}>
+      <button className="btn btn-ghost btn-block" onClick={() => setGameOpen(true)}>
         <Gamepad2 size={17} strokeWidth={1.9} /> A w ramach podziękowania — mała gra
       </button>
 

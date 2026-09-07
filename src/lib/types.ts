@@ -97,34 +97,3 @@ export interface ServiceWithRefs extends Service {
 export interface ServiceSongWithSong extends ServiceSong {
   song: SongWithCollection
 }
-
-// ── RPC return types ─────────────────────────────────────────────
-
-export interface TopSungRow {
-  id: string
-  collection_short_name: string
-  number: number
-  title: string
-  author: string | null
-  original_key: string | null
-  minor: boolean | null
-  sung_count: number
-}
-
-export interface NeverSungRow {
-  id: string
-  collection_short_name: string
-  number: number
-  title: string
-  author: string | null
-  original_key: string | null
-  minor: boolean | null
-}
-
-export interface StatsFilters {
-  locationId?: string
-  leaderId?: string
-  months?: number
-  tagIdsInclude?: string[]
-  tagIdsExclude?: string[]
-}

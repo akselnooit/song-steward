@@ -67,6 +67,29 @@ export function relativeDayPL(dateStr: string): string {
 }
 
 /**
+ * Zwięzły wiek wpisu — „3 tyg.", „7 mies.", „2 lata". Używane na liście pieśni
+ * w trybie „Dawno niegrane", gdzie liczy się rząd wielkości, nie dokładna data
+ * (ta jest w historii śpiewania w arkuszu pieśni).
+ */
+export function agoLabelPL(dateStr: string): string {
+  const n = daysAgo(dateStr)
+  if (n <= 0) return 'dziś'
+  if (n === 1) return 'wczoraj'
+  if (n < 7) return `${n} dni`
+  if (n < 31) {
+    const w = Math.floor(n / 7)
+    return w === 1 ? 'tydzień' : `${w} tyg.`
+  }
+  if (n < 365) {
+    const m = Math.max(1, Math.floor(n / 30))
+    return m === 1 ? 'miesiąc' : `${m} mies.`
+  }
+  const y = Math.floor(n / 365)
+  if (y === 1) return 'rok'
+  return y <= 4 ? `${y} lata` : `${y} lat`
+}
+
+/**
  * „19:00" — bez sekund i bez zera wiodącego w godzinie („9:15", nie „09:15").
  * Postgres zwraca `TIME` jako „19:00:00", ale formularze podają „19:00", więc
  * przyjmujemy oba kształty.

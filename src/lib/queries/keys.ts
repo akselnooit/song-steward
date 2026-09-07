@@ -1,5 +1,3 @@
-import type { StatsFilters } from '../types'
-
 export const qk = {
   collections: () => ['collections'] as const,
   locations: () => ['locations'] as const,
@@ -9,10 +7,12 @@ export const qk = {
   tags: () => ['tags'] as const,
   songs: (collectionId?: string) => ['songs', collectionId ?? 'all'] as const,
   songDetail: (songId: string) => ['song', songId] as const,
+  // Prefiks bez lokalizacji — po nim unieważniamy WSZYSTKIE warianty filtra
+  // lokalizacji naraz. `services(id)` to konkretny wariant do czytania.
+  servicesAll: () => ['services'] as const,
   services: (locationId?: string) => ['services', locationId ?? 'all'] as const,
   serviceSongs: (serviceId: string) => ['service-songs', serviceId] as const,
   serviceSongCounts: (ids: string[]) => ['service-song-counts', [...ids].sort()] as const,
-  topSung: (f: StatsFilters) => ['top-sung', f] as const,
-  neverSung: (f: StatsFilters) => ['never-sung', f] as const,
+  sungServiceSongs: () => ['sung-service-songs'] as const,
   pendingTags: () => ['pending-tags'] as const,
 }

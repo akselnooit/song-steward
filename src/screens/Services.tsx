@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, User, Trash2 } from 'lucide-react'
 import { LocationChip } from '../components/ui'
@@ -6,6 +6,7 @@ import { NewServiceSheet } from '../components/NewServiceSheet'
 import { useServices, useLocations, useDeleteService } from '../lib/queries'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { useLocationFilter } from '../hooks/useLocationFilter'
+import { useScrollRestore } from '../hooks/useScrollRestore'
 import type { ServiceWithRefs } from '../lib/types'
 import { formatDateCompactPL, formatTimePL, todayStr } from '../lib/dates'
 
@@ -60,16 +61,21 @@ export function Services() {
   const { leader } = useCurrentUser()
   const [locationId] = useLocationFilter()
   const [newOpen, setNewOpen] = useState(false)
+  const screenRef = useRef<HTMLDivElement>(null)
 
   const { data: services = [] } = useServices(locationId)
   const { data: locations = [] } = useLocations()
   const deleteService = useDeleteService()
 
+  // Powrót z ekranu nabożeństwa ma wracać tam, gdzie użytkownik był — szukanie
+  // konkretnego wpisu na długiej liście inaczej zaczyna się od nowa.
+  useScrollRestore('services', screenRef, services.length > 0)
+
   const today = todayStr()
   const locationName = locations.find(l => l.id === locationId)?.name
 
   return (
-    <div className="screen">
+    <div className="screen" ref={screenRef}>
       <div className="app-header">
         <h1>Nabożeństwa</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

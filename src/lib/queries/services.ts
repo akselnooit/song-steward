@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import { useLocationFilter } from '../../hooks/useLocationFilter'
 import { todayStr } from '../dates'
 import { qk } from './keys'
-import type { ServiceWithRefs, ServiceSongWithSong, StatsFilters, TopSungRow, NeverSungRow } from '../types'
+import type { ServiceWithRefs, ServiceSongWithSong } from '../types'
 import type { CreateServiceInput, UpdateServiceInput, AddServiceSongInput, UpdateServiceSongInput, MarkSongSungInput } from '../schemas'
 import type { Location, ServiceCategory, WorshipLeader } from '../types'
 
@@ -15,6 +15,38 @@ function invalidateServiceSongQueries(qc: QueryClient, serviceId: string) {
   qc.invalidateQueries({ queryKey: ['service-song-counts'] })
   qc.invalidateQueries({ queryKey: ['today-service-songs'] })
   qc.invalidateQueries({ queryKey: ['song-history'] })
+  qc.invalidateQueries({ queryKey: qk.sungServiceSongs() })
+}
+
+// Wszystkie ZAŚPIEWANE wpisy (tylko `song_id` + `service_id`) — surowiec dla
+// statystyk pieśni na ekranie „Pieśni": ile razy i jak dawno. Świadomie liczymy
+// to na kliencie, a nie w SQL: zbiór jest mały (rzędu tysiąca wierszy, rośnie
+// o ~kilkaset rocznie), a apka i tak trzyma już w pamięci pełną listę pieśni
+// i wszystkie `song_tags`. Dzięki temu zmiana filtra lokalizacji czy trybu
+// sortowania nie kosztuje ani jednego zapytania. Gdyby zbiór urósł o rząd
+// wielkości, to jest miejsce na zamianę na funkcję SQL.
+export function useSungServiceSongs() {
+  return useQuery({
+    queryKey: qk.sungServiceSongs(),
+    queryFn: async () => {
+      const PAGE = 1000
+      let from = 0
+      const rows: { song_id: string; service_id: string }[] = []
+      for (;;) {
+        const { data, error } = await supabase
+          .from('service_songs')
+          .select('song_id, service_id')
+          .eq('status', 'sung')
+          .range(from, from + PAGE - 1)
+        if (error) throw error
+        rows.push(...(data as { song_id: string; service_id: string }[]))
+        if (data.length < PAGE) break
+        from += PAGE
+      }
+      return rows
+    },
+    staleTime: 1000 * 60 * 5,
+  })
 }
 
 export function useServices(locationId?: string) {
@@ -82,7 +114,7 @@ export function useUpdateService() {
     },
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['service', id] })
-      qc.invalidateQueries({ queryKey: qk.services() })
+      qc.invalidateQueries({ queryKey: qk.servicesAll() })
     },
   })
 }
@@ -94,7 +126,7 @@ export function useDeleteService() {
       const { error } = await supabase.from('services').delete().eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.services() }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.servicesAll() }),
   })
 }
 
@@ -181,7 +213,7 @@ export function useCreateService() {
       if (error) throw error
       return data.id as string
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.services() }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.servicesAll() }),
   })
 }
 
@@ -332,47 +364,7 @@ export function useUpdateServiceNotes() {
     },
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['service', id] })
-      qc.invalidateQueries({ queryKey: qk.services() })
+      qc.invalidateQueries({ queryKey: qk.servicesAll() })
     },
-  })
-}
-
-export function useTopSung(filters: StatsFilters) {
-  return useQuery({
-    queryKey: qk.topSung(filters),
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_top_sung', {
-        p_location_id: filters.locationId ?? null,
-        p_leader_id: filters.leaderId ?? null,
-        p_months: filters.months ?? null,
-        p_tag_ids_include: filters.tagIdsInclude ?? [],
-        p_tag_ids_exclude: filters.tagIdsExclude ?? [],
-        p_limit: 5,
-      })
-      if (error) throw error
-      return data as TopSungRow[]
-    },
-    staleTime: 1000 * 60 * 5,
-  })
-}
-
-// limit domyślnie 5. Dashboard pobiera większą pulę (kryteria bez zmian) i losuje z niej
-// próbkę po stronie klienta — patrz sekcja „Nigdy nieśpiewane".
-export function useNeverSung(filters: StatsFilters, limit = 5) {
-  return useQuery({
-    queryKey: [...qk.neverSung(filters), limit],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_never_sung', {
-        p_location_id: filters.locationId ?? null,
-        p_leader_id: filters.leaderId ?? null,
-        p_months: filters.months ?? null,
-        p_tag_ids_include: filters.tagIdsInclude ?? [],
-        p_tag_ids_exclude: filters.tagIdsExclude ?? [],
-        p_limit: limit,
-      })
-      if (error) throw error
-      return data as NeverSungRow[]
-    },
-    staleTime: 1000 * 60 * 5,
   })
 }

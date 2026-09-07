@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Tag, Pencil, History, Bookmark, Check, Calendar, ChevronRight, ChevronDown, User, Undo2, X } from 'lucide-react'
 import { TagPill, CatBlock, Sheet } from './ui'
 import { useSongOverlay } from '../contexts/SongOverlayContext'
 import { useSongDetail, useSongHistory, useAddSongTag, useRemoveSongTag, useRestoreSongTag } from '../lib/queries'
-import { useTagCategories, useTags, useServices, useAddServiceSong, useMarkSongSung, useServiceSongs, useTodayServiceSongIds } from '../lib/queries'
+import { useTagCategories, useTags, useService, useServices, useAddServiceSong, useMarkSongSung, useServiceSongs, useTodayServiceSongIds } from '../lib/queries'
 import { useLocationFilter } from '../hooks/useLocationFilter'
 import { useWakeLock } from '../hooks/useWakeLock'
 import { keyLabel, collectionClass, songTreasuresUrl } from '../lib/utils'
@@ -21,9 +21,13 @@ function formatWhen(dateStr: string, time?: string | null) {
 
 export function SongOverlay() {
   const navigate = useNavigate()
-  const { songId, closeSong, goPrev, goNext, canGoPrev, canGoNext } = useSongOverlay()
+  const { songId, preferredServiceId, closeSong, goPrev, goNext, canGoPrev, canGoNext } = useSongOverlay()
   const [locationId] = useLocationFilter()
   const { data: song } = useSongDetail(songId)
+  // Nabożeństwo wskazane przez ekran wywołujący. Dociągamy je osobno (a nie
+  // szukamy w `services`), bo może być przeszłe albo z innej lokalizacji niż
+  // globalny filtr — a i tak jest już w cache'u, jeśli przyszliśmy z ekranu Live.
+  const { data: preferredService } = useService(preferredServiceId)
   const { data: history = [] } = useSongHistory(songId, locationId)
   const { data: tagCategories = [] } = useTagCategories()
   const { data: allTags = [] } = useTags()
@@ -50,12 +54,22 @@ export function SongOverlay() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Kandydujące nabożeństwa = nadchodzące (wg globalnego filtra lokalizacji: useServices
-  // już filtruje). Domyślny cel = najbliższe; przy >1 użytkownik może wybrać inne.
+  // już filtruje) plus — na początku listy — nabożeństwo wskazane przez ekran
+  // wywołujący, jeśli samo z siebie do nadchodzących nie należy (np. otwarto pieśń
+  // z ekranu wczorajszego nabożeństwa).
   const today = todayStr()
-  const upcomingServices = [...services]
-    .sort(compareServices)
-    .filter(s => s.date >= today)
-  const selectedService = upcomingServices.find(s => s.id === selectedServiceId) ?? upcomingServices[0]
+  const upcomingServices = useMemo(() => {
+    const list = [...services].sort(compareServices).filter(s => s.date >= today)
+    if (preferredService && !list.some(s => s.id === preferredService.id)) {
+      return [preferredService, ...list]
+    }
+    return list
+  }, [services, today, preferredService])
+  // Domyślny cel: nabożeństwo wskazane przez ekran wywołujący, w przeciwnym razie
+  // najbliższe. Przy >1 kandydacie użytkownik może wybrać inne.
+  const defaultService =
+    upcomingServices.find(s => s.id === preferredServiceId) ?? upcomingServices[0]
+  const selectedService = upcomingServices.find(s => s.id === selectedServiceId) ?? defaultService
   const { data: selectedServiceSongs = [] } = useServiceSongs(selectedService?.id ?? null)
 
   // Nowa pieśń → reset do najbliższego; zmiana celu → reset potwierdzeń/komunikatów.
@@ -129,7 +143,6 @@ export function SongOverlay() {
   const shake = (tagId: string, locked: boolean) => {
     if (!locked) return
     setShakeTagId(tagId)
-    navigator.vibrate?.(100)
     setTimeout(() => setShakeTagId(null), 320)
   }
 
@@ -183,7 +196,6 @@ export function SongOverlay() {
     // mówią dlaczego, zamiast martwego, wyszarzonego przycisku.
     if (alreadyPlanned) {
       setShakePlanned(true)
-      navigator.vibrate?.(100)
       setTimeout(() => setShakePlanned(false), 320)
       showToast('Ta pieśń jest już zaplanowana')
       return

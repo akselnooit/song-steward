@@ -293,7 +293,6 @@ export function Live() {
     if (status === 'planned') {
       if (planned.some(ss => ss.song.id === songId)) {
         setShakePlannedId(songId)
-        navigator.vibrate?.(100)
         setTimeout(() => setShakePlannedId(null), 320)
         showToast('Ta pieśń jest już zaplanowana')
         return
@@ -386,8 +385,6 @@ export function Live() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 8 } }),
   )
-
-  const handleDragStart = () => { navigator.vibrate?.(30) }
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -495,20 +492,36 @@ export function Live() {
               value={searchQ}
               onChange={e => setSearchQ(e.target.value)}
               autoComplete="off"
+              // W trakcie edycji notatki pole leży pod pełnoekranowym edytorem.
+              // Wyłączone znika z listy pól formularza, więc iOS wygasza strzałki
+              // „poprzednie/następne pole" na pasku nad klawiaturą.
+              disabled={editingNotes}
             />
           </div>
           {searchResults.length > 0 && (
             <div className="card list-rows fin" style={{ marginTop: 8 }}>
               {searchResults.map(s => (
-                <div key={s.id} className="song-card" style={{ padding: '10px 12px' }}>
+                // Tap w wiersz otwiera arkusz pieśni — decyzję „zaplanuj czy
+                // zaśpiewana" często podejmuje się dopiero po zajrzeniu w tagi
+                // i historię. Arkusz celuje w TO nabożeństwo, nie w najbliższe
+                // nadchodzące. Skróty przy prawej krawędzi zatrzymują zdarzenie,
+                // więc dalej dodają jednym tapnięciem.
+                <div
+                  key={s.id}
+                  className="song-card"
+                  style={{ padding: '10px 12px', cursor: 'pointer' }}
+                  onClick={() => openSong(s.id, searchResults.map(r => r.id), serviceId ?? null)}
+                >
                   <span className={`badge-col ${collectionClass(s.collection.short_name)}`} style={{ fontSize: 10 }}>{s.collection.short_name} {s.number}</span>
                   <div className="meta">
                     <div className="title" style={{ fontSize: 14 }}>{s.title}</div>
                   </div>
-                  <button className={`mini-btn${shakePlannedId === s.id ? ' shake' : ''}`} onClick={() => handleAddSong(s.id, 'planned')}>
+                  <button className={`mini-btn${shakePlannedId === s.id ? ' shake' : ''}`}
+                    onClick={e => { e.stopPropagation(); handleAddSong(s.id, 'planned') }}>
                     <Bookmark size={15} strokeWidth={1.7} />
                   </button>
-                  <button className="mini-btn good" onClick={() => handleAddSong(s.id, 'sung')}>
+                  <button className="mini-btn good"
+                    onClick={e => { e.stopPropagation(); handleAddSong(s.id, 'sung') }}>
                     <Check size={15} strokeWidth={1.7} />
                   </button>
                 </div>
@@ -527,14 +540,14 @@ export function Live() {
           <div className="hint" style={{ padding: '4px 2px 8px' }}>Brak zaplanowanych pieśni</div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter}
-            onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            onDragEnd={handleDragEnd}>
             <SortableContext items={planned.map(ss => ss.id)} strategy={verticalListSortingStrategy}>
               {planned.map(ss => (
                 <SortableRow
                   key={ss.id}
                   ss={ss}
                   leaving={leavingId === ss.id}
-                  onOpen={() => openSong(ss.song.id, allSongIds)}
+                  onOpen={() => openSong(ss.song.id, allSongIds, serviceId ?? null)}
                   onPromote={() => handlePromote(ss)}
                   onRemove={() => handleRemove(ss)}
                 />
@@ -553,7 +566,7 @@ export function Live() {
           <div className="hint" style={{ padding: '4px 2px' }}>Jeszcze nic nie zaśpiewano</div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter}
-            onDragStart={handleDragStart} onDragEnd={handleSungDragEnd}>
+            onDragEnd={handleSungDragEnd}>
             <SortableContext items={sungReversed.map(ss => ss.id)} strategy={verticalListSortingStrategy}>
               {sungReversed.map((ss, i) => (
                 <SortableRow
@@ -561,7 +574,7 @@ export function Live() {
                   ss={ss}
                   rank={sung.length - i}
                   flash={justSungId === ss.song.id}
-                  onOpen={() => openSong(ss.song.id, allSongIds)}
+                  onOpen={() => openSong(ss.song.id, allSongIds, serviceId ?? null)}
                   onRemove={() => handleRemove(ss)}
                 />
               ))}
