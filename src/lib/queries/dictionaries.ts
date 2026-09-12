@@ -77,44 +77,73 @@ export function useTags() {
 
 // ── Mutations ────────────────────────────────────────────────────
 
-function makeAddDelete(
+/**
+ * Nazwy ze słowników są WKLEJONE w wyniki innych zapytań (nabożeństwo niesie
+ * `location.name` i `category.name`, pieśń — nazwy swoich tagów). Zmiana nazwy
+ * w tabeli nie rusza tamtych wpisów w cache, więc każdy słownik deklaruje,
+ * co jeszcze trzeba unieważnić. Dotyczy to zmiany nazwy; przy dodaniu i
+ * usunięciu wystarczy sam słownik, ale nie ma powodu tego różnicować —
+ * to operacje wykonywane raz na kilka miesięcy, w arkuszu ustawień.
+ */
+function makeDictMutations(
   table: string,
   queryKey: readonly unknown[],
+  dependents: readonly (readonly unknown[])[] = [],
 ) {
+  const useInvalidate = () => {
+    const qc = useQueryClient()
+    return () => {
+      qc.invalidateQueries({ queryKey })
+      for (const key of dependents) qc.invalidateQueries({ queryKey: key })
+    }
+  }
   return {
     useAdd: (insertFields: (name: string) => object) => {
-      const qc = useQueryClient()
+      const invalidate = useInvalidate()
       return useMutation({
         mutationFn: async (name: string) => {
           const { error } = await supabase.from(table).insert(insertFields(name))
           if (error) throw error
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey }),
+        onSuccess: invalidate,
+      })
+    },
+    useRename: () => {
+      const invalidate = useInvalidate()
+      return useMutation({
+        mutationFn: async ({ id, name }: { id: string; name: string }) => {
+          const { error } = await supabase.from(table).update({ name }).eq('id', id)
+          if (error) throw error
+        },
+        onSuccess: invalidate,
       })
     },
     useDelete: () => {
-      const qc = useQueryClient()
+      const invalidate = useInvalidate()
       return useMutation({
         mutationFn: async (id: string) => {
           const { error } = await supabase.from(table).delete().eq('id', id)
           if (error) throw error
         },
-        onSuccess: () => qc.invalidateQueries({ queryKey }),
+        onSuccess: invalidate,
       })
     },
   }
 }
 
-const _loc = makeAddDelete('locations', qk.locations())
+const _loc = makeDictMutations('locations', qk.locations(), [qk.servicesAll()])
 export const useAddLocation = () => _loc.useAdd(name => ({ name }))
+export const useRenameLocation = () => _loc.useRename()
 export const useDeleteLocation = () => _loc.useDelete()
 
-const _cat = makeAddDelete('service_categories', qk.serviceCategories())
+const _cat = makeDictMutations('service_categories', qk.serviceCategories(), [qk.servicesAll()])
 export const useAddServiceCategory = () => _cat.useAdd(name => ({ name }))
+export const useRenameServiceCategory = () => _cat.useRename()
 export const useDeleteServiceCategory = () => _cat.useDelete()
 
-const _wl = makeAddDelete('worship_leaders', qk.worshipLeaders())
+const _wl = makeDictMutations('worship_leaders', qk.worshipLeaders(), [qk.servicesAll()])
 export const useAddWorshipLeader = () => _wl.useAdd(name => ({ name }))
+export const useRenameWorshipLeader = () => _wl.useRename()
 export const useDeleteWorshipLeader = () => _wl.useDelete()
 
 export function useAddTag() {
@@ -125,6 +154,24 @@ export function useAddTag() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.tags() }),
+  })
+}
+
+/** Nazwa tagu siedzi też w szczegółach pieśni (`['song', id]`) i w kolejce
+ *  moderacji — obie kopie muszą pójść za zmianą, inaczej stara nazwa zostaje
+ *  na ekranie pieśni aż do odświeżenia aplikacji. */
+export function useRenameTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase.from('tags').update({ name }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.tags() })
+      qc.invalidateQueries({ queryKey: ['song'] })
+      qc.invalidateQueries({ queryKey: qk.pendingTags() })
+    },
   })
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HRow, Sheet, TimePicker } from './ui'
 import { useLocations, useServiceCategories, useWorshipLeaders, useCreateService, useServices } from '../lib/queries'
@@ -46,6 +46,18 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
   // powiedzieć to przed tapnięciem niż błędem po). Wcześniej ostrzegaliśmy przy
   // samej dacie + lokalizacji, co przy 11:00 i 19:00 tego samego dnia wyskakiwało
   // za każdym razem i uczyło klikać „Dodaj mimo to" bez czytania.
+  // Kategorie od najczęściej używanych, a nie alfabetycznie: w praktyce dwie–trzy
+  // pozycje to prawie każde nabożeństwo, a alfabet potrafił je wypchnąć na koniec
+  // paska, poza pierwszy ekran. Liczymy na `allServices`, które arkusz i tak
+  // pobiera do wykrywania duplikatów — żadnego dodatkowego zapytania. Przy
+  // remisie alfabet, żeby kolejność była powtarzalna, a nie losowa.
+  const orderedCategories = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const s of allServices) counts.set(s.category_id, (counts.get(s.category_id) ?? 0) + 1)
+    return [...categories].sort((a, b) =>
+      (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0) || a.name.localeCompare(b.name, 'pl'))
+  }, [categories, allServices])
+
   const duplicate = time !== null && allServices.find(s =>
     s.date === date && s.location_id === locationId && timeKey(s.start_time) === timeKey(time),
   )
@@ -90,7 +102,7 @@ export function NewServiceSheet({ open, onClose, defaultLeaderId }: NewServiceSh
 
       <div className="t-label" style={{ marginBottom: 8 }}>Kategoria</div>
       <HRow selected={categoryId} style={{ marginBottom: 18 }}>
-        {categories.map(c => (
+        {orderedCategories.map(c => (
           <button key={c.id} className={`tag${categoryId === c.id ? ' include' : ''}`}
             data-selected={categoryId === c.id ? 'true' : undefined}
             onClick={() => setCategoryId(c.id)}>

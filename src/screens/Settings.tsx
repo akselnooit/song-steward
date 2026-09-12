@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom'
-import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Sun, Moon, Check, Mail, Lock, Sparkles } from 'lucide-react'
+import { ArrowLeft, Filter, ChevronRight, MapPin, Layers, User, Music, Tag, Bookmark, Plus, X, Pencil, Sun, Moon, Check, Mail, Lock, Sparkles } from 'lucide-react'
 import { HRow, Sheet } from '../components/ui'
 import { PremiumThanks } from '../components/PremiumThanks'
 import { useTheme } from '../hooks/useTheme'
@@ -9,10 +9,10 @@ import { supabase } from '../lib/supabase'
 import {
   useLocations, useServiceCategories, useWorshipLeaders, useCollections,
   useTagCategories, useTags, usePendingTags,
-  useAddLocation, useDeleteLocation,
-  useAddServiceCategory, useDeleteServiceCategory,
-  useAddWorshipLeader, useDeleteWorshipLeader,
-  useAddTag, useDeleteTag,
+  useAddLocation, useRenameLocation, useDeleteLocation,
+  useAddServiceCategory, useRenameServiceCategory, useDeleteServiceCategory,
+  useAddWorshipLeader, useRenameWorshipLeader, useDeleteWorshipLeader,
+  useAddTag, useRenameTag, useDeleteTag,
 } from '../lib/queries'
 
 // ── DictEditor Sheet ─────────────────────────────────────────────
@@ -45,14 +45,30 @@ function DictEditorSheet({ dict, open, onClose }: { dict: DictConfig; open: bool
   const { data: tagCats = [] } = useTagCategories()
   const { data: tags = [] } = useTags()
   const addLoc = useAddLocation()
+  const renLoc = useRenameLocation()
   const delLoc = useDeleteLocation()
   const addCat = useAddServiceCategory()
+  const renCat = useRenameServiceCategory()
   const delCat = useDeleteServiceCategory()
   const addLeader = useAddWorshipLeader()
+  const renLeader = useRenameWorshipLeader()
   const delLeader = useDeleteWorshipLeader()
   const addTag = useAddTag()
+  const renTag = useRenameTag()
   const delTag = useDeleteTag()
   const [tagCatId, setTagCatId] = useState('')
+
+  // Zmiana nazwy dzieje się w wierszu, nie w osobnym arkuszu: pozycji bywa
+  // kilkadziesiąt, a przeniesienie na inny ekran zabrałoby kontekst, w którym
+  // widać sąsiednie nazwy (przy tagach to jedyny sposób, żeby trafić w
+  // konwencję reszty zestawu).
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+
+  // Zamknij edycję, gdy arkusz zmienia słownik albo filtr kategorii tagów —
+  // inaczej otwarty wiersz „zostaje" na pozycji, której już nie widać.
+  useEffect(() => { setEditId(null); setEditError(null) }, [dict.key, tagCatId])
 
   const items: { id: string; name: string; sub?: string }[] = (() => {
     switch (dict.key) {
@@ -83,6 +99,46 @@ function DictEditorSheet({ dict, open, onClose }: { dict: DictConfig; open: bool
       case 'service_categories': await delCat.mutateAsync(id); break
       case 'worship_leaders': await delLeader.mutateAsync(id); break
       case 'tags': await delTag.mutateAsync(id); break
+    }
+  }
+
+  const startEdit = (id: string, name: string) => {
+    setEditId(id)
+    setEditDraft(name)
+    setEditError(null)
+  }
+
+  const cancelEdit = () => {
+    setEditId(null)
+    setEditError(null)
+  }
+
+  /**
+   * Wiersz zamyka się od razu, bez czekania na odpowiedź serwera — nowa nazwa
+   * i tak pojawi się po unieważnieniu zapytania, a trzymanie otwartego pola
+   * „do potwierdzenia" wygląda jak zawieszona apka.
+   *
+   * Nazwy są w bazie UNIQUE, więc zmiana na już zajętą po prostu nie przejdzie.
+   * Bez tego wiersz zamykałby się jak przy sukcesie, a po chwili wracała stara
+   * nazwa — dlatego przy błędzie wracamy do edycji z wpisanym tekstem.
+   */
+  const handleRename = (id: string) => {
+    const name = editDraft.trim()
+    if (!name) return
+    setEditId(null)
+    setEditError(null)
+    const onError = (err: unknown) => {
+      setEditId(id)
+      setEditDraft(name)
+      setEditError((err as { code?: string } | null)?.code === '23505'
+        ? 'Taka nazwa już istnieje'
+        : 'Nie udało się zmienić nazwy')
+    }
+    switch (dict.key) {
+      case 'locations': renLoc.mutate({ id, name }, { onError }); break
+      case 'service_categories': renCat.mutate({ id, name }, { onError }); break
+      case 'worship_leaders': renLeader.mutate({ id, name }, { onError }); break
+      case 'tags': renTag.mutate({ id, name }, { onError }); break
     }
   }
 
@@ -125,20 +181,57 @@ function DictEditorSheet({ dict, open, onClose }: { dict: DictConfig; open: bool
         <div className="list-rows">
           {items.map(it => (
             <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--text)' }}>{it.name}</div>
-                {it.sub && (
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {dict.key === 'worship_leaders' && it.sub !== 'Gość — brak konta' && <Mail size={11} strokeWidth={1.7} />}
-                    {dict.key === 'tag_categories' && it.sub === 'tylko odczyt' && <Lock size={11} strokeWidth={1.7} />}
-                    {it.sub}
+              {editId === it.id ? (
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      className="field"
+                      autoFocus
+                      value={editDraft}
+                      onChange={e => { setEditDraft(e.target.value); setEditError(null) }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRename(it.id)
+                        if (e.key === 'Escape') cancelEdit()
+                      }}
+                      style={{ flex: 1, minWidth: 0, padding: '9px 12px' }}
+                    />
+                    <button className="mini-btn good" aria-label="Zapisz nazwę"
+                      disabled={!editDraft.trim()} onClick={() => handleRename(it.id)}>
+                      <Check size={15} strokeWidth={2} />
+                    </button>
+                    <button className="mini-btn" aria-label="Anuluj" onClick={cancelEdit}>
+                      <X size={15} strokeWidth={1.7} />
+                    </button>
                   </div>
-                )}
-              </div>
-              {!dict.readonly && (
-                <button className="mini-btn" onClick={() => handleDelete(it.id)}>
-                  <X size={15} strokeWidth={1.7} />
-                </button>
+                  {editError && (
+                    <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6 }}>{editError}</div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--text)' }}>{it.name}</div>
+                    {it.sub && (
+                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {dict.key === 'worship_leaders' && it.sub !== 'Gość — brak konta' && <Mail size={11} strokeWidth={1.7} />}
+                        {dict.key === 'tag_categories' && it.sub === 'tylko odczyt' && <Lock size={11} strokeWidth={1.7} />}
+                        {it.sub}
+                      </div>
+                    )}
+                  </div>
+                  {!dict.readonly && (
+                    <>
+                      <button className="mini-btn" aria-label={`Zmień nazwę: ${it.name}`}
+                        onClick={() => startEdit(it.id, it.name)}>
+                        <Pencil size={14} strokeWidth={1.8} />
+                      </button>
+                      <button className="mini-btn" aria-label={`Usuń: ${it.name}`}
+                        onClick={() => handleDelete(it.id)}>
+                        <X size={15} strokeWidth={1.7} />
+                      </button>
+                    </>
+                  )}
+                </>
               )}
             </div>
           ))}

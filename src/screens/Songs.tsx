@@ -165,6 +165,20 @@ export function Songs() {
     setExc(e => { const n = new Set(e); n.delete(id); return n })
   }
 
+  /**
+   * Wybór podpowiedzi z paska. Jeżeli wpisany tekst zawiera się w nazwie tagu,
+   * to znaczy, że tag wziął się właśnie z tego wpisu — i tekst musi zniknąć,
+   * bo dalej filtrowałby tytuły frazą, której w nich nie ma, wycinając pieśni,
+   * o które chodziło. Gdy tekst NIE pasuje do nazwy (podpowiedzi z pustego
+   * pola albo szukanie po tytule), zostaje: to dwa niezależne zawężenia.
+   */
+  const pickSuggestion = (id: string, name: string, mode: 'inc' | 'exc') => {
+    const nq = q.trim().toLowerCase()
+    if (nq && name.toLowerCase().includes(nq)) setQ('')
+    if (mode === 'inc') toggleInc(id)
+    else toggleExc(id)
+  }
+
   const clearAll = () => {
     setSelColIds(new Set())
     setInc(new Set())
@@ -332,8 +346,8 @@ export function Songs() {
                   key={s.id}
                   name={s.name}
                   count={s.count}
-                  onInc={() => toggleInc(s.id)}
-                  onExc={() => toggleExc(s.id)}
+                  onInc={() => pickSuggestion(s.id, s.name, 'inc')}
+                  onExc={() => pickSuggestion(s.id, s.name, 'exc')}
                 />
               ))}
             </div>

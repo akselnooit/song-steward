@@ -420,6 +420,7 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 .mini-btn { width: 34px; height: 34px; border-radius: var(--r-sm); display: grid; place-items: center; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); cursor: pointer; flex-shrink: 0; }
 .mini-btn.good { color: var(--accent); border-color: var(--accent-bd); background: var(--accent-soft); }
 .mini-btn.bad:active { color: var(--danger); border-color: var(--danger-bd); }
+.mini-btn:disabled { opacity: 0.42; cursor: default; }
 /* position: fixed + wysoki z-index → toast nigdy nie chowa się pod arkuszem/overlayem
    ani nie jest przycinany przez scroll-kontener .screen. */
 .saved-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(90px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: var(--r-pill); z-index: 50; box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 7px; }
