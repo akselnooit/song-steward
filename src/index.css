@@ -532,14 +532,6 @@ input[type="date"].field { -webkit-appearance: none; appearance: none; }
 }
 .past-count b { color: var(--text); font-weight: 700; font-size: 13px; }
 
-/* Bursztyn = „wymaga uwagi", tak jak baner moderacji. Kropka nigdy nie niesie
-   informacji samym kolorem — ma title/aria-label z liczbą. */
-.past-dot {
-  position: absolute; top: 9px; right: 9px;
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--src-user); box-shadow: 0 0 0 3px var(--src-user-soft);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .past-tile:active { transform: none; }
 }

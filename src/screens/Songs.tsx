@@ -232,32 +232,44 @@ export function Songs() {
   const tagName = (id: string) => allTags.find(t => t.id === id)?.name ?? id
 
   /**
-   * Podpowiedzi zawężenia: najczęstsze tagi WŚRÓD AKTUALNIE POKAZANYCH pieśni.
-   * Wybór dowolnego z nich zawęża listę, a lista podpowiedzi przelicza się od
-   * nowa — i tak w kółko, aż do kilku wyników.
+   * Podpowiedzi nad listą — dwa tryby, zależnie od tego, czy w polu coś jest.
+   *
+   * Puste pole: najczęstsze tagi WŚRÓD AKTUALNIE POKAZANYCH pieśni. Wybór
+   * dowolnego z nich zawęża listę, a podpowiedzi przeliczają się od nowa — i
+   * tak w kółko, aż do kilku wyników. Odpadają: tagi już wybrane, tagi obecne
+   * przy KAŻDEJ pokazanej pieśni (nic nie zawężają) i takie z jednym
+   * trafieniem (to już nie filtr, tylko pieśń).
+   *
+   * Wpisany tekst: tagi, których nazwa zawiera ten tekst — czyli szukanie po
+   * tagu. Liczby liczymy wtedy na zestawie BEZ filtra tekstowego, bo wpisana
+   * nazwa tagu prawie nigdy nie występuje w tytułach — inaczej każdy tag
+   * miałby zero trafień i pasek by znikał dokładnie wtedy, gdy jest potrzebny.
+   * Progi z trybu bez tekstu tu nie obowiązują: skoro ktoś wpisał nazwę, ma
+   * zobaczyć trafienie nawet gdy dotyczy jednej pieśni.
    *
    * Liczymy to na kliencie, na danych, które ekran i tak ma w pamięci
    * (`useAllSongsForSearch` zwraca tagi każdej pieśni). Koszt to jedno przejście
-   * po widocznych pieśniach — żadnego zapytania do bazy, więc nie ma czego
-   * robić asynchronicznie ani odciążać.
-   *
-   * Odpadają: tagi już wybrane, tagi obecne przy KAŻDEJ pokazanej pieśni (nic
-   * nie zawężają) i takie z jednym trafieniem (to już nie filtr, tylko pieśń).
+   * po pieśniach — żadnego zapytania do bazy, więc nie ma czego robić
+   * asynchronicznie ani odciążać.
    */
   const suggestions = useMemo(() => {
-    if (filtered.length < 3) return []
+    const nq = q.trim().toLowerCase()
+    const base = nq ? tagFiltered : filtered
+    if (!nq && base.length < 3) return []
     const counts = new Map<string, number>()
-    for (const s of filtered) {
+    for (const s of base) {
       for (const id of s.tagIds) counts.set(id, (counts.get(id) ?? 0) + 1)
     }
-    const total = filtered.length
+    const total = base.length
     return [...counts.entries()]
-      .filter(([id, c]) => c > 1 && c < total && !inc.has(id) && !exc.has(id))
+      .filter(([id, c]) =>
+        !inc.has(id) && !exc.has(id) &&
+        (nq ? tagName(id).toLowerCase().includes(nq) : c > 1 && c < total))
       .sort((a, b) => b[1] - a[1])
       .slice(0, MAX_SUGGESTIONS)
       .map(([id, c]) => ({ id, count: c, name: tagName(id) }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, inc, exc, allTags])
+  }, [filtered, tagFiltered, q, inc, exc, allTags])
 
   const activeFilters = [
     ...Array.from(inc).map(id => ({ id, kind: 'inc' as const })),
@@ -285,7 +297,7 @@ export function Songs() {
             <span className="field-ico"><Search size={18} strokeWidth={1.7} /></span>
             <input
               className="field field-has-right"
-              placeholder="Szukaj: tytuł, autor lub numer"
+              placeholder="Szukaj: tytuł, autor, numer lub tag"
               value={q}
               onChange={e => setQ(e.target.value)}
               autoComplete="off"
@@ -377,7 +389,11 @@ export function Songs() {
             ))}
             {sorted.length === 0 && (
               <div style={{ padding: 28, textAlign: 'center', color: 'var(--text-3)' }}>
-                Brak wyników
+                {/* Wpisana nazwa tagu nie trafia w żaden tytuł — ale pasek
+                    podpowiedzi nad listą pokazuje właśnie pasujące tagi. */}
+                {suggestions.length > 0
+                  ? 'Brak pieśni o takim tytule — wybierz tag powyżej'
+                  : 'Brak wyników'}
               </div>
             )}
           </div>

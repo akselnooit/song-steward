@@ -3,6 +3,7 @@
 ## Pieśni
 
 - **Tag "Na koniec" — dodanie i otagowanie pieśni** — Dodać tag "Na koniec" (kategoria ⛪ Okazja — do potwierdzenia), obejmujący wszystkie pieśni, które pasuje podać na zakończenie nabożeństwa. Następnie przejść przez wszystkie pieśni i zaznaczyć te, do których tag pasuje. Cel: jednym filtrem dostać listę kandydatów na ostatnią pieśń, zamiast szukać z pamięci.
+- **Tag "Uświęcenie" — dodanie i otagowanie pieśni** — Dodać tag "Uświęcenie" (kategoria do ustalenia — najpewniej 📖 Temat), a następnie przejść przez pieśni i zaznaczyć te, które mówią o uświęceniu. Cel: jednym filtrem dostać zestaw pieśni na nabożeństwo o tej tematyce.
 - **Tag "Krótka" — otagowanie pieśni** — Dodać tag "Krótka" do kategorii 🎤 Charakter, a następnie przejść przez kolekcje (szczególnie DP) i otagować krótkie pieśni. Cel: szybkie znalezienie czegoś krótkiego w trakcie świadectw lub na koniec nabożeństwa — wystarczy wyfiltrować "Krótka" + "Żywa melodia" w wyszukiwarce.
 - **Tekst z akordami** — Widok pieśni powinien mieć tekst z akordami po prawej stronie z przewijaniem. Na razie nie mamy tekstów w bazie, więc odkładamy na później.
 - **Podobne pieśni** — Na stronie danej pieśni wyświetlać listę podobnych pieśni na podstawie wspólnych tagów/znaczników. Cel: lider uwielbienia może łatwo znaleźć pieśni o podobnym charakterze lub tematyce bez potrzeby ręcznego przeszukiwania bazy.

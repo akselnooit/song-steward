@@ -39,18 +39,11 @@ function TopRow({ rank, collectionShortName, number, title, count, onClick }: {
 // Kafelek zakończonego nabożeństwa — czyta się od góry: kiedy → co → ile.
 // Lokalizację pokazujemy tylko przy wyłączonym globalnym filtrze, bo inaczej
 // powtarzałaby to, co widać w chipie w nagłówku ekranu.
-function PastServiceTile({ service, sung, leftover, showLocation, onClick }: {
-  service: ServiceWithRefs; sung: number; leftover: number; showLocation: boolean; onClick: () => void
+function PastServiceTile({ service, sung, showLocation, onClick }: {
+  service: ServiceWithRefs; sung: number; showLocation: boolean; onClick: () => void
 }) {
   return (
     <button className="past-tile" onClick={onClick}>
-      {leftover > 0 && (
-        <span
-          className="past-dot"
-          title={`Zostały nieodhaczone pieśni: ${leftover}`}
-          aria-label={`Zostały nieodhaczone pieśni: ${leftover}`}
-        />
-      )}
       <span className="past-when">{relativeDayPL(service.date)}</span>
       <span className="past-date t-mono">{shortDatePL(service.date)} · {formatTimePL(service.start_time)}</span>
       <span className="past-what">{service.category.name}</span>
@@ -250,19 +243,15 @@ export function Dashboard() {
               </div>
             </div>
             <div className="past-strip">
-              {past.map(s => {
-                const c = countFor(s.id)
-                return (
-                  <PastServiceTile
-                    key={s.id}
-                    service={s}
-                    sung={c.sung}
-                    leftover={c.planned}
-                    showLocation={!locationId}
-                    onClick={() => navigate(`/live/${s.id}`)}
-                  />
-                )
-              })}
+              {past.map(s => (
+                <PastServiceTile
+                  key={s.id}
+                  service={s}
+                  sung={countFor(s.id).sung}
+                  showLocation={!locationId}
+                  onClick={() => navigate(`/live/${s.id}`)}
+                />
+              ))}
               <PastMoreTile onClick={() => navigate('/services')} />
             </div>
           </>
