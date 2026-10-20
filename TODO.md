@@ -18,27 +18,19 @@
 
 ## Wyszukiwanie
 
-- **Zapamiętywanie ostatnio wybranych tagów** — Zapisywać (np. w `localStorage`) ostatnio używane tagi w wyszukiwarce, żeby po powrocie do widoku wyszukiwania domyślnie podpowiadać te tagi lub łatwo je przywrócić jednym kliknięciem.
 - **Opisy tagów** — Wyświetlać (i umożliwić edycję) opis znaczenia każdego tagu, żeby było jasne, co dany tag oznacza i kiedy go użyć. Tabela `tags` ma już pole `description` — wystarczy pokazać je w UI (np. w edytorze tagów w Ustawieniach oraz przy pieśni) i pozwolić edytować. Cel: spójne tagowanie między liderami.
 - **Oznaczenie na liście pieśni: śpiewana kiedykolwiek w tej lokalizacji** — Na liście wszystkich pieśni pokazywać, które pieśni były już kiedykolwiek zaśpiewane w wybranej lokalizacji (wg globalnego filtra lokalizacji), a które nigdy. Cel: szybkie wybieranie pieśni jeszcze nieśpiewanych w danym zborze. Uwaga: różni się od dzisiejszego oznaczenia „zaśpiewane dziś" — tu chodzi o całą historię lokalizacji, nie o bieżące nabożeństwo.
 ## Nabożeństwa
 
-- **Oznaczenie, że pieśń już jest w nabożeństwie** — Gdy pieśń jest już dodana do aktywnego nabożeństwa i otworzymy ją w SongOverlay, przyciski "Zaplanuj" i "Zaśpiewana" są widoczne, ale nie ma żadnej informacji, że pieśń już figuruje na liście. Dodać wyraźny komunikat lub zmienić wygląd przycisków, żeby wskazywały aktualny status pieśni w nabożeństwie.
-- **Zaplanuj na najbliższe nabożeństwo — z podglądu starszego i z dashboardu** — Dwa miejsca gdzie brakuje tego przycisku: (1) Gdy przeglądamy stare nabożeństwo i otworzymy tam pieśń w SongOverlay — chcemy zaplanować ją na najbliższe przyszłe nabożeństwo bez wychodzenia z podglądu. (2) Z sekcji "Najczęściej śpiewane" na dashboardzie — kliknięcie pieśni otwiera SongOverlay bez kontekstu nabożeństwa, więc brakuje przycisku "Zaplanuj na najbliższe". Uwaga: z sekcji "Nigdy nieśpiewane" to już działa — można wzorować się na tamtej implementacji.
-- **Przewijanie między nabożeństwami** — Analogicznie do nawigacji strzałkami między pieśniami, dodać przewijanie lewo/prawo (swipe lub strzałki) między kolejnymi nabożeństwami w widoku szczegółów nabożeństwa.
-- **Filtr statystyk „bez prowadzącego"** — Prowadzący muzykę jest polem opcjonalnym, więc istnieją nabożeństwa z `worship_leader_id = NULL`. Filtr prowadzącego w Ustawieniach ma dziś „Wszyscy" + listę osób, ale nie da się wybrać „tylko nabożeństwa bez prowadzącego". Wymaga nowego trybu w `get_top_sung` i `get_never_sung` — obecnie `p_leader_id = NULL` znaczy „nie filtruj", więc nie da się nim wyrazić „tylko NULL" (np. dodatkowy parametr `p_leader_unassigned BOOLEAN`). Statystyki bez filtra prowadzącego już teraz liczą te nabożeństwa poprawnie.
+- **Filtry statystyk (prowadzący, w tym „bez prowadzącego")** — Dziś statystyki (pulpit „Najczęściej śpiewane", sortowanie „Dawno"/„Często" na ekranie Pieśni) zawężają się tylko globalną lokalizacją; dawne filtry w Ustawieniach zostały usunięte. RPC `get_top_sung` / `get_never_sung` przyjmują `p_leader_id`, ale `NULL` znaczy „nie filtruj", więc nie da się nim wyrazić „tylko nabożeństwa bez prowadzącego" (`worship_leader_id IS NULL`) — wymagałoby to np. parametru `p_leader_unassigned BOOLEAN`.
 - **Częstotliwość pieśni przy planowaniu** — Podczas wybierania pieśni na nabożeństwo wyświetlać informację o tym, jak często dana pieśń była śpiewana w ostatnim czasie (np. ile razy w ciągu ostatnich 30/90 dni). Cel: lider uwielbienia widzi częstotliwość użycia każdej pieśni i może świadomie unikać powtarzania tych samych pieśni za często.
 - **Kolory/ikonki częstotliwości śpiewania** — Rozwinięcie powyższego: wizualnie oznaczać częstotliwość śpiewania pieśni za pomocą kolorów lub ikonek (np. cztery poziomy: nieśpiewana, rzadko, średnio, bardzo często). Dzięki temu lider uwielbienia jednym rzutem oka ocenia, które pieśni są „świeże", a które były ostatnio nadużywane.
 
-## Bezpieczeństwo
-
-- **Logowanie + RLS** — Dodać Supabase Auth (logowanie dla Aksela, Edwina i innych liderów), a następnie włączyć Row-Level Security na tabelach. Na razie celowo pominięte (MVP, zaufani użytkownicy), ale Supabase wysyła ostrzeżenia o braku RLS. Dopóki URL projektu nie jest publiczny i baza nie zawiera danych wrażliwych — ryzyko jest akceptowalne.
-
 ## Inne
 
-- **Naprawić wersję builda lub usunąć** — Sprawdzić gdzie wyświetlana jest wersja builda i albo naprawić żeby była aktualna, albo całkowicie usunąć z UI jeśli nie jest potrzebna.
+- **Wersja aplikacji w Ustawieniach** — Ustawienia → Preferencje pokazują na sztywno `v2.0`, niezwiązane z buildem. Build ma już własny identyfikator (`__BUILD_ID__` / `version.json`, używany przez baner „Dostępna nowa wersja") — można go pokazać (np. data builda albo hash commita z GitHub Actions) albo usunąć wiersz.
 - **Nauka na pamięć** — Tryb quizu do uczenia się numerów i tytułów pieśni na pamięć (np. "Jaki numer to *Zbawienie z Pana*?" lub "Jak się nazywa DP 47?")
-- **Lepsze statystyki** — Osobna strona ze szczegółowymi statystykami śpiewanych pieśni (kliknięcie w kafelek na dashboardzie otwiera stronę)
+- **Lepsze statystyki** — Osobna strona ze szczegółowymi statystykami śpiewanych pieśni (kliknięcie w „Najczęściej śpiewane" na pulpicie otwiera stronę). Przy okazji: sortowanie „Dawno"/„Często" na ekranie Pieśni liczy dziś statystyki na telefonie — zgodnie z zasadami projektu powinno przejść do funkcji SQL.
 - **Konflikty edycji notatek** — Obsługa sytuacji gdy Aksel i Edwin jednocześnie edytują notatkę przy nabożeństwie
 
 ## Jakość kodu / techniczne
