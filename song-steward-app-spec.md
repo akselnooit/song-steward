@@ -1,14 +1,16 @@
 # Specyfikacja aplikacji: Song Steward
 
-> Ostatnia aktualizacja: maj 2026 (v2 — lokalizacje + filtry globalne)
+> Ostatnia aktualizacja: październik 2026 (v2 — Vite + React, logowanie, RLS, godzina nabożeństwa)
+>
+> Ten plik opisuje **stan faktyczny** aplikacji. Zasady pracy i stack: `CLAUDE.md`. Docelowy design: `design_handoff_song_steward/`. Pomysły na przyszłość: `TODO.md`.
 
 ## 1. Cel i kontekst
 
-**Song Steward** to aplikacja webowa (PWA) dla osób odpowiedzialnych za prowadzenie pieśni w ewangelicznym kościele. Umożliwia zarządzanie bazą pieśni, planowanie i rejestrowanie pieśni na nabożeństwach oraz inteligentne wyszukiwanie pieśni po tagach w czasie rzeczywistym — w tym w trakcie nabożeństwa na telefonie.
+**Song Steward** to aplikacja webowa (PWA) dla osób prowadzących pieśni w ewangelicznym kościele. Umożliwia zarządzanie bazą pieśni, planowanie i rejestrowanie pieśni na nabożeństwach oraz szybkie wyszukiwanie pieśni po tagach — także w trakcie nabożeństwa, na telefonie, jedną ręką.
 
 Nazwa nawiązuje do biblijnej koncepcji *stewardship* — odpowiedzialnego zarządzania tym, co zostało powierzone. Lider muzyczny jest stewardem repertuaru pieśni zboru.
 
-**Użytkownicy:** obecnie Aksel i Edwin, ale **wkrótce dołączają kolejni liderzy** (m.in. Ruben i kilka osób z Polski). Wszyscy korzystają z tej samej bazy podczas nabożeństw. Logowania jeszcze nie ma, ale **wraz z rosnącą liczbą użytkowników logowanie (Supabase Auth) + RLS stają się konieczne i są zaplanowane na najbliższy czas** — patrz §11.
+**Użytkownicy:** kilku liderów (m.in. Aksel, Edwin, Ruben, Torstein). Wszyscy pracują na jednej wspólnej bazie. Dostęp tylko po zalogowaniu, konta zakłada administrator (patrz §10).
 
 ---
 
@@ -16,272 +18,276 @@ Nazwa nawiązuje do biblijnej koncepcji *stewardship* — odpowiedzialnego zarz�
 
 | Warstwa | Technologia |
 |---|---|
-| Frontend | Vite + React 19 |
+| Frontend | Vite + React 19 + TypeScript |
 | Routing | react-router-dom (`createHashRouter`) |
-| Styl | Tailwind CSS v4 |
-| Cache / zapytania | TanStack Query |
-| Baza danych | Supabase (PostgreSQL + Auth) |
+| Styl | Tailwind CSS v4 + tokeny designu jako zmienne CSS (motyw jasny/ciemny) |
+| Cache / zapytania | TanStack Query (optymistyczne UI dla mutacji) |
+| Walidacja | zod (`src/lib/schemas.ts`) |
+| Baza danych | Supabase (PostgreSQL + Auth + RLS) |
 | Hosting | GitHub Pages (auto-deploy z `main` przez GitHub Actions) |
-| Język | TypeScript |
 | Ikony | Lucide React |
+| Drag & drop | @dnd-kit |
 
 **Zasady architektury:**
-- Prosta, płaska struktura folderów
-- Minimalna liczba zewnętrznych bibliotek
-- Każdy plik powinien mieć jeden, jasny cel
+- Prosta, płaska struktura folderów, minimalna liczba zależności
+- Każdy plik ma jeden, jasny cel
 - Hash routing (wymóg GitHub Pages — bez wyjątków)
+- Ciężkie obliczenia (statystyki, filtrowanie AND/NOT) docelowo jako funkcje SQL w Supabase
 
 ---
 
 ## 3. Schemat bazy danych (Supabase / PostgreSQL)
 
+Pliki w `supabase/`:
+
+| Plik | Zawartość |
+|---|---|
+| `00_init.sql` | Bazowy schemat tabel (tylko DDL, bez danych słownikowych) |
+| `02_auth.sql` | Kolumny `auth_user_id`, `email` w `worship_leaders` + włączenie RLS i polityk |
+| `03_rpc.sql` | Funkcje statystyk `get_top_sung`, `get_never_sung` |
+| `04_service_time.sql` | Kolumna `services.start_time` + ograniczenia |
+| `05_backup_role.sql` | Rola tylko do odczytu `backup_ro` (backupy, diagnostyka) |
+
+> Uwaga: `00_init.sql` **nie zawiera** zmian z `02` i `04`. Odtwarzając bazę od zera, uruchom pliki po kolei.
+
 ### `collections` — Zbiory pieśni
 ```sql
-CREATE TABLE collections (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,           -- np. "Drogi Pańskie"
-  short_name TEXT NOT NULL,     -- np. "DP"
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+id UUID PK, name TEXT NOT NULL, short_name TEXT NOT NULL, created_at TIMESTAMPTZ
 ```
 
 ### `songs` — Pieśni
 ```sql
-CREATE TABLE songs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  collection_id UUID REFERENCES collections(id) ON DELETE CASCADE,
-  number INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  author TEXT,
-  author_image TEXT,             -- URL zdjęcia autora
-  author_id TEXT,                -- ID autora z SongTreasures
-  original_key TEXT,             -- tonacja, np. "G", "Am" — dodana 2026-05
-  minor BOOLEAN,                 -- true = mol, false = dur — dodana 2026-05
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(collection_id, number)
-);
+id UUID PK,
+collection_id UUID → collections ON DELETE CASCADE,
+number INTEGER NOT NULL,
+title TEXT NOT NULL,
+author TEXT,
+author_image TEXT,        -- URL zdjęcia autora (SongTreasures)
+author_id TEXT,           -- ID autora z SongTreasures
+original_key TEXT,        -- tonacja, np. "G", "Am"
+minor BOOLEAN,            -- true = mol, false = dur
+created_at TIMESTAMPTZ,
+UNIQUE (collection_id, number)
 ```
 
 ### `tag_categories` — Kategorie tagów
 ```sql
-CREATE TABLE tag_categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,
-  user_editable BOOLEAN NOT NULL DEFAULT true,
-  -- false = tagi tylko do odczytu; UI blokuje dodawanie/usuwanie
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+id UUID PK, name TEXT NOT NULL UNIQUE,
+user_editable BOOLEAN NOT NULL DEFAULT true,  -- false = tagi tylko do odczytu
+created_at TIMESTAMPTZ
 ```
-Aktualnie `user_editable = false` tylko dla kategorii **Tagi SSF**.
+`user_editable = false` ma tylko kategoria **Tagi SSF**.
 
 ### `tags` — Tagi
 ```sql
-CREATE TABLE tags (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category_id UUID REFERENCES tag_categories(id) ON DELETE SET NULL,
-  name TEXT NOT NULL UNIQUE,
-  description TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+id UUID PK, category_id UUID → tag_categories ON DELETE SET NULL,
+name TEXT NOT NULL UNIQUE, description TEXT, created_at TIMESTAMPTZ
 ```
 
 ### `song_tags` — Przypisanie tagów do pieśni
 ```sql
-CREATE TABLE song_tags (
-  song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
-  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
-  source TEXT NOT NULL DEFAULT 'confirmed'
-    CHECK (source IN ('confirmed', 'user', 'ai')),
-  -- 'confirmed' = oryginalne (niebieskie)
-  -- 'user'      = dodane w aplikacji — do weryfikacji przez Aksela (żółte)
-  -- 'ai'        = przypisane przez AI — do weryfikacji (fioletowe, logika niezaimplementowana)
-  PRIMARY KEY (song_id, tag_id)
-);
+song_id UUID → songs ON DELETE CASCADE,
+tag_id  UUID → tags  ON DELETE CASCADE,
+source TEXT NOT NULL DEFAULT 'confirmed' CHECK (source IN ('confirmed','user','ai')),
+pending_removal BOOLEAN NOT NULL DEFAULT false,
+PRIMARY KEY (song_id, tag_id)
+```
+- `confirmed` — zatwierdzone (niebieskie)
+- `user` — dodane w aplikacji, czeka na moderację (bursztynowe)
+- `ai` — przypisane przez AI (fioletowe); aplikacja tylko je wyświetla, nic ich dziś nie tworzy
+- `pending_removal = true` — ktoś zgłosił usunięcie zatwierdzonego tagu, czeka na moderację
+
+### `locations`, `service_categories` — Słowniki
+```sql
+id UUID PK, name TEXT NOT NULL UNIQUE, created_at TIMESTAMPTZ
 ```
 
-### `locations` — Lokalizacje nabożeństw
+### `worship_leaders` — Prowadzący muzykę
 ```sql
-CREATE TABLE locations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,  -- np. "Wrocław", "Ustroń", "Brunstad", "Ukraina"
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+id UUID PK, name TEXT NOT NULL,
+auth_user_id UUID → auth.users,   -- opcjonalne, aplikacja z niego nie korzysta
+email TEXT,                       -- po nim aplikacja łączy zalogowanego użytkownika z prowadzącym
+created_at TIMESTAMPTZ
 ```
-
-### `service_categories` — Kategorie nabożeństw
-```sql
-CREATE TABLE service_categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,  -- np. "Ogólne", "Środowe", "Młodzieżowe"
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### `worship_leaders` — Liderzy muzyki
-```sql
-CREATE TABLE worship_leaders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+Prowadzący bez emaila to „Gość — brak konta" (można go wybrać na nabożeństwie, ale nie loguje się).
 
 ### `services` — Nabożeństwa
 ```sql
-CREATE TABLE services (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  location_id UUID NOT NULL REFERENCES locations(id) ON DELETE SET NULL,
-  category_id UUID NOT NULL REFERENCES service_categories(id) ON DELETE SET NULL,
-  worship_leader_id UUID REFERENCES worship_leaders(id) ON DELETE SET NULL,
-  date DATE NOT NULL,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+id UUID PK,
+location_id UUID NOT NULL → locations ON DELETE RESTRICT,
+category_id UUID NOT NULL → service_categories ON DELETE RESTRICT,
+worship_leader_id UUID → worship_leaders ON DELETE SET NULL,
+date DATE NOT NULL,
+start_time TIME NOT NULL,   -- zawsze pełny kwadrans (CHECK services_start_time_quarter)
+notes TEXT,
+created_at TIMESTAMPTZ
 ```
+Unikalny indeks `services_unique_slot (date, start_time, location_id)` — dwa nabożeństwa w tym samym miejscu i czasie są niemożliwe.
 
 ### `service_songs` — Pieśni na nabożeństwie
 ```sql
-CREATE TABLE service_songs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service_id UUID REFERENCES services(id) ON DELETE CASCADE,
-  song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
-  status TEXT NOT NULL CHECK (status IN ('planned', 'sung')),
-  song_order INTEGER,
-  added_at TIMESTAMPTZ DEFAULT NOW()
-);
+id UUID PK,
+service_id UUID → services ON DELETE CASCADE,
+song_id    UUID → songs    ON DELETE CASCADE,
+status TEXT NOT NULL CHECK (status IN ('planned','sung')),
+song_order INTEGER,
+added_at TIMESTAMPTZ
 ```
+
+### Funkcje RPC (`03_rpc.sql`)
+- `get_top_sung(p_location_id, p_leader_id, p_months, p_tag_ids_include, p_tag_ids_exclude, p_limit)` — najczęściej śpiewane; tagi include = AND, exclude = NOT. Używana na pulpicie (tylko z `p_location_id`).
+- `get_never_sung(...)` — te same parametry; obecnie **nieużywana** przez aplikację.
 
 ---
 
-## 4. Struktura projektu (Next.js)
+## 4. Struktura projektu
 
 ```
 song-steward/
-├── app/
-│   ├── layout.tsx              # Główny layout, nawigacja dolna (mobile-first)
-│   ├── page.tsx                # Dashboard
-│   ├── globals.css             # Globalne style + touch-action fix
-│   ├── services/
-│   │   ├── page.tsx            # Lista nabożeństw
-│   │   ├── new/page.tsx        # Tworzenie nabożeństwa
-│   │   └── [id]/page.tsx       # Szczegóły: planowanie + prowadzenie na żywo
-│   ├── songs/
-│   │   └── page.tsx            # Baza pieśni (szczegóły przez SongOverlay, nie osobna strona)
-│   ├── search/
-│   │   └── page.tsx            # Wyszukiwanie po tagach
-│   ├── settings/
-│   │   └── page.tsx            # Konfiguracja słowników
-│   └── api/                    # Endpointy REST (songs, services, tags, itp.)
-├── components/
-│   ├── TagFilter.tsx           # Filtrowanie po tagach (scroll-safe, long-press = wyklucz)
-│   ├── SongCard.tsx            # Karta pieśni
-│   ├── SongOverlay.tsx         # Slide-in overlay podglądu pieśni (nawigacja strzałkami, swipe)
-│   ├── ServiceSongList.tsx     # Lista pieśni z drag-and-drop (long-press 400ms)
-│   └── BottomNav.tsx           # Nawigacja dolna z Lucide icons
-├── lib/
-│   ├── supabase.ts             # Klient Supabase
-│   ├── types.ts                # Definicje TypeScript
-│   └── authors.ts              # Statyczna lista 384 autorów do filtrowania
-├── supabase/
-│   └── 00_init.sql             # Kanoniczny schemat bazy (do odtworzenia od zera)
-├── backups/                    # Backupy bazy (gitignore, JSON)
-├── data/                       # Surowe dane z SongTreasures (gitignore)
-├── .claude/
-│   └── launch.json             # Konfiguracja serwera dev dla Claude Code
-└── public/
-    └── manifest.json           # PWA manifest
+├── src/
+│   ├── main.tsx              # Start: motyw, przekierowanie błędów auth, baner STAGING, UpdateBanner
+│   ├── router.tsx            # createHashRouter + ProtectedRoute
+│   ├── index.css             # Tokeny designu (OKLCH), motywy, style bazowe
+│   ├── screens/              # Dashboard, Songs, Services, Live, Settings, Moderation, Login
+│   ├── components/           # Layout, TabBar, SongOverlay, NewServiceSheet, NotesEditor,
+│   │   │                     # UpdateBanner, SyncIndicator, PremiumThanks, ProtectedRoute…
+│   │   └── ui/               # TagPill, SongCard, Sheet, LocationChip, TimePicker, Scrubber…
+│   ├── contexts/             # SongOverlayContext (globalny podgląd pieśni)
+│   ├── hooks/                # useLongPress, useLocationFilter, useTheme, useWakeLock,
+│   │                         # useNotesAutosave, useVersionCheck, useCurrentUser…
+│   └── lib/
+│       ├── supabase.ts       # Klient Supabase
+│       ├── types.ts          # Typy TypeScript (tabele + RPC)
+│       ├── schemas.ts        # Schematy zod
+│       └── queries/          # Zapytania i mutacje TanStack Query
+├── supabase/                 # Schemat i migracje SQL (patrz §3)
+├── scripts/
+│   ├── backup.mjs            # npm run backup
+│   └── generate-icons.js     # Ikony PWA
+├── design_handoff_song_steward/  # Specyfikacja designu + prototyp
+├── public/                   # Ikony, manifest PWA
+├── .github/workflows/        # deploy.yml (main), deploy-staging.yml (staging)
+├── backups/                  # Backupy bazy (gitignore)
+└── data/                     # Surowe dane i skrypty importu SongTreasures (gitignore)
 ```
 
 ---
 
 ## 5. Funkcjonalności
 
-### 5.1 Baza pieśni (`/songs`)
+### 5.0 Nawigacja i elementy wspólne
 
-- Lista z wyszukiwarką (tytuł, numer, autor)
-- Filtrowanie po zbiorze (domyślnie DP)
-- Szczegóły pieśni otwierane jako **SongOverlay** — slide-in panel z prawej strony (nie osobna strona `/songs/[id]`):
-  - Tonacja (np. "🎵 G dur"), tagi z podziałem na kategorie (zwijane), historia śpiewania
-  - Nawigacja strzałkami ← → przez listę wyników (kołowa — po ostatnim wraca do pierwszego)
-  - Swipe lewo/prawo — zmiana pieśni w liście
-  - Swipe w dół — zamknięcie overlaya
-- Edycja tagów z oznaczeniem źródła (confirmed / user / ai):
-  - Oczekujące dodanie (pending add, żółte) — przycisk × anuluje przed zapisaniem
-  - Oczekujące usunięcie (pending removal, czerwone) — przycisk × cofa operację
-  - Tagi z kategorii `user_editable = false` są tylko do odczytu: szary styl (`bg-slate-100`), kliknięcie wywołuje animację shake + wibrację, brak akcji
-- Wyniki wyszukiwania sortowane: DP → KM → NDP → NKM → SOS
+- Trasy: `/login` (publiczna); za logowaniem: `/` (Pulpit), `/songs`, `/services`, `/live/:id`, `/settings`, `/moderation`. Stara trasa `/search` przekierowuje na `/songs`.
+- Dolny pasek zakładek: **Pulpit**, **Pieśni**, **Nabożeństwa**. Ekrany Live, Ustawienia i Moderacja są bez paska.
+- **Globalny filtr lokalizacji** (`localStorage['ss_location_id']`) — jedno źródło prawdy dla całej aplikacji, synchronizowane między kartami. Chip lokalizacji: bez filtra = ikona pinezki, z filtrem = chip z nazwą; tap → Ustawienia → Preferencje.
+- **SongOverlay** — globalny arkusz z podglądem pieśni, otwierany z każdej listy (nigdy osobna strona `/songs/:id`); patrz §5.6.
+- **SyncIndicator** — cienki pasek „zapisywanie" (po 400 ms trwania mutacji) i pigułka „Nie zapisano" przy błędzie.
+- **Tag pill** — tap = dołącz, przytrzymanie ~500 ms lub prawy przycisk = wyklucz; ruch >8 px anuluje.
 
-### 5.2 Wyszukiwanie po tagach (`/search`)
+### 5.1 Pulpit (`/`)
 
-- Zawężanie listy przez klikanie tagów (AND)
-- Przytrzymanie tagu (500ms) = wyklucz tag (czerwony)
-- Scroll nie wyzwala selekcji tagu
-- Pieśń zaplanowana pokazuje ✕ (usuń z nabożeństwa) zamiast wyłączonego 🔖
-- Kontekst aktywnego nabożeństwa auto-wykrywany lub przekazywany przez `?service_id=`
-- **Sticky nagłówek z aktywnymi filtrami** — chips wybranych tagów i autora zawsze widoczne podczas scrollowania listy wyników
-- **Filtrowanie po autorze** — ukryty panel (rozwijany z nagłówka) z wyszukiwarką tekstową i multi-selectem; statyczna lista 384 autorów w `lib/authors.ts` (brak dodatkowego zapytania do bazy)
+- Powitanie „Dzień dobry" + imię zalogowanego prowadzącego, chip lokalizacji, ikona ustawień.
+- **Nadchodzące nabożeństwa** (od dziś): jedno = karta, kilka = karuzela. Karta pokazuje „DZIŚ", datę i godzinę, kategorię, lokalizację, prowadzącego i licznik „X zaśpiewanych / Y zaplanowanych”. „Otwórz” prowadzi do Live.
+- **Baner moderacji** „Moderacja tagów · N oczekujących zmian”, gdy jest coś do zatwierdzenia.
+- Przycisk **„Nowe nabożeństwo”** (arkusz NewServiceSheet).
+- **„Ostatnio odbyte”** — poziomy pasek do 10 ostatnich nabożeństw + kafelek „Więcej” (→ `/services`).
+- **„Najczęściej śpiewane”** — top 5 z RPC `get_top_sung`, zawężone tylko globalną lokalizacją.
+
+### 5.2 Pieśni (`/songs`)
+
+- Wyszukiwarka „Szukaj: tytuł, autor, numer lub tag” (fragment tytułu, autora lub numeru).
+- **Sortowanie:** „Numer” (kolejność zbiorów DP → KM → pozostałe), „Dawno” (najpierw nigdy nieśpiewane, potem najdawniej śpiewane), „Często” (liczba zaśpiewań malejąco). W trybach statystyk zamiast autora i tonacji widać `N×`, „nigdy” albo względny czas. Statystyki uwzględniają globalną lokalizację i są **liczone na telefonie** (z `service_songs` + `services`).
+- **„Zawęź”** — do 12 podpowiedzi tagów: bez wpisanego tekstu najczęstsze tagi wśród wyników; z tekstem tagi pasujące nazwą. Wybór tagu kasuje wpisany tekst, jeśli był częścią nazwy tagu.
+- **Arkusz „Filtry”**: zbiory oraz tagi pogrupowane w kategorie (akordeon, kłódka przy kategoriach tylko do odczytu). Tagi include = **AND**, exclude = **NOT**.
+- Aktywne filtry jako pigułki + „Wyczyść wszystko”. Zapamiętywane w `localStorage`: `ss-songs-cols`, `ss-songs-inc`, `ss-songs-exc`, `ss-songs-sort`.
+- Do filtrowania liczą się tagi bez `pending_removal` (także jeszcze niezatwierdzone tagi `user`).
+- **Scrubber** — szybkie przewijanie przy prawej krawędzi (tryb „Numer”, powyżej 40 wyników).
+- Pieśni z dzisiejszego nabożeństwa są oznaczone jako zaplanowane lub zaśpiewane.
 
 ### 5.3 Nabożeństwa (`/services`)
 
-- Widok szczegółów: notatka edytowalna inline (klik = tryb edycji, blur = zapis)
-- Drag-and-drop kolejności pieśni (długie przytrzymanie 400ms aktywuje drag)
-- Pieśni zaplanowane → przycisk ✅ przenosi do zaśpiewanych
-- Dodawanie przez wyszukiwarkę lub przycisk "Szukaj po tagach"
+- Lista wszystkich nabożeństw w globalnej lokalizacji, od najnowszych (data + godzina).
+- Usuwanie: pierwszy tap na kosz uzbraja (3 s, „Kliknij kosz jeszcze raz, aby usunąć”), drugi usuwa.
+- „+” otwiera NewServiceSheet. Pozycja przewinięcia jest pamiętana w obrębie sesji.
 
-### 5.4 Dashboard (`/`)
+**NewServiceSheet / edycja nabożeństwa:** data (domyślnie dziś), **godzina — obowiązkowa, bez wartości domyślnej** (szybkie kafelki 11:00, 12:00, 19:00, 20:00 lub „Inna…” z wyborem co kwadrans), lokalizacja (domyślnie globalna), kategoria (posortowana wg użycia), „Prowadzący muzykę (opcjonalnie)” (domyślnie zalogowany). Ta sama data + lokalizacja + godzina blokuje zapis.
 
-- Liczba pieśni w bazie
-- Ostatnie/najbliższe nabożeństwo
-- Top 5 najczęściej śpiewanych i top 5 rzadko śpiewanych:
-  - Filtry konfigurowane w Ustawieniach → Filtry (lider, kategoria, tagi, zakres czasowy) — zapisywane w localStorage
-  - Globalny filtr lokalizacji (cookie `ss_location_id`) ogranicza obie sekcje
-  - Opis aktywnych filtrów w języku naturalnym nad/pod sekcjami
-  - "Nigdy nieśpiewana" = nieśpiewana w wybranej lokalizacji (nie globalnie)
-- Przycisk "+ Nowe nabożeństwo"
+### 5.4 Prowadzenie nabożeństwa (`/live/:id`)
 
-### 5.5 Ustawienia (`/settings`)
+- Ekran nie gaśnie (Wake Lock). Strzałki lub swipe w poziomie przełączają między nabożeństwami, jeśli weszliśmy z listy.
+- Ołówek → edycja nabożeństwa (te same pola co przy tworzeniu).
+- **Notatki** — tap otwiera pełnoekranowy edytor. Autozapis (po 2,5 s bez pisania, najrzadziej co 10 s w trakcie, ponawianie, zapis przy zamknięciu/ukryciu aplikacji). Szkic trzymany lokalnie w `ss-notes-draft:<id>` i przywracany, jeśli nie trafił do bazy.
+- **„Dodaj pieśń: tytuł lub numer”** — 4 najlepsze wyniki; zakładka = zaplanuj, ✓ = zaśpiewana, tap = SongOverlay.
+- **„Zaplanowane”** — przeciąganie (przytrzymanie 400 ms na dotyku), ✓ przenosi do zaśpiewanych, ✗ usuwa.
+- **„Zaśpiewane”** — najnowsze na górze, z możliwością przeciągania.
+- Oznaczenie zaplanowanej pieśni jako zaśpiewanej **zmienia status** tego samego wiersza (bez duplikatu). Ponowne oznaczenie zaśpiewanej pyta „Dodaj mimo to”.
 
-Pełny CRUD dla: lokalizacje, kategorie nabożeństw, liderzy muzyki, zbiory, kategorie tagów, tagi.
+### 5.5 Moderacja tagów (`/moderation`)
 
-**Zakładka Filtry** — globalna lokalizacja (cookie) + domyślne filtry TopSungSection i NeverSungSection (localStorage). Logika: brak wyboru = wszystkie; wielu liderów / kategorii = OR; wiele tagów = AND.
+- Kolejka: `song_tags` z `source = 'user'` lub `pending_removal = true`, pogrupowana po pieśniach.
+- Dodanie: ✓ → `source = 'confirmed'`, ✗ → usunięcie wiersza.
+- Usunięcie: ✓ → usunięcie wiersza, ↺ „Przywróć” → `pending_removal = false`.
+- „Zatwierdź wszystko (N)”. Dostęp ma każdy zalogowany.
 
-**Numer wersji** — 7-znakowy hash bieżącego commita git, wyświetlany na dole strony ustawień. Pochodzi ze zmiennej środowiskowej `NEXT_PUBLIC_COMMIT_SHA` ustawianej automatycznie przez Vercel podczas każdego buildu.
+### 5.6 SongOverlay
+
+- Zdjęcie autora (tap = pełny ekran), zbiór, numer, tytuł, autor, tonacja.
+- Nawigacja ←/→ po liście, z której otwarto pieśń; zamknięcie: Esc, tło, przeciągnięcie w dół.
+- Karta nabożeństwa („Najbliższe nabożeństwo” / „Nabożeństwo”) z przyciskami „Zaplanuj” i „Zaśpiewana”; przy kilku nadchodzących — „Wybierz nabożeństwo”.
+- **„Edytuj tagi”**: dodanie tworzy tag `source = 'user'`; usunięcie tagu `user` kasuje go od razu; usunięcie tagu `confirmed`/`ai` tylko zgłasza `pending_removal` (przekreślony, do moderacji). Kategorie tylko do odczytu trzęsą się przy tapnięciu.
+- **„Otwórz w Song Treasures”** — link `https://songtreasures.app/songs/<zbiór>/<numer>`.
+- **„Historia śpiewania”** — do 20 ostatnich zaśpiewań (w globalnej lokalizacji); tap otwiera to nabożeństwo.
+- Ekran nie gaśnie, gdy overlay jest otwarty.
+
+### 5.7 Ustawienia (`/settings`)
+
+**Zakładka „Zarządzanie”:**
+- Baner „Song Steward Premium” — makieta oferty (bez płatności), po kliknięciu podziękowanie i mini-gra „Echo melodii” (rekord w `ss-echo-best`).
+- Wejście do „Panelu moderacji” z licznikiem.
+- **„Słowniki danych”** — dodawanie, zmiana nazwy i usuwanie: lokalizacje, kategorie nabożeństw, prowadzący muzykę, tagi. Zbiory pieśni i kategorie tagów tylko do odczytu.
+- „Wyloguj się”.
+
+**Zakładka „Preferencje”:**
+- „Wygląd” — Jasny / Ciemny (`localStorage['ss-theme']`, domyślnie ciemny).
+- „Globalny filtr lokalizacji” — Wszystkie lub jedna lokalizacja.
+- „Wersja aplikacji” — na sztywno `v2.0` (niezwiązana z wykrywaniem aktualizacji).
+
+### 5.8 Logowanie (`/login`)
+
+- Tylko na zaproszenie: `signInWithOtp` z `shouldCreateUser: false`. Nieznany adres → „Ten adres nie jest na liście zaproszonych…”.
+- Główna ścieżka to **8-cyfrowy kod z emaila** wpisywany w aplikacji (link z maila otwiera się w przeglądarce, nie w zainstalowanej PWA). Skróty do Gmaila/Outlooka.
+- Zalogowany użytkownik jest łączony z prowadzącym po `worship_leaders.email`.
 
 ---
 
 ## 6. Mobile / PWA
 
 - Instalacja na iOS: Safari → Udostępnij → Dodaj do ekranu głównego
-- `viewport-fit=cover` + `env(safe-area-inset-bottom)` — obsługa iPhone z wcięciem
-- `touch-action: manipulation` — eliminacja 300ms tap delay na iOS
-- `-webkit-tap-highlight-color: transparent` — brak niebieskiego podświetlenia przy tapnięciu
-- Micro-animacje: `active:scale-95` na przyciskach, `hover:shadow-md` na kartach
-- **Wake Lock API** — ekran nie gaśnie automatycznie na `/services/[id]` oraz gdy `SongOverlay` jest otwarty; blokada zwalniana przy odmontowaniu komponentu lub zamknięciu overlaya
+- `viewport-fit=cover` + `env(safe-area-inset-*)`, minimalny cel dotyku 48 px
+- `touch-action: manipulation`, brak podświetlenia tapnięcia
+- Motyw jasny i ciemny wszędzie; animacje tylko „wprowadzają” element (z `prefers-reduced-motion`)
+- **Wake Lock** — na ekranie Live i przy otwartym SongOverlay
+- **Wykrywanie nowej wersji** (bez service workera): build zapisuje `version.json` z `buildId`; aplikacja sprawdza go przy starcie i powrocie do aplikacji i pokazuje baner „Dostępna nowa wersja” z przyciskiem „Odśwież”
 
 ---
 
 ## 7. Konfiguracja środowiska
 
-### `.env.local` (lokalny, nigdy nie commitować!)
+### `.env.local` (lokalny, nigdy nie commitować)
 ```
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+SUPABASE_DB_URL_RO=...      # tylko do backupu/diagnostyki, rola backup_ro
 ```
 
-### Vercel
-Te same zmienne w: Settings → Environment Variables. Dodatkowe zmienne ustawiane automatycznie przez Vercel:
-
-| Zmienna | Opis |
-|---------|------|
-| `NEXT_PUBLIC_COMMIT_SHA` | 7-znakowy hash bieżącego commita git — wyświetlany jako numer wersji w ustawieniach |
+### GitHub Actions
+Sekrety repozytorium: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. `VITE_BASE` ustawia workflow (`/song-steward/` lub `/song-steward/staging/`).
 
 ---
 
 ## 8. Import danych
 
-Dane pieśni z SongTreasures API. Pliki surowe w `data/` (gitignore).
-
-### Zaimportowane kolekcje
+Dane pieśni z SongTreasures. Pliki surowe i skrypty w `data/` (gitignore).
 
 | Skrót | Nazwa | Liczba pieśni |
 |-------|-------|--------------|
@@ -291,9 +297,8 @@ Dane pieśni z SongTreasures API. Pliki surowe w `data/` (gitignore).
 | NKM | Kwiat Migdałowy - dodatek | ~10  |
 | NDP | Drogi Pańskie - dodatek   | ~6   |
 
-**Łącznie w bazie: 984 pieśni** (stan: maj 2026)
+**Łącznie: 984 pieśni** (stan: maj 2026)
 
-### Skrypty importu
 ```bash
 node data/import-songs.mjs    # kolekcje i pieśni
 node data/import-authors.mjs  # autorzy i zdjęcia
@@ -302,49 +307,31 @@ node data/import-keys.mjs     # tonacje (original_key, minor)
 
 ---
 
-## 9. Backup bazy danych
+## 9. Backup, migracje i deployment
 
-Backupy JSON w folderze `backups/` (gitignore). Tworzenie:
-```bash
-node --input-type=module << 'EOF'
-# (skrypt pobiera wszystkie tabele z paginacją)
-EOF
+**Backup:** `npm run backup` → `backups/backup-RRRR-MM-DD-GGMM.sql` (pełny `pg_dump` schematu `public` z danymi). Wymaga Docker Desktop i `SUPABASE_DB_URL_RO`. Robiony przed każdą migracją.
+
+**Migracje:** pliki `supabase/NN_nazwa.sql`, tylko addytywne, w jednej transakcji, uruchamiane ręcznie w Supabase Dashboard → SQL Editor. Po dodaniu tabeli z RLS trzeba ponownie uruchomić `05_backup_role.sql`.
+
+**Deployment:**
 ```
-
-Supabase robi automatyczny backup co 24h, ale pobranie niedostępne na planie darmowym.
+git push origin main     →  GitHub Actions  →  gh-pages (root)       →  /song-steward/
+git push origin staging  →  GitHub Actions  →  gh-pages/staging/     →  /song-steward/staging/
+```
+Wersja staging pokazuje pasek „STAGING”. Szczegóły procesu: `CLAUDE.md`.
 
 ---
 
-## 10. Proces deploymentu
+## 10. Bezpieczeństwo
 
-```
-Edycja kodu lokalnie (lub przez Claude Code)
-        ↓
-npm run dev  →  localhost:3000
-        ↓
-git commit + git push
-        ↓
-Vercel buduje i publikuje automatycznie (~1 min)
-```
-
-**Uwaga:** Zmiany schematu bazy (nowe kolumny) wymagają ręcznego uruchomienia SQL w Supabase Dashboard przed lub po deploy, zależnie od kompatybilności wstecznej.
+- Cała aplikacja za logowaniem (Supabase Auth, email OTP, tylko zaproszeni — konta zakłada administrator w Supabase).
+- **RLS włączone** na wszystkich tabelach: `authenticated` = pełny dostęp, `anon` = brak.
+- Brak ról — każdy zalogowany może wszystko (także moderację i słowniki).
+- Klucz anon jest publiczny (trafia do bundla) — dane chroni RLS.
+- Rola `backup_ro` ma wyłącznie odczyt (`pg_read_all_data`, transakcje read-only).
 
 ---
 
-## 11. Bezpieczeństwo (aktualny stan)
+## 11. Przyszłe funkcje
 
-- Brak logowania — dostęp przez URL (obecnie zaufani użytkownicy: Aksel, Edwin)
-- Supabase RLS wyłączone (MVP)
-- Klucz `PUBLISHABLE_KEY` jest publiczny — celowe uproszczenie
-
-**Planowane wkrótce (rosnąca liczba użytkowników):** Supabase Auth (logowanie per lider) + włączenie RLS na wszystkich tabelach. To przestaje być „kiedyś w przyszłości" — gdy dostęp ma więcej osób, każda może bezpowrotnie skasować nabożeństwo lub pieśń (endpointy DELETE są publiczne), więc auth + RLS to najbliższy priorytet bezpieczeństwa.
-
----
-
-## 12. Przyszłe funkcje
-
-- [ ] **Tekst pieśni** — sekcja "Tekst pieśni" gotowa w UI (placeholder), dane do pozyskania
-- [ ] **AI tagging** — kolor fioletowy przygotowany, logika do implementacji
-- [ ] Logowanie / konta per lider
-- [ ] Statystyki per lider
-- [ ] Powiadomienia push przed nabożeństwem
+Pełna lista pomysłów: **`TODO.md`**.
